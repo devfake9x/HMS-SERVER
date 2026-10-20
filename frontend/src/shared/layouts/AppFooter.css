@@ -1,0 +1,83 @@
+/*
+ * Style cho Chân trang Giám sát Kỹ thuật (AppFooter).
+ *
+ * Mọi màu sắc dùng design tokens từ main.css.
+ */
+
+.shell__footer {
+  grid-area: footer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--footer-height, 2.5rem);
+  padding: 0 1rem;
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--surface-panel);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  box-sizing: border-box;
+}
+
+.shell__footer-left {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.shell__footer-pulse {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background-color: var(--status-success-dot, var(--status-success));
+  box-shadow: 0 0 6px var(--status-success-dot, var(--status-success));
+  flex: none;
+}
+
+.shell__footer-station {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.shell__footer-status {
+  color: var(--status-success);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.shell__footer-sep {
+  opacity: 0.4;
+  flex: none;
+}
+
+.shell__footer-meta {
+  white-space: nowrap;
+}
+
+.shell__footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: none;
+}
+
+.shell__footer-brand {
+  font-weight: 500;
+}
+
+.shell__footer-copy {
+  opacity: 0.7;
+}
+
+@media (max-width: 48rem) {
+  .shell__footer-meta {
+    display: none;
+  }
+}
+
+@media (max-width: 32rem) {
+  .shell__footer-right {
+    display: none;
+  }
+}

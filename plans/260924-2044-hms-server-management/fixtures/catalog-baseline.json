@@ -1,0 +1,388 @@
+{
+  "evidence": "SOURCE_PROVEN_SNAPSHOT",
+  "purpose": "Pinned descriptor snapshot for independent drift comparison",
+  "capturedAt": "2026-09-25@workspace-no-git",
+  "source": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\cmd_descriptor.c",
+  "sourceHash": "15fe0604dfc9b32933bb634431c5b51dfe8b649c98da753a671963f231280c36",
+  "catalogVersion": "hms-idf-descriptor-local-2026-09-25",
+  "catalogHash": "dbda8317758e5f25c5a4dee8456841ef3689fea4707cf5a27c30ffad656f78d9",
+  "commands": [
+    {
+      "type": "adc",
+      "action": "get_channels"
+    },
+    {
+      "type": "adc",
+      "action": "get_config"
+    },
+    {
+      "type": "adc",
+      "action": "get_status"
+    },
+    {
+      "type": "adc",
+      "action": "get_values"
+    },
+    {
+      "type": "adc",
+      "action": "set_channel"
+    },
+    {
+      "type": "adc",
+      "action": "toggle_channel"
+    },
+    {
+      "type": "battery",
+      "action": "clear_alert"
+    },
+    {
+      "type": "battery",
+      "action": "get_alerts"
+    },
+    {
+      "type": "battery",
+      "action": "get_status"
+    },
+    {
+      "type": "battery",
+      "action": "quick_start"
+    },
+    {
+      "type": "broker",
+      "action": "create_pipeline"
+    },
+    {
+      "type": "broker",
+      "action": "create_signal"
+    },
+    {
+      "type": "broker",
+      "action": "delete_pipeline"
+    },
+    {
+      "type": "broker",
+      "action": "delete_signal"
+    },
+    {
+      "type": "broker",
+      "action": "diagnostics"
+    },
+    {
+      "type": "broker",
+      "action": "get_signal"
+    },
+    {
+      "type": "broker",
+      "action": "hook_stats"
+    },
+    {
+      "type": "broker",
+      "action": "list_chains"
+    },
+    {
+      "type": "broker",
+      "action": "list_filters"
+    },
+    {
+      "type": "broker",
+      "action": "list_formulas"
+    },
+    {
+      "type": "broker",
+      "action": "list_pipelines"
+    },
+    {
+      "type": "broker",
+      "action": "list_scales"
+    },
+    {
+      "type": "broker",
+      "action": "list_signals"
+    },
+    {
+      "type": "broker",
+      "action": "rebuild"
+    },
+    {
+      "type": "broker",
+      "action": "update_pipeline"
+    },
+    {
+      "type": "broker",
+      "action": "update_signal"
+    },
+    {
+      "type": "config",
+      "action": "get"
+    },
+    {
+      "type": "config",
+      "action": "list_domains"
+    },
+    {
+      "type": "config",
+      "action": "set"
+    },
+    {
+      "type": "control",
+      "action": "get_status"
+    },
+    {
+      "type": "control",
+      "action": "pulse"
+    },
+    {
+      "type": "control",
+      "action": "set_all"
+    },
+    {
+      "type": "control",
+      "action": "set_output"
+    },
+    {
+      "type": "modbus",
+      "action": "check_rtu_config"
+    },
+    {
+      "type": "modbus",
+      "action": "get_rtu_config"
+    },
+    {
+      "type": "modbus",
+      "action": "get_rtu_status"
+    },
+    {
+      "type": "modbus",
+      "action": "replace_rtu_config"
+    },
+    {
+      "type": "modbus",
+      "action": "restart_rtu"
+    },
+    {
+      "type": "modbus",
+      "action": "set_rtu_config"
+    },
+    {
+      "type": "mqtt",
+      "action": "get_config"
+    },
+    {
+      "type": "mqtt",
+      "action": "get_status"
+    },
+    {
+      "type": "mqtt",
+      "action": "reconnect"
+    },
+    {
+      "type": "mqtt",
+      "action": "set_config"
+    },
+    {
+      "type": "network",
+      "action": "configure_ethernet"
+    },
+    {
+      "type": "network",
+      "action": "get_all_status"
+    },
+    {
+      "type": "network",
+      "action": "get_ethernet"
+    },
+    {
+      "type": "network",
+      "action": "get_modem"
+    },
+    {
+      "type": "network",
+      "action": "get_priority"
+    },
+    {
+      "type": "network",
+      "action": "set_priority"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_clients"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_config_get"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_config_set"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_disable"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_enable"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_status"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_add"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_auto_connect"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_connect"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_list"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_remove"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_update"
+    },
+    {
+      "type": "network",
+      "action": "wifi_scan_results"
+    },
+    {
+      "type": "network",
+      "action": "wifi_scan_start"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_config_get"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_config_set"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_connect"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_disable"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_disconnect"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_enable"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_status"
+    },
+    {
+      "type": "ota",
+      "action": "apply"
+    },
+    {
+      "type": "ota",
+      "action": "get_status"
+    },
+    {
+      "type": "ota",
+      "action": "remote_config_get"
+    },
+    {
+      "type": "ota",
+      "action": "remote_start"
+    },
+    {
+      "type": "sms",
+      "action": "get_status"
+    },
+    {
+      "type": "sms",
+      "action": "list"
+    },
+    {
+      "type": "sms",
+      "action": "storage_stats"
+    },
+    {
+      "type": "status",
+      "action": "dump"
+    },
+    {
+      "type": "status",
+      "action": "services"
+    },
+    {
+      "type": "status",
+      "action": "tags"
+    },
+    {
+      "type": "system",
+      "action": "factory_reset"
+    },
+    {
+      "type": "system",
+      "action": "get_device_id"
+    },
+    {
+      "type": "system",
+      "action": "get_heap"
+    },
+    {
+      "type": "system",
+      "action": "get_hostname"
+    },
+    {
+      "type": "system",
+      "action": "get_info"
+    },
+    {
+      "type": "system",
+      "action": "get_operations"
+    },
+    {
+      "type": "system",
+      "action": "get_time"
+    },
+    {
+      "type": "system",
+      "action": "ping"
+    },
+    {
+      "type": "system",
+      "action": "reboot"
+    },
+    {
+      "type": "system",
+      "action": "set_hostname"
+    },
+    {
+      "type": "system",
+      "action": "set_ntp_servers"
+    },
+    {
+      "type": "system",
+      "action": "set_time"
+    },
+    {
+      "type": "system",
+      "action": "set_timezone"
+    },
+    {
+      "type": "system",
+      "action": "sync_ntp"
+    }
+  ],
+  "limitation": "Snapshot is not cross-revision compatibility proof until compared with a second build manifest."
+}

@@ -1,0 +1,48 @@
+{
+  "skill": "ck:cook",
+  "mode": "interactive",
+  "task": "Phase 2: device roles, memberships and persistence. Domain DeviceRole/DeviceMembership, store contracts with compare-and-set (InMemory + EF), 4 EF tables per design contract §8, migration AddDeviceRolesAndMemberships (UPDATE policy_versions then DELETE device-action grants), grantor fields on feature/resource grants with migration AddPermissionGrantGrantor, DI for both branches. Additive: no handler or controller changes.",
+  "acceptanceCriteria": [
+    "dotnet build 0 errors; dotnet test green",
+    "has-pending-model-changes reports none; AddDeviceRolesAndMemberships creates only the 4 tables with §8 indexes/FKs plus UPDATE policy_versions before DELETE device-action; AddPermissionGrantGrantor adds only 2 columns",
+    "feature/resource grants persist and read back GrantedBy/GrantedByMasterAdmin; legacy rows read null/false; positional call sites still compile",
+    "unique (UserId, DeviceId), unique (OrganizationId, NormalizedName), FK Restrict/Cascade per §8, device_roles.Version and device_memberships.RoleId are model-only concurrency tokens",
+    "Operator then operator in one organization -> DEVICE_ROLE_NAME_TAKEN from the store, nothing written; same name in another organization is fine (EF and InMemory)",
+    "membership upsert null->A->B with matching expectedRoleId -> one row, new role, 2 audits; mismatch -> DEVICE_MEMBERSHIP_CHANGED without audit; remove absent with null expected -> false without audit; remove writes audit; regrant restores (EF and InMemory)",
+    "200 parallel upserts with the same expectedRoleId on InMemory -> exactly one winner, one row per (user, device)",
+    "role update stale -> DEVICE_ROLE_VERSION_STALE; remove order NOT_FOUND -> VERSION_STALE -> IN_USE without audit; successful remove deletes role, permissions and writes 1 ROLE_DELETED audit in one SaveChanges",
+    "EF lost race (concurrency token) -> DEVICE_MEMBERSHIP_CHANGED / DEVICE_ROLE_VERSION_STALE; the audit row is in the same SaveChanges as the rejected write (rollback relies on the PostgreSQL transaction; EF InMemory cannot show it)",
+    "development resolves one InMemoryDeviceAccessStore for both interfaces; a connection string registers scoped EF stores",
+    "no existing test changed except Model_has_management_tables_only"
+  ],
+  "touchpoints": [
+    "src/Hms.Server.Domain/Authorization/DeviceRole.cs",
+    "src/Hms.Server.Domain/Authorization/DeviceMembership.cs",
+    "src/Hms.Server.Application/Authorization/DeviceAccessContracts.cs",
+    "src/Hms.Server.Application/Authorization/PermissionContracts.cs",
+    "src/Hms.Server.Infrastructure/Persistence/PersistenceEntities.cs",
+    "src/Hms.Server.Infrastructure/Persistence/ApplicationDbContext.cs",
+    "src/Hms.Server.Infrastructure/Persistence/EfDeviceAccessStores.cs",
+    "src/Hms.Server.Infrastructure/Persistence/EfPermissionStore.cs",
+    "src/Hms.Server.Infrastructure/Persistence/Migrations/20261005143949_AddDeviceRolesAndMemberships.cs",
+    "src/Hms.Server.Infrastructure/Persistence/Migrations/20261005144047_AddPermissionGrantGrantor.cs",
+    "src/Hms.Server.Infrastructure/Persistence/Migrations/ApplicationDbContextModelSnapshot.cs",
+    "src/Hms.Server.Infrastructure/DependencyInjection.cs",
+    "tests/Hms.Server.UnitTests/DeviceRoleTests.cs",
+    "tests/Hms.Server.UnitTests/InMemoryDeviceAccessStoreTests.cs",
+    "tests/Hms.Server.IntegrationTests/PersistenceModelTests.cs"
+  ],
+  "publicContracts": [
+    "DB schema: 4 new tables and 2 new permission_grants columns (additive); the migration deletes permission_grants rows with Kind device-action (owner decision V3, back up first)",
+    "FeaturePermissionGrant/ResourceScopeGrant gain two trailing optional parameters (source compatible)",
+    "PermissionGrantsController returns grant records as-is, so POST /permissions/features, POST /permissions/resource-scopes and GET /permissions/{userId} now also emit grantedBy (null) and grantedByMasterAdmin (false); additive, the frontend ignores them; these existing endpoints keep the grant-record shape (owner decision 2026-10-05), so every id there, grantedBy included, serializes as {value}; the contract §6 plain-Guid rule applies to new DTOs; the frontend accepts both shapes",
+    "new public types: DeviceRole, DeviceRoleId, DeviceMembership, IDeviceRoleStore, IDeviceMembershipStore, DeviceAccessAuditEntry, DeviceAccessChanges, InMemoryDeviceAccessStore, EfDeviceRoleStore, EfDeviceMembershipStore"
+  ],
+  "blastRadius": [
+    "EF model and migrations snapshot",
+    "EfPermissionStore feature/resource read/write paths (grant handlers, ScopeAuthorization, MeController read these records)",
+    "DI container in both branches",
+    "applying the migration to a database with data deletes legacy device-action grants that code still reads until phases 3-4 (release the whole plan at once)"
+  ],
+  "scoutSummary": "Store patterns: InMemory stores use _gate + lock (LicenseContracts), EF stores read AsNoTracking and report InvalidOperationException(code), reload after a failed SaveChanges with ChangeTracker.Clear (EfCommandAuditStore). DI branches on the connection string. No PostgreSQL in this environment and no git repository. The design contract (plans/261005-0556-device-permissions-what-where/reports/design-contract.md §3, §4, §8) is binding."
+}

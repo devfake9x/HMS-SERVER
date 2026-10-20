@@ -1,0 +1,12 @@
+{
+  "highRisk": true,
+  "reasons": [
+    "DB schema and migrations: 4 new tables, 2 new columns, hand-written UPDATE of the policy counter and DELETE of legacy device-action grants",
+    "auth domain: device roles, memberships and grant provenance that later phases use for access decisions",
+    "concurrency: compare-and-set through EF concurrency tokens"
+  ],
+  "autoStopRequired": true,
+  "humanApproved": true,
+  "approval": "Owner approved phase 2 with noted risks on 2026-10-05 after three review cycles (final cycle bounded) and chose to keep the existing grant-record JSON shape for /api/v1/permissions/* (design contract §6). After cycle 3 the phase-03/phase-04 notes were returned to the original keep-shape text, and the phase-02 risk row was corrected (not re-reviewed). The accepted limitations are recorded in phase-02 Risk Assessment. The validator still reports the cycle-3 doc claims; finalize proceeds by this explicit decision.",
+  "largeDiff": true
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Trusted EMQX broker session envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["authenticated", "client_id", "username", "original_topic", "payload", "received_at", "message_id"],
+  "properties": {
+    "authenticated": { "const": true },
+    "client_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "username": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "original_topic": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "payload": { "type": "string", "maxLength": 4096 },
+    "received_at": { "type": "string", "format": "date-time" },
+    "message_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "key_id": { "type": "string", "minLength": 1, "maxLength": 64 }
+  },
+  "x-contract-status": "NEW_SERVER_CONTRACT",
+  "x-fail-closed": ["missing metadata", "topic/client mismatch", "enrollment mismatch", "expired timestamp", "replay", "unknown key"],
+  "x-does-not-prove": "Current HMS-IDF source does not emit this envelope. EMQX bridge/rule implementation and negative integration tests are required."
+}

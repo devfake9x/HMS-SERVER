@@ -1,0 +1,399 @@
+/*
+ * Style của ToastHost.vue — clone [ĐO 2026-09-05] Datacake (app.datacake.de).
+ *
+ * Nguồn phép đo (ba lớp, khớp nhau):
+ *   1. Toast THẬT được trigger trên Datacake (Change Password sai mật khẩu →
+ *      toast lỗi hiện ra, đo computed style rồi đóng ngay, không mutate gì).
+ *   2. 70 rule `.Toastify*` quét từ bundle `index-Cqo7-Ddd.css` của họ —
+ *      Datacake chạy react-toastify v11 và ghi đè riêng từng mức nền.
+ *   3. Nguồn gốc react-toastify@11.0.5 (icon path, close 14×16, keyframes
+ *      bounce) — đúng bản Datacake bundle.
+ *
+ * Kết luận thiết kế: toast Datacake là thẻ PHẲNG nền tinted theo mức
+ * (error `red-100` + chữ `red-700`, success `green-100`/`green-700`, warning
+ * `yellow-50`/`yellow-700`, info nền trắng mặc định), radius 6px, KHÔNG viền,
+ * KHÔNG kính mờ (hiệu ứng mờ nền đã bị loại — bản cũ "Sonner glass" không có
+ * trong Datacake), thanh tiến trình ĐẶC 5px (không gradient — default v11
+ * `--toastify-color-progress-light` là rainbow gradient, Datacake ghi đè bằng
+ * màu phẳng, làm theo Datacake), font Roboto 12.8px/400.
+ *
+ * Hex màu nằm ở token `--toast-*` trong `app/styles/main.css` (cả hai theme,
+ * gate 9 nghiệm từng cặp — xem PAIRS trong `scripts/check-contrast.mjs`).
+ */
+
+:root {
+  --toastify-toast-width: 312px;
+  --toastify-toast-min-height: 64px;
+  --toastify-toast-max-height: 50rem;
+  --toastify-z-index: 9999;
+  /* [ĐO] Datacake toast: Roboto 12.8px/400 — 12.8px = 0.8rem của họ. */
+  --toastify-font-family: var(--font-sans, Roboto, sans-serif);
+}
+
+/* ── Container ───────────────────────────────────────────────────────────── */
+
+.Toastify,
+.notify-host {
+  pointer-events: none;
+}
+
+.Toastify__toast-container,
+.notify-host {
+  position: fixed;
+  z-index: var(--toastify-z-index);
+  display: flex;
+  flex-direction: column;
+  /* [ĐO] Datacake ghi đè margin-bottom của toast về 0; khoảng hở còn lại là
+   * padding 4px của container react-toastify. */
+  gap: 4px;
+  box-sizing: border-box;
+  width: var(--toastify-toast-width);
+  pointer-events: none;
+}
+
+.Toastify__toast-container--top-right,
+.notify-host {
+  /* v11: max(offset 16px, safe-area-inset) — thay vì top 1em cứng. */
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+}
+
+@media only screen and (max-width: 480px) {
+  .Toastify__toast-container,
+  .notify-host {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    left: max(8px, env(safe-area-inset-left));
+    width: auto;
+  }
+}
+
+/* ── Thẻ toast phẳng (Datacake) ──────────────────────────────────────────── */
+
+.Toastify__toast,
+.notify-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  min-height: var(--toastify-toast-min-height);
+  max-height: var(--toastify-toast-max-height);
+  /* [ĐO] padding 8px, radius 6px, không viền — Datacake ghi đè cả ba. */
+  padding: 8px;
+  border: 0;
+  border-radius: 6px;
+  background-color: var(--surface-card, #ffffff);
+  color: var(--text-primary, #4a4a4a);
+  /* [ĐO] shadow 2 lớp của react-toastify giữ nguyên trên Datacake. */
+  box-shadow:
+    rgba(0, 0, 0, 0.1) 0 1px 10px 0,
+    rgba(0, 0, 0, 0.05) 0 2px 15px 0;
+  font-family: var(--toastify-font-family);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.45;
+  cursor: default;
+  direction: ltr;
+  overflow: hidden;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.Toastify__toast--close-on-click {
+  cursor: pointer;
+}
+
+/* ── Nền tinted theo mức — con đường duy nhất Datacake phân biệt mức ─────── */
+
+.Toastify__toast--success,
+.notify-item--success {
+  background-color: var(--toast-success-bg);
+  color: var(--toast-success-fg);
+}
+
+.Toastify__toast--info,
+.notify-item--info {
+  background-color: var(--toast-info-bg);
+  color: var(--text-primary, #4a4a4a);
+}
+
+.Toastify__toast--warning,
+.notify-item--warning {
+  background-color: var(--toast-warning-bg);
+  color: var(--toast-warning-fg);
+}
+
+.Toastify__toast--error,
+.notify-item--error {
+  background-color: var(--toast-danger-bg);
+  color: var(--toast-danger-fg);
+}
+
+/* ── Thân toast & icon (bộ icon FILL gốc v11) ────────────────────────────── */
+
+.Toastify__toast-body,
+.notify-body {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: flex-start;
+  /* [ĐO] Datacake: body padding 1em 0.5em trên font 12.8px. */
+  padding: 1em 0.5em;
+  gap: 0;
+  min-width: 0;
+  margin: auto 0;
+}
+
+.Toastify__toast-icon,
+.notify-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* [ĐO] icon rộng 20px, cách nội dung 10px (react-toastify default, Datacake
+   * không ghi đè). Icon màu = cùng màu chữ mức — measured trên toast lỗi. */
+  width: 20px;
+  height: 20px;
+  margin-inline-end: 10px;
+  color: currentColor;
+}
+
+.Toastify__toast-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.Toastify__content-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.Toastify__message,
+.notify-message {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.Toastify__count,
+.notify-count {
+  display: inline-block;
+  margin-left: 0.375rem;
+  padding: 0 0.375rem;
+  border-radius: 9999px;
+  /* Nền đậm hơn một bậc bằng chính màu chữ mức (alpha thấp) — trên nền tinted
+   * vẫn đọc được, không cần thêm token. */
+  background-color: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+.Toastify__detail,
+.notify-detail {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* ── Nút đóng X — đúng mark-up react-toastify v11 (viewBox 14×16) ────────── */
+
+.Toastify__close-button,
+.notify-close {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Hitbox 24×24 cho ngón tay, ký hiệu 14×16 bên trong — như v11. */
+  width: 24px;
+  height: 24px;
+  margin-top: -2px;
+  margin-right: -4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  /* [ĐO] v11 light: opacity 0.3, hover/focus 1 — Datacake không ghi đè. */
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.Toastify__close-button svg,
+.notify-close svg {
+  width: 14px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.Toastify__close-button:hover,
+.notify-close:focus {
+  opacity: 1;
+}
+
+.Toastify__close-button:focus-visible,
+.notify-close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+/* Màu X theo mức — Datacake đậm hơn chữ một bậc (green-800/yellow-800/red-800). */
+
+.Toastify__toast--success .Toastify__close-button {
+  color: var(--toast-success-close);
+}
+
+.Toastify__toast--info .Toastify__close-button {
+  color: var(--text-secondary);
+}
+
+.Toastify__toast--warning .Toastify__close-button {
+  color: var(--toast-warning-close);
+}
+
+.Toastify__toast--error .Toastify__close-button {
+  color: var(--toast-danger-close);
+}
+
+/* ── Thanh tiến trình tự hủy — ĐẶC 5px, không gradient ───────────────────── */
+
+.Toastify__progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  /* [ĐO] 5px là mặc định react-toastify v11, Datacake giữ nguyên. */
+  height: 5px;
+  z-index: var(--toastify-z-index);
+  opacity: 0.7;
+  transform-origin: left;
+}
+
+/* Tiến trình chỉ là đồng hồ đếm ngược thị giác: trạng thái "sắp tắt" không
+ * mang thông tin nào người dùng hành động được (toast tự biến mất), và nền
+ * tinted dưới nó đổi theo mức — nên KHÔNG khai cặp tương phản cho nó ở gate 9,
+ * cùng lý do `--border-subtle` bị loại. */
+.Toastify__progress-bar--success {
+  background-color: var(--toast-success-bar);
+}
+
+.Toastify__progress-bar--info {
+  background-color: var(--toast-info-bar);
+}
+
+.Toastify__progress-bar--warning {
+  background-color: var(--toast-warning-bar);
+}
+
+.Toastify__progress-bar--error {
+  background-color: var(--toast-danger-bar);
+}
+
+.Toastify__progress-bar--animated {
+  animation: Toastify__trackProgress linear 1 forwards;
+  will-change: transform;
+}
+
+@keyframes Toastify__trackProgress {
+  0% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+/* ── Vào/ra bằng bounce GỐC react-toastify v11 (đúng chữ ký keyframes) ───── */
+
+.notify-enter-active {
+  animation: Toastify__bounceInRight 0.7s;
+  animation-fill-mode: both;
+}
+
+.notify-leave-active {
+  animation: Toastify__bounceOutRight 0.7s;
+  animation-fill-mode: both;
+}
+
+@keyframes Toastify__bounceInRight {
+  from,
+  60%,
+  75%,
+  90%,
+  to {
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  from {
+    opacity: 0;
+    transform: translate3d(3000px, 0, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(-25px, 0, 0);
+  }
+  75% {
+    transform: translate3d(10px, 0, 0);
+  }
+  90% {
+    transform: translate3d(-5px, 0, 0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes Toastify__bounceOutRight {
+  20% {
+    opacity: 1;
+    transform: translate3d(-20px, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(2000px, 0, 0);
+  }
+}
+
+@keyframes Toastify__zoomIn {
+  from {
+    opacity: 0;
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.notify-icon {
+  animation: Toastify__zoomIn 0.3s;
+  animation-fill-mode: both;
+}
+
+.notify-move {
+  transition: transform 0.22s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+/* ── Chế độ giảm chuyển động ─────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .Toastify__progress-bar--animated,
+  .notify-enter-active,
+  .notify-leave-active,
+  .notify-icon {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .Toastify__progress-bar {
+    opacity: 0.3;
+    transform: scaleX(1);
+  }
+}

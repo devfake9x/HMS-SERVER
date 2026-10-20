@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hms-server.invalid/contracts/mqtt/capabilities-observation-v1.schema.json",
+  "title": "Firmware capabilities observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["device_id", "observed_at", "payload"],
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Opaque firmware capabilities body until its action-level schema is source-proven."
+    }
+  },
+  "x-topic": "<prefix>/<device_id>/capabilities",
+  "x-qos": 1,
+  "x-retain": true,
+  "x-contract-status": "SOURCE_PROVEN_TOPIC_ONLY",
+  "x-authority-rule": "Capabilities describe device availability only and never grant feature, resource or device-action permission.",
+  "x-does-not-prove": "The current firmware source pins the topic/QoS/retain behavior but does not justify a complete normalized body schema."
+}

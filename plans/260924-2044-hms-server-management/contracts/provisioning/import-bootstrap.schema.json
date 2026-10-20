@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Device-bound importer bootstrap contract",
+  "$ref": "device-bundle-v1.schema.json",
+  "x-schema-role": "The importer receives the complete v1 device bundle. Bootstrap proof and nonce are transport trust fields; credentials, keyset, and license_envelope use the canonical device-bundle-v1 definitions.",
+  "x-forbidden-fields": ["admin_password", "human_password"],
+  "x-contract-status": "NEW_FIRMWARE_CONTRACT",
+  "x-required-controls": ["local-only authenticated HTTP", "one-time proof", "nonce replay protection", "body limit", "CSRF decision", "redacted response"],
+  "x-source-evidence": {
+    "fixture": "fixtures/http-importer-trust-source-evidence-fixture.mjs",
+    "currentHumanBoundary": "Bearer/X-Auth-Token session auth, permission-protected /api/license/apply, 2048-byte license body limit",
+    "currentIdentityBoundary": "device_identity_get_id reads enroll/device_info/device_id; no setter is exported by the selected identity component"
+  },
+  "x-does-not-prove": "Current HMS-IDF exposes human auth and getters but no device-bound bootstrap, complete combined importer, candidate identity setter, or importer recovery protocol."
+}

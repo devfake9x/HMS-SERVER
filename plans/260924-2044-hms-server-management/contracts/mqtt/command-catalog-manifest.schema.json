@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HMS-IDF command catalog manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["catalog_version", "catalog_hash", "source_path", "source_hash", "canonicalization", "commands"],
+  "properties": {
+    "catalog_version": { "type": "string", "minLength": 1 },
+    "catalog_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "source_path": { "type": "string", "minLength": 1 },
+    "source_hash": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+    "canonicalization": { "const": "sorted unique JSON rows [{type,action}] encoded UTF-8; SHA-256" },
+    "commands": { "type": "array", "items": { "type": "object", "required": ["type", "action"], "additionalProperties": false, "properties": { "type": { "type": "string" }, "action": { "type": "string" } } } }
+  },
+  "x-policy": "Unknown or drifted catalog hash denies command execution; capabilities only intersect availability."
+}

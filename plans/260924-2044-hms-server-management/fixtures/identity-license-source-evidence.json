@@ -1,0 +1,135 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "evidenceClass": "SOURCE_PROVEN_IDENTITY_API_AND_LICENSE_JOURNAL_ORDER",
+  "sourceRoot": "D:/WORKSPACE/PROJECT/HMS-IDF",
+  "files": {
+    "identityHeader": {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\util-device-identity\\include\\device_identity.h",
+      "sha256": "bc8ed9c08b813e844818cc551d3b608322e1883cf7058de6ae443c7b81f71b56"
+    },
+    "identitySource": {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\util-device-identity\\src\\device_identity.c",
+      "sha256": "cc34eaaa38a6167170fc68a30da8b5533ef1e08ae92b0d4a9beb2ae38ed5d924"
+    },
+    "licenseApi": {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\hms-license\\src\\license_api.c",
+      "sha256": "a98054e28f5c10d382417b4213d78e1b853608b7343a7656c898c173d703849e"
+    },
+    "licenseStorage": {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\hms-license\\src\\license_storage.c",
+      "sha256": "a9ba23292f04347f408d1d407b0d8bb9879de0ac6f695a53764107fd6f806b8e"
+    },
+    "authHeader": {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\hms-auth\\include\\hms_auth.h",
+      "sha256": "5df1cfdd239cb7a77c704d71ead58c5f710baacbcb22253c6bab3e28876d34ba"
+    },
+    "licenseHttp": {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\hms-http-api\\license\\license_api.c",
+      "sha256": "76b72350f7d20ccc13e8c221570edc03f2ef3e49864c8125c6fc17400c8dfb6f"
+    }
+  },
+  "identity": {
+    "exportedFunctions": [
+      "device_identity_get_mac",
+      "device_identity_get_id",
+      "device_identity_get_product_model",
+      "device_identity_get_board_serial",
+      "device_identity_format_mac"
+    ],
+    "activeStorage": "enroll/device_info/device_id",
+    "vendorStorage": "vendor/device_info/product_model and board_serial",
+    "setterEvidence": "NO_EXPORTED_OR_IMPLEMENTED_DEVICE_ID_SETTER_FOUND_IN_IDENTITY_COMPONENT",
+    "directLiteralDeviceIdWriteEvidence": "NO_DIRECT_NVS_SET_LITERAL_DEVICE_ID_FOUND_IN_IDENTITY_SOURCE",
+    "anchors": [
+      {
+        "needle": "Lives in NVS partition",
+        "line": 23
+      },
+      {
+        "needle": "#define DEVID_PART_ENROLL",
+        "line": 39
+      },
+      {
+        "needle": "device_identity_get_id",
+        "line": 106
+      },
+      {
+        "needle": "PR-1 documents this namespace; factory provisioning console cmd",
+        "line": 15
+      }
+    ]
+  },
+  "licenseApply": {
+    "exactPendingByteMatch": {
+      "needle": "memcmp(current->envelope, envelope, len) == 0",
+      "line": 38
+    },
+    "candidateCommit": {
+      "needle": "err = prv_commit_record_reconciled(current, &committed_seq);",
+      "line": 131
+    },
+    "clockClearFinalize": {
+      "needle": "err = prv_finalize_clock_clear_pending(current, false,",
+      "line": 140
+    },
+    "publication": {
+      "needle": "err = prv_publish_record(current, out_mode, out_reason);",
+      "line": 144
+    },
+    "replayValidation": {
+      "needle": "license_replay_validate(dry, current,",
+      "line": 100
+    },
+    "anchors": [
+      {
+        "needle": "#define LIC_NVS_SLOT_A",
+        "line": 27
+      },
+      {
+        "needle": "#define LIC_NVS_SLOT_B",
+        "line": 28
+      },
+      {
+        "needle": "#define LIC_NVS_MARK_A",
+        "line": 29
+      },
+      {
+        "needle": "#define LIC_NVS_MARK_B",
+        "line": 30
+      },
+      {
+        "needle": "marks[i] == disks[i].seq",
+        "line": 320
+      },
+      {
+        "needle": "disks[0].seq == disks[1].seq",
+        "line": 322
+      },
+      {
+        "needle": "return ESP_ERR_INVALID_CRC;",
+        "line": 160
+      }
+    ],
+    "httpAuthAnchors": [
+      {
+        "needle": "license_apply_post",
+        "line": 145
+      },
+      {
+        "needle": "PERM_LICENSE_MANAGE",
+        "line": 9
+      },
+      {
+        "needle": "auth_require",
+        "line": 48
+      }
+    ],
+    "interpretation": "Durable journal ordering and exact-pending resume are source-proven; power-loss behavior at each write/marker and hardware recovery are not proven by this fixture."
+  },
+  "limitations": [
+    "Static absence of a setter does not prove that no generated or out-of-tree provisioning code exists.",
+    "Source ordering does not replace NVS power-loss, boot-recovery, or hardware tests.",
+    "Human license permission middleware does not prove device-bound importer bootstrap or local-only transport.",
+    "Candidate identity activation remains a new firmware contract."
+  ]
+}

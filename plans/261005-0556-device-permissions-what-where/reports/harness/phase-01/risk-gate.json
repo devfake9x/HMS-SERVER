@@ -1,0 +1,13 @@
+{
+  "highRisk": true,
+  "reasons": [
+    "auth: device permission vocabulary, high-risk set and command permission resolution",
+    "security boundary: the catalog loader (the device does not check permissions, spec R11)",
+    "public API contract: GET /api/v1/me/command-catalog DTO and catalog version/hash",
+    "large diff over three review cycles"
+  ],
+  "autoStopRequired": true,
+  "humanApproved": true,
+  "approval": "Owner approved finalizing phase 1 with noted risks on 2026-10-05 after the third review cycle; the remaining low parser limitations are recorded in design-contract.md §2 (Known limitations). The validator still reports the low disproven claims; finalize proceeds by this explicit decision.",
+  "largeDiff": true
+}

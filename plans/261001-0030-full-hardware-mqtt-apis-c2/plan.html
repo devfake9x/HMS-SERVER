@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Master Plan: Tích Hợp Toàn Bộ 94 MQTT APIs & Bảng Điều Khiển C2 (HMS-SERVER & HMS-IDF)</title>
+  <style>
+    :root {
+      --bg: #faf7f2;
+      --panel: #f0ebe1;
+      --panel-hover: #e8e2d5;
+      --ink: #0a0a0a;
+      --muted: #6b6258;
+      --accent: #ea580c;
+      --accent-bright: #f97316;
+      --border: #dfd7ca;
+      --badge-bg: #e2dacd;
+      --card-shadow: 0 4px 16px rgba(10, 10, 10, 0.04);
+      --font-serif: "Playfair Display", Georgia, serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: "JetBrains Mono", Consolas, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      padding: 2rem 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .top-meta {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+      color: var(--ink);
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 800px;
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1.25rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.6rem;
+      background: var(--badge-bg);
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .badge.orange {
+      background: #fed7aa;
+      color: #9a3412;
+      border: 1px solid #f97316;
+    }
+
+    .badge.green {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #22c55e;
+    }
+
+    /* Summary Grid */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 3rem;
+    }
+
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+    }
+
+    .stat-num {
+      font-family: var(--font-serif);
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-desc {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* Section Styling */
+    section {
+      margin-bottom: 3.5rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    h2 {
+      font-family: var(--font-serif);
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    /* Roadmap Timeline */
+    .phases-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .phase-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--accent);
+      border-radius: 6px;
+      padding: 1.5rem;
+      transition: transform 0.15s ease, background 0.15s ease;
+      cursor: pointer;
+    }
+
+    .phase-card:hover {
+      background: var(--panel-hover);
+      transform: translateX(3px);
+    }
+
+    .phase-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .phase-id {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .phase-title {
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .phase-desc {
+      font-size: 0.9rem;
+      color: #333;
+      margin-bottom: 1rem;
+    }
+
+    .phase-bullets {
+      list-style-type: square;
+      padding-left: 1.25rem;
+      font-size: 0.85rem;
+      color: #444;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.35rem;
+    }
+
+    .phase-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1.25rem;
+      padding-top: 0.75rem;
+      border-top: 1px dashed var(--border);
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    .action-btn {
+      background: var(--accent-bright);
+      color: #fff;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .action-btn:hover {
+      background: var(--accent);
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(10, 10, 10, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal-content {
+      background: #faf7f2;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 800px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1.25rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--muted);
+    }
+
+    .modal-body pre {
+      background: #ede6d8;
+      padding: 1rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+
+    .modal-body h3 {
+      font-family: var(--font-serif);
+      margin: 1.25rem 0 0.5rem;
+    }
+
+    .modal-body ul {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+
+    /* Scenario Matrix Table */
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      background: var(--panel);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .matrix-table th, .matrix-table td {
+      border: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+      text-align: left;
+    }
+
+    .matrix-table th {
+      background: #e6dfd1;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding-top: 2rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+      font-family: var(--font-mono);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="top-meta">
+      <span>HMS-SERVER & HMS-IDF • STRATEGIC IMPLEMENTATION PLAN</span>
+      <span>DATE: 2026-10-01 • AUTONOMOUS TDD</span>
+    </div>
+    <h1>Master Plan: Tích Hợp Toàn Bộ 94 MQTT Actions & Bảng Điều Khiển C2</h1>
+    <p class="subtitle">
+      Kế hoạch kỹ nghệ bóc tách 6 giai đoạn phát triển khép kín theo phương pháp TDD, kết nối hoàn hảo giữa lõi phần cứng thực tế ESP32-S3 RTU và trung tâm điều phối Web UI chuẩn phong cách Datacake.
+    </p>
+    <div class="badge-bar">
+      <span class="badge orange">ORANGE BUTTON PRESERVED (#f97316)</span>
+      <span class="badge green">READ-ONLY 100% HMS-IDF</span>
+      <span class="badge">94 ACTIONS / 12 SUBSYSTEMS</span>
+      <span class="badge">TDD TEST-FIRST</span>
+      <span class="badge">ARENA DEBATE: 35/35 CONFIRMED</span>
+    </div>
+  </header>
+
+  <!-- Summary Stats -->
+  <div class="overview-grid">
+    <div class="stat-card">
+      <div class="stat-num">94</div>
+      <div class="stat-title">MQTT Actions</div>
+      <div class="stat-desc">Bóc tách toàn diện từ mã nguồn C của ESP-IDF trên 12 phân hệ.</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">6</div>
+      <div class="stat-title">TDD Phases</div>
+      <div class="stat-desc">Từ kích hoạt RBAC, tầng transport MQTT đến giao diện Web C2 và kiểm thử HIL.</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">12</div>
+      <div class="stat-title">Chiều Rủi Ro</div>
+      <div class="stat-desc">Ma trận phân tích biên từ tràn RAM 78KB, lệch epoch time đến an ninh OTA.</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">&lt;300ms</div>
+      <div class="stat-title">Độ Trễ Điều Khiển</div>
+      <div class="stat-desc">Thời gian đáp ứng đóng/ngắt tiếp điểm relay thực tế từ trình duyệt.</div>
+    </div>
+  </div>
+
+  <!-- Phases Roadmap Section -->
+  <section>
+    <div class="section-header">
+      <h2>Lộ Trình Triển Khai 6 Giai Đoạn (Phased Roadmap)</h2>
+      <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted);">Click từng phase để xem đặc tả chi tiết</span>
+    </div>
+
+    <div class="phases-list">
+      <!-- Phase 1 -->
+      <div class="phase-card" onclick="openModal(1)">
+        <div class="phase-meta">
+          <span class="phase-id">Phase 01 • Priority: P1</span>
+          <span class="badge">Catalog Activation</span>
+        </div>
+        <div class="phase-title">Kích Hoạt Danh Mục Lệnh & Phân Quyền Đa Phân Hệ</div>
+        <div class="phase-desc">
+          Kích hoạt 94 actions trên 12 namespaces từ trạng thái tạm khóa sang trạng thái sẵn sàng, tích hợp phân quyền Subsystem RBAC và gắn nhãn các thao tác phá hủy (reboot, factory reset).
+        </div>
+        <ul class="phase-bullets">
+          <li>Ánh xạ 12 nhóm quyền: <code>device.command.{subsystem}</code></li>
+          <li>Đánh dấu cờ <code>isDangerous: true</code> cho các lệnh phá hủy</li>
+          <li>Giữ nguyên vẹn 100% các baseline harness unit tests cũ</li>
+          <li>TDD Test: <code>SubsystemCatalogActivationTests.cs</code></li>
+        </ul>
+        <div class="phase-footer">
+          <span>Target: <code>PinnedCommandCatalog.cs</code></span>
+          <button class="action-btn">Chi Tiết Phase 01 &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Phase 2 -->
+      <div class="phase-card" onclick="openModal(2)">
+        <div class="phase-meta">
+          <span class="phase-id">Phase 02 • Priority: P1</span>
+          <span class="badge">Live Transport</span>
+        </div>
+        <div class="phase-title">Tầng Vận Chuyển Lệnh MQTT & Lắng Nghe Phản Hồi Hai Chiều</div>
+        <div class="phase-desc">
+          Hiện thực hóa <code>IDeviceCommandTransport</code> phát lệnh tới broker EMQX và hosted service tiêu thụ phản hồi trên topic <code>hms_toan_lab/{deviceId}/cmd/res</code> cập nhật SignalR.
+        </div>
+        <ul class="phase-bullets">
+          <li>Đóng gói chuẩn wire payload (Unix epoch seconds, <code>data.params</code>)</li>
+          <li>Phát lệnh với QoS 1 tới <code>hms_toan_lab/{deviceId}/cmd</code></li>
+          <li>Consumer lắng nghe phản hồi và đồng bộ Audit Store</li>
+          <li>SignalR broadcast sự kiện <code>DeviceCommandExecuted</code></li>
+        </ul>
+        <div class="phase-footer">
+          <span>Target: <code>MqttDeviceCommandTransport.cs</code></span>
+          <button class="action-btn">Chi Tiết Phase 02 &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Phase 3 -->
+      <div class="phase-card" onclick="openModal(3)">
+        <div class="phase-meta">
+          <span class="phase-id">Phase 03 • Priority: P1</span>
+          <span class="badge">Core Subsystems</span>
+        </div>
+        <div class="phase-title">Tích Hợp Phân Hệ Cốt Lõi: Relay DO, ADC Sensor & System Diagnostics</div>
+        <div class="phase-desc">
+          Xây dựng các endpoint nghiệp vụ chuyên biệt cho 4 kênh rơ-le số DO, giám sát tức thời 8 kênh cảm biến tương tự ADC, và các lệnh kiểm tra sức khỏe vi điều khiển.
+        </div>
+        <ul class="phase-bullets">
+          <li>Điều khiển bật/tắt (toggle) và kích xung (pulse) 4 kênh relay</li>
+          <li>Đọc điện áp/dòng điện tức thời 8 kênh analog 4-20mA / 0-10V</li>
+          <li>Chẩn đoán hệ điều hành: ping RTT, free heap, uptime</li>
+          <li>Bảo vệ lệnh reboot với token xác thực <code>REBOOT-&lt;DEVID&gt;</code></li>
+        </ul>
+        <div class="phase-footer">
+          <span>Target: <code>DeviceControlController.cs</code></span>
+          <button class="action-btn">Chi Tiết Phase 03 &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Phase 4 -->
+      <div class="phase-card" onclick="openModal(4)">
+        <div class="phase-meta">
+          <span class="phase-id">Phase 04 • Priority: P2</span>
+          <span class="badge">Advanced Subsystems</span>
+        </div>
+        <div class="phase-title">Tích Hợp Phân Hệ Nâng Cao: Network, Modbus RS485, SMS & OTA</div>
+        <div class="phase-desc">
+          Quản trị cấu hình đa mạng (Ethernet, Wi-Fi, LTE), điều phối bus Modbus RS485 kèm cooldown an toàn 5s, đọc SMS modem có phân trang chống tràn RAM, và nạp firmware OTA.
+        </div>
+        <ul class="phase-bullets">
+          <li>Quản lý Ethernet W5500, Wi-Fi Station, SoftAP và ưu tiên uplink</li>
+          <li>Cấu hình thanh ghi Modbus RS485, enforce 5000ms cooldown</li>
+          <li>Đọc tin nhắn SMS LTE phân trang an toàn (tối đa 10 tin/lần)</li>
+          <li>Quy trình 3 bước nâng cấp OTA kết hợp Secure Boot chữ ký số</li>
+        </ul>
+        <div class="phase-footer">
+          <span>Target: <code>DeviceNetworkService.cs</code>, <code>DeviceOtaService.cs</code></span>
+          <button class="action-btn">Chi Tiết Phase 04 &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Phase 5 -->
+      <div class="phase-card" onclick="openModal(5)">
+        <div class="phase-meta">
+          <span class="phase-id">Phase 05 • Priority: P1</span>
+          <span class="badge orange">Web C2 Console</span>
+        </div>
+        <div class="phase-title">Trung Tâm Điều Khiển C2 Web UI & Bảng Điều Khiển Chuyên Biệt</div>
+        <div class="phase-desc">
+          Xây dựng giao diện điều khiển C2 đồng bộ phong cách Datacake UI: Tab Relay Outputs, Tab ADC Sensors, Command Modal với schema tham số thông minh và nút nhấn màu cam chuẩn.
+        </div>
+        <ul class="phase-bullets">
+          <li>Tab Outputs: 4 công tắc chuyển mạch DO1-DO4 + nút bấm kích xung</li>
+          <li>Tab ADC: Bảng 8 kênh đo trực quan kèm gauge bar phần trăm</li>
+          <li>Command Modal: Form tham số động + JSON validator thời gian thực</li>
+          <li>Bảo lưu tuyệt đối màu cam thương hiệu (<code>!bg-orange-500</code>) trên nút nhấn</li>
+        </ul>
+        <div class="phase-footer">
+          <span>Target: <code>DeviceOutputsTab.vue</code>, <code>DeviceCommandModal.vue</code></span>
+          <button class="action-btn">Chi Tiết Phase 05 &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Phase 6 -->
+      <div class="phase-card" onclick="openModal(6)">
+        <div class="phase-meta">
+          <span class="phase-id">Phase 06 • Priority: P1</span>
+          <span class="badge green">HIL E2E Hardware</span>
+        </div>
+        <div class="phase-title">Kiểm Thử Tích Hợp Phần Cứng Thực & HIL End-to-End</div>
+        <div class="phase-desc">
+          Chu trình kiểm chứng khép kín trên vi điều khiển thực tế ESP32-S3 RTU (<code>gateway_870c</code>) qua broker EMQX. Khẳng định 0 file sửa đổi trong repository <code>HMS-IDF</code>.
+        </div>
+        <ul class="phase-bullets">
+          <li>Đóng/ngắt tiếp điểm rơ-le thật trên bo mạch vật lý từ trình duyệt Web</li>
+          <li>Đo RTT ping thực tế và kiểm tra phản hồi telemetry thời gian thực</li>
+          <li>Xác nhận không có bất kỳ dòng code nào bị can thiệp vào <code>HMS-IDF</code></li>
+          <li>Xuất báo cáo nghiệm thu phần cứng hoàn chỉnh</li>
+        </ul>
+        <div class="phase-footer">
+          <span>Target: <code>HilHardwareE2ETests.cs</code>, ESP32-S3 RTU</span>
+          <button class="action-btn">Chi Tiết Phase 06 &rarr;</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scenario Matrix Preview -->
+  <section>
+    <div class="section-header">
+      <h2>Ma Trận Phân Tích Rủi Ro 12 Chiều (Scenario Matrix Highlights)</h2>
+      <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted);">Bảo đảm độ tin cậy tuyệt đối</span>
+    </div>
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th>Chiều Rủi Ro</th>
+          <th>Tình Huống Biên</th>
+          <th>Giải Pháp & Tiêu Chuẩn Chấp Nhận</th>
+          <th>Phase TDD</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. Null / Zero</strong></td>
+          <td>Payload rỗng hoặc <code>channel = 0</code></td>
+          <td>Kiểm thực schema tham số trước khi đóng gói; từ chối với <code>PARAM_OUT_OF_RANGE</code></td>
+          <td>Phase 01 & 03</td>
+        </tr>
+        <tr>
+          <td><strong>2. Boundary</strong></td>
+          <td>Kênh relay &gt; 4; SMS list &gt; 10 tin</td>
+          <td>Giới hạn cứng 4 kênh DO; ép giới hạn phân trang SMS tối đa 10 tin bảo vệ 78KB RAM</td>
+          <td>Phase 03 & 04</td>
+        </tr>
+        <tr>
+          <td><strong>3. Memory Overflow</strong></td>
+          <td>JSON payload vượt 1024 bytes</td>
+          <td>Adapter chặn cứng ở 1024 bytes (<code>COMMAND_HEADER_TOO_LARGE</code>) chống tràn heap</td>
+          <td>Phase 01 & 02</td>
+        </tr>
+        <tr>
+          <td><strong>6. Auth Bypass</strong></td>
+          <td>Gọi lệnh <code>reboot</code> không có token</td>
+          <td>Bắt buộc xác thực token kép: <code>confirm_token: "REBOOT-&lt;DEVID&gt;"</code></td>
+          <td>Phase 01 & 05</td>
+        </tr>
+        <tr>
+          <td><strong>8. Network Flakiness</strong></td>
+          <td>Wi-Fi/4G mất kết nối giữa chừng</td>
+          <td>MQTT QoS 1 với <code>req_id</code> duy nhất; SignalR cập nhật trạng thái tự động</td>
+          <td>Phase 02 & 05</td>
+        </tr>
+        <tr>
+          <td><strong>10. Data Integrity</strong></td>
+          <td>Firmware OTA bị lỗi dữ liệu</td>
+          <td>Secure Boot phần cứng kiểm tra chữ ký RSA-3072; flash A/B tự động rollback</td>
+          <td>Phase 04 & 06</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Detail Modal -->
+  <div id="phaseModal" class="modal-backdrop" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>HMS-SERVER INDUSTRIAL SCADA &bull; ALL 94 MQTT ACTIONS ARCHITECTURE &bull; AUTONOMOUS SPECIFICATION</p>
+    <p style="margin-top: 0.25rem;">CONFIRMED BY 35-AGENT ARENA DEBATE &bull; ZERO UNRESOLVED OPEN QUESTIONS</p>
+  </footer>
+
+  <script>
+    const phasesData = {
+      1: {
+        title: "Phase 01: Kích Hoạt Danh Mục Lệnh & Phân Quyền Đa Phân Hệ",
+        content: `
+          <p><strong>Mục tiêu:</strong> Kích hoạt 94 actions trên 12 namespaces từ trạng thái tạm khóa sang trạng thái sẵn sàng thực thi có kiểm soát.</p>
+          <h3>Yêu Cầu Kỹ Thuật:</h3>
+          <ul>
+            <li>Thiết lập bảng ánh xạ 12 nhóm quyền: <code>device.command.system</code>, <code>device.command.control</code>, <code>device.command.adc</code>, v.v.</li>
+            <li>Đánh dấu cờ <code>Dangerous = true</code> cho các lệnh: <code>system.reboot</code>, <code>system.factory_reset</code>, <code>ota.apply</code>, <code>modbus.replace_rtu_config</code>.</li>
+            <li>Giữ nguyên vẹn các baseline harness tests cũ để bảo đảm độ tin cậy tuyệt đối.</li>
+          </ul>
+          <h3>Kế Hoạch Kiểm Thử TDD:</h3>
+          <pre>SubsystemCatalogActivationTests.cs:
+- Catalog_ReturnsAll94Actions_WithMappedPermissions()
+- DangerousActions_HaveConfirmationFlag_Enabled()
+- MissingSubsystemPermission_FailsClosedBeforeTransport()</pre>
+        `
+      },
+      2: {
+        title: "Phase 02: Tầng Vận Chuyển Lệnh MQTT & Lắng Nghe Phản Hồi Hai Chiều",
+        content: `
+          <p><strong>Mục tiêu:</strong> Xây dựng bộ điều phối truyền tin MQTT thực tế qua EMQX broker và cập nhật trạng thái tức thời lên Web UI.</p>
+          <h3>Yêu Cầu Kỹ Thuật:</h3>
+          <ul>
+            <li>Hiện thực <code>MqttDeviceCommandTransport</code> publish gói tin chuẩn tới <code>hms_toan_lab/{deviceId}/cmd</code>.</li>
+            <li>Đóng gói timestamp bằng Unix epoch seconds (10 chữ số) và trường <code>data.params</code>.</li>
+            <li>Hiện thực <code>DeviceCommandResponseConsumer</code> lắng nghe trên <code>hms_toan_lab/+/cmd/res</code>.</li>
+            <li>SignalR broadcast sự kiện <code>DeviceCommandExecuted</code> tới trình duyệt.</li>
+          </ul>
+          <h3>Kế Hoạch Kiểm Thử TDD:</h3>
+          <pre>MqttCommandTransportTests.cs:
+- SendAsync_PublishesValidWireEnvelope_ToMqttBroker()
+- ResponseConsumer_ParsesAck_UpdatesAuditStoreAsExecuted()
+- DisconnectedBroker_TransitionsToMqttDeferred_WithTtl()</pre>
+        `
+      },
+      3: {
+        title: "Phase 03: Tích Hợp Phân Hệ Cốt Lõi: Relay DO, ADC Sensor & System Diagnostics",
+        content: `
+          <p><strong>Mục tiêu:</strong> Hiện thực hóa các API điều khiển rơ-le tiếp điểm và đọc cảm biến analog thời gian thực.</p>
+          <h3>Yêu Cầu Kỹ Thuật:</h3>
+          <ul>
+            <li>Điều khiển 4 rơ-le DO: <code>set_output</code>, <code>pulse</code>, <code>get_status</code>.</li>
+            <li>Giám sát 8 kênh ADC: <code>get_values</code>, <code>get_channels</code>, <code>toggle_channel</code>.</li>
+            <li>Chẩn đoán hệ điều hành: <code>ping</code> RTT, <code>get_heap</code>, <code>get_info</code>.</li>
+            <li>Lệnh <code>system.reboot</code> bắt buộc kèm token <code>REBOOT-&lt;DEVID&gt;</code>.</li>
+          </ul>
+          <h3>Kế Hoạch Kiểm Thử TDD:</h3>
+          <pre>DeviceControlApiTests.cs:
+- PostSetOutput_ValidChannel_DispatchesSuccessfully()
+- PostSetOutput_InvalidChannelFive_ReturnsBadRequest()
+- PostReboot_WithoutToken_ReturnsConfirmTokenRequired()</pre>
+        `
+      },
+      4: {
+        title: "Phase 04: Tích Hợp Phân Hệ Nâng Cao: Network, Modbus RS485, SMS & OTA",
+        content: `
+          <p><strong>Mục tiêu:</strong> Quản trị đa mạng, giao tiếp công nghiệp RS485, đọc tin nhắn LTE và nạp firmware an toàn.</p>
+          <h3>Yêu Cầu Kỹ Thuật:</h3>
+          <ul>
+            <li>Quản lý Ethernet, Wi-Fi Station & SoftAP, đặt thứ tự ưu tiên uplink.</li>
+            <li>Modbus RTU Master: Đọc/ghi thông số RS485, enforce 5000ms cooldown khi restart.</li>
+            <li>SMS LTE: Giới hạn phân trang tối đa 10 tin/lần bảo vệ bộ nhớ RAM vi điều khiển.</li>
+            <li>OTA Upgrade: Kiểm tra 3 bước kèm chữ ký số Secure Boot phần cứng.</li>
+          </ul>
+          <h3>Kế Hoạch Kiểm Thử TDD:</h3>
+          <pre>AdvancedSubsystemsTests.cs:
+- ModbusRestart_WithinFiveSeconds_ReturnsCooldownError()
+- SmsList_LimitAboveTen_ClampsToTenOrRejects()
+- OtaApply_ValidToken_DispatchesOtaExecution()</pre>
+        `
+      },
+      5: {
+        title: "Phase 05: Trung Tâm Điều Khiển C2 Web UI & Bảng Điều Khiển Chuyên Biệt",
+        content: `
+          <p><strong>Mục tiêu:</strong> Xây dựng bảng điều khiển trực quan trên Vue 3 theo chuẩn Datacake, bảo lưu màu cam thương hiệu.</p>
+          <h3>Yêu Cầu Kỹ Thuật:</h3>
+          <ul>
+            <li>Tab Outputs: 4 công tắc rơ-le DO1-DO4 + nút bấm kích xung Pulse.</li>
+            <li>Tab Sensors: Bảng 8 kênh ADC trực quan kèm thanh đo mức phần trăm.</li>
+            <li>Command Modal: Dynamic parameter inputs kèm JSON validator thời gian thực.</li>
+            <li>Cố định màu cam <code>!bg-orange-500</code> trên nút Dispatch/Execute theo quy tắc người dùng.</li>
+          </ul>
+          <h3>Kế Hoạch Kiểm Thử TDD:</h3>
+          <pre>Vitest Tests:
+- DeviceOutputsTab.test.ts: renders 4 switches, clicks toggle calls sendCommand
+- DeviceAdcTab.test.ts: displays 8 analog channels with live updates
+- DeviceCommandModal.test.ts: verifies orange button styling and JSON validation</pre>
+        `
+      },
+      6: {
+        title: "Phase 06: Kiểm Thử Tích Hợp Phần Cứng Thực & HIL End-to-End",
+        content: `
+          <p><strong>Mục tiêu:</strong> Kiểm chứng khép kín trên bo mạch thực tế ESP32-S3 RTU mà không chạm vào code firmware.</p>
+          <h3>Yêu Cầu Kỹ Thuật:</h3>
+          <ul>
+            <li>Đóng/ngắt tiếp điểm rơ-le thật trên bo mạch vật lý từ trình duyệt Web.</li>
+            <li>Đo RTT ping thực tế và kiểm tra phản hồi telemetry thời gian thực.</li>
+            <li>Bảo toàn nguyên tắc READ-ONLY 100% trên thư mục <code>HMS-IDF</code>.</li>
+            <li>Xuất báo cáo nghiệm thu phần cứng HIL hoàn chỉnh.</li>
+          </ul>
+          <h3>Kế Hoạch Kiểm Thử TDD:</h3>
+          <pre>HilHardwareE2ETests.cs:
+- RealHardware_Ping_ReturnsValidRTT_Under300ms()
+- RealHardware_SetOutput_ChannelOne_RelayClicksAndAcks()
+- FirmwareRepository_IntegrityCheck_ZeroFilesModified()</pre>
+        `
+      }
+    };
+
+    function openModal(phaseId) {
+      const data = phasesData[phaseId];
+      if (!data) return;
+      document.getElementById('modalBody').innerHTML = '<h2>' + data.title + '</h2>' + data.content;
+      document.getElementById('phaseModal').style.display = 'flex';
+    }
+
+    function closeModal(e) {
+      if (!e || e.target.id === 'phaseModal' || e.target.classList.contains('modal-close')) {
+        document.getElementById('phaseModal').style.display = 'none';
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/*
+ * Design token là CSS variable — Base architecture §1.1 luật 1.
+ * CSS variable đọc được lúc runtime nên đổi theme không cần rebuild, và style
+ * engine nào cũng dùng được. Đây là phần BẤT BIẾN; Tailwind là phần thay được.
+ *
+ * Phần token màu/typography đầy đủ thuộc bước style, chưa làm ở đây.
+ * Hiện chỉ khai đủ để app bootable và để chứng minh Tailwind 4 hoạt động.
+ */
+@theme {
+  /* Font stack hệ thống — KHÔNG tải từ CDN (Base §11: vỡ trong mạng kín).
+     Font tự host thả vào public/fonts/ ở bước style. Roboto đứng đầu —
+     Datacake production dùng Roboto (đo được: font-family Roboto, 12.8px). */
+  --font-sans:
+    'Roboto', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Consolas, monospace;
+}
+
+/*
+ * ## Theme khai bằng CSS variable, KHÔNG bằng biến thể `dark:` của Tailwind
+ *
+ * Đã cân nhắc `@custom-variant dark ([data-theme='dark'])` để dùng `dark:bg-…`
+ * trong template (spec T043). Loại, hai lý do:
+ *
+ * 1. Nó **ngược bất biến §1.1 luật 1** ghi ngay đầu file này: token là CSS
+ *    variable đọc lúc runtime. Biến thể `dark:` đưa quyết định theme vào class
+ *    được biên dịch cứng vào bundle — đổi bảng màu lại phải rebuild, và cùng một
+ *    khác biệt theme tồn tại ở hai nơi.
+ * 2. Grep `dark:` trong `src/` cho **0 match**. Khai một biến thể không ai dùng
+ *    là thêm cấu hình chưa bao giờ được thử.
+ *
+ * Hệ quả: mọi khác biệt sáng/tối chỉ nằm trong hai khối dưới đây. Component
+ * không biết theme nào đang bật.
+ *
+ * `:root` mang theme SÁNG (mặc định), nên khi không có attribute thì trang vẫn
+ * có màu — inline script trong `index.html` luôn đặt attribute tường minh, nhưng
+ * nếu nó ném lỗi (localStorage bị chặn ở chế độ riêng tư) thì không được trắng trơn.
+ *
+ * ## Vì sao khối tối là `html[data-theme='dark']` chứ không phải `[data-theme='dark']`
+ *
+ * `[ĐO]` Bản đầu của lượt sửa này viết `[data-theme='dark']` trần, và nó **im
+ * lặng không có tác dụng**: `:root` khớp CHÍNH thẻ `html`, nên khi
+ * `data-theme="dark"` thì cả hai khối cùng khớp, cùng độ đặc hiệu (0,1,0), và
+ * khối viết **sau** thắng — khối sáng. Đo được bằng computed style:
+ * `dataset.theme` là `'dark'` trong khi `getComputedStyle(body).backgroundColor`
+ * vẫn trả `rgb(244, 246, 248)`, tức nền sáng.
+ *
+ * Thêm `html` đưa độ đặc hiệu lên (0,1,1) nên khối tối thắng **bất kể thứ tự**.
+ * Cách kia — đảo thứ tự hai khối — cũng chạy, nhưng nó biến một bất biến thành
+ * thứ phụ thuộc vị trí dòng, và người sau di chuyển khối là hỏng lại mà không có
+ * cảnh báo nào.
+ *
+ * Đáng ghi: **cổng 9 KHÔNG bắt được ca này**, và probe đọc token cũng không —
+ * cả hai đọc *khai báo* theo từng khối, còn lỗi nằm ở *cascade*. Thứ bắt được nó
+ * là đọc computed style trên trang đang chạy thật.
+ *
+ * `color-scheme` là phần FR-033: nó đổi màu của thứ browser tự vẽ — thanh cuộn,
+ * caret, ô chọn ngày, autofill. Không khai thì trên theme tối vẫn còn thanh cuộn
+ * trắng và ô ngày trắng, và đó là chỗ người dùng nhìn thấy ngay.
+ */
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  /*
+   * NUXT VUE DASHBOARD ZINC DARK — Hệ màu chuẩn Nuxt Dashboard Dark Theme.
+   * Nền Zinc-900 (#18181b), viền Zinc-800 (#27272a), điểm nhấn Emerald (#10b981).
+   * Liền khối, sang trọng, chiều sâu tối giản theo chuẩn hiện đại.
+   */
+  --surface-page: #18181b;
+  --surface-card: #18181b;
+  --surface-panel: #18181b;
+  --surface-overlay: #1c1c1f;
+  --surface-nav-active: #27272a;
+  --surface-nav-hover: #27272a;
+  --surface-select-hover: #27272a;
+  --surface-hover: #27272a;
+  --status-neutral: #a1a1aa;
+  --shadow-control: rgb(0 0 0 / 20%) 0 1px 2px 0;
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 30%), 0 0 0 1px #27272a;
+  --surface-card-hover: rgba(255, 255, 255, 0.045);
+  --border-table-row: #27272a;
+  --tree-spine-line: #3f3f46;
+  --border-default: #27272a;
+  --border-subtle: #27272a;
+  --border-control: #3f3f46;
+  --border-focus: #10b981;
+  --text-label: #a1a1aa;
+  --text-heading: #ffffff;
+  --text-hint: #71717a;
+  --surface-table-header: #202024;
+  --surface-control-disabled: #27272a;
+  --border-checkbox: #3f3f46;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+
+  /* Token Màu Nhấn UI Hành Động (Action Primary) — Emerald Nuxt */
+  --color-primary: #10b981;
+  --color-primary-hover: #059669;
+  --color-primary-active: #047857;
+  --color-primary-subtle: rgba(16, 185, 129, 0.1);
+
+  /* Token TRẠNG THÁI — bốn mức ngữ nghĩa (Tách biệt khỏi màu nhấn action) */
+  --status-success: #34d399;
+  --status-info: #38bdf8;
+  --status-warning: #fbbf24;
+  --status-danger: #f87171;
+
+  --status-success-dot: #10b981;
+  --status-danger-dot: #f87171;
+  --status-warning-dot: #fbbf24;
+  --status-neutral-dot: #a1a1aa;
+
+  --status-info-on: #18181b;
+  --status-danger-on: #18181b;
+
+  /* Token viền focus cho theme tối — sắc xanh ngọc emerald-500 thanh thoát */
+  --input-border-focus: #10b981;
+  --input-focus-ring: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  --input-focus-ring-danger: 0 0 0 2px rgba(248, 113, 113, 0.22);
+
+  /* Token thanh cuộn (Scrollbar) tinh tế — chuẩn Nuxt / GitHub */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+}
+
+/*
+ * THEME SÁNG là mặc định — `:root` mang nó.
+ *
+ * Trước đây `:root` mang theme tối. Đảo lại vì hai lý do, không phải vì thẩm mỹ:
+ * người dùng của hệ này là "NGƯỜI DÙNG TỪ XA" ngồi văn phòng
+ * (`ARCHITECTURE_DESIGN.md`), không phải kiosk trong phòng tối; và OS mặc định
+ * của phần lớn máy là sáng, nên sáng là thứ đa số thấy đầu tiên.
+ *
+ * Theme tối **được giữ**, không bỏ: mọi cặp màu được nghiệm ở **cả hai** theme, và
+ * màn hình treo phòng điều khiển là ca dùng thật.
+ *
+ * ⚠️ `:root` nằm ở khối nào thì `scripts/check-contrast.mjs` phải đọc y như vậy.
+ * Bộ parse của nó phân loại token theo selector, nên đảo ở đây mà quên đảo ở đó
+ * sẽ làm token sáng chảy vào bản đồ tối — và cổng vẫn in đủ số cặp nên **sai đó
+ * không lộ ra**. (Đừng viết con số vào đây: ba chỗ trong repo từng ghi 32/34/36
+ * trong khi cổng đo 44. Con số sống ở `PAIRS`, đọc nó bằng cách chạy cổng.)
+ * Hai file phải đổi cùng nhau. Nhánh `catch` của script chống
+ * nhấp nháy trong `index.html` cũng phải trỏ về `light` cho khớp `:root`.
+ *
+ * Ba mức bề mặt, KHÔNG phải hai. Bản trước đặt `--surface-panel` và
+ * `--surface-overlay` **cùng `#ffffff`**, nên mọi thứ dựa vào overlay để phân
+ * biệt (nền header bảng, nền hover) đều vô hình ở theme sáng — và cổng 9 chỉ đo
+ * chữ-trên-nền nên nó vẫn xanh. Đó là lý do `DataTable` phải bỏ nền `<thead>`.
+ * Nay page < overlay < panel là ba giá trị khác nhau: nền trang xám nhạt, card
+ * trắng, và một mức xám ở giữa cho header/hover/sidebar.
+ */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /*
+   * DATACAKE NEUTRAL GRAY — Trích xuất từ live CSS Datacake (app.datacake.de)
+   * oklch(96.7% .003 264.542) = #f3f4f6 (gray-100) cho Sidebar Rail
+   * oklch(92.8% .006 264.531) = #e5e7eb (gray-200) cho Sidebar Rail nền nav
+   * oklch(87.2% .010 258.338) = #d1d5dc (gray-300) cho Active Menu Pill
+   * oklch(54.6% .245 262.881) = #155dfc (blue-600) cho Nút Primary / Info
+   * [ĐO 2026-09-10 Datacake Parity]: nền trang canvas = xám nhẹ #f3f4f6 (Gray-100),
+   * thẻ card và table = TRẮNG #ffffff. Card & table nổi khối trên nền xám nhẹ
+   * với shadow-card và viền hairline border-gray-200.
+   */
+  --surface-page: #f3f4f6;
+  --surface-card: #ffffff;
+  --surface-panel: #ffffff;
+  --surface-overlay: #e5e7eb;
+  --surface-nav-active: #d1d5dc;
+  --surface-nav-hover: #f3f4f6;
+  --surface-select-hover: #bae6fd;
+  --surface-hover: #f3f4f6;
+  --status-neutral: #d1d5dc;
+  --shadow-control: rgb(0 0 0 / 5%) 0 1px 2px 0;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 8%), 0 0 0 1px rgb(0 0 0 / 6%);
+  --surface-card-hover: #f9fafb;
+  --border-table-row: #f1f5f9;
+  --tree-spine-line: #d1d5dc;
+  --border-default: #e5e7eb;
+  /* [ĐO 2026-09-05 dashboard Datacake] viền card widget là gray-200 ĐẶC
+   * #e5e7eb (oklch 0.928 0.006 264.531), KHÔNG phải viền alpha đen — bản alpha
+   * 8% cho ra #ebebeb nhạt hơn và là một trong hai lý do "màu không giống".
+   * Hai token giờ trùng hex: subtle = viền card/divider mảnh, default = viền
+   * khối rõ — tách tên để giữ ngữ nghĩa chỗ dùng, không phải để khác màu. */
+  --border-subtle: #e5e7eb;
+  /* Viền control (button secondary / select / input) — Datacake dùng gray-300
+   * (#d1d5db) cho mọi viền control, đậm hơn border-default (gray-200) một bậc. */
+  --border-control: #d1d5db;
+  --surface-table-header: #f9fafb;
+  --surface-control-disabled: #f9fafb;
+  --border-checkbox: #d1d5db;
+  /* [ĐO Datacake] body text #4a4a4a — mềm hơn gray-900. Heading thì Datacake
+   * TÁCH riêng: tiêu đề widget/section đo được oklch(0.21 0.034 264.665) =
+   * gray-800 #1e293b, ĐẬM và TỐI hơn hẳn body text (bản cũ để heading trùng
+   * #4a4a4a là lý do còn lại của "màu toàn form không giống"). */
+  --text-primary: #4a4a4a;
+  --text-heading: #1e293b;
+  /* [ĐO Datacake] gray-500 — đúng màu chữ phụ + item sidebar không active.
+   * Datacake dùng đúng #6b7280, nhưng cặp chữ-này-trên-nền-pastel-soft (toast)
+   * chỉ đạt 4.2:1 < AA 4.5 — tối hoá một nhịp (#57606e, cách nhau ~1 bước) để
+   * qua cổng tương phản; sai biệt thị giác với #6b7280 là không phân biệt được. */
+  --text-secondary: #57606e;
+  /* [ĐO source Datacake account 2 vòng] label đo chuẩn gray-600 #4b5563
+   * (14px/500 oklch 0.373 0.034 259.733) — bản #373f51 là xám-xanh pha tay,
+   * lệch sắc với bảng Datacake không-tint. */
+  --text-label: #4b5563;
+  --text-hint: #6b7280;
+  /* [ĐO source] focus viền control: gray-500 (không xanh) */
+  --border-focus: #6a7280;
+
+  --status-success: #047d57;
+  --status-info: #155dfc;
+  --status-warning: #b45309;
+  --status-danger: #b91c1c;
+
+  --status-success-dot: #10b981;
+  --status-danger-dot: #ef4444;
+  --status-warning-dot: #f59e0b;
+  --status-neutral-dot: #9ca3af;
+
+  --status-info-on: #ffffff;
+  --status-danger-on: #ffffff;
+
+  /*
+   * INPUT FOCUS TOKENS — Chuẩn Datacake (app.datacake.de) & Shadcn UI:
+   * Viền nét 1px xanh thanh thoát (#3b82f6), kết hợp vòng hào quang mờ 18%
+   * thay thế hoàn toàn outline 2px solid thô cứng.
+   */
+  --input-border-focus: #3b82f6;
+  --input-focus-ring: 0 0 0 2px rgba(59, 130, 246, 0.18);
+  --input-focus-ring-danger: 0 0 0 2px rgba(239, 68, 68, 0.18);
+
+  /* Token thanh cuộn (Scrollbar) tinh tế — chuẩn Datacake / GitHub */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+}
+
+/*
+ * Nền nhạt của từng trạng thái. **KHÔNG còn dùng `color-mix`** — xem khối ngay dưới
+ * để biết vì sao, và đừng đưa nó trở lại: cổng 9 bỏ qua mọi giá trị không phải hex,
+ * nên một token `color-mix` là một nền chưa bao giờ được nghiệm ngưỡng.
+ */
+/*
+ * ## `color-mix` ĐÃ BỊ XOÁ — và đây là lý do, không phải một lần dọn dẹp
+ *
+ * `[ĐO 2026-08-29]` `scripts/check-contrast.mjs` `readTokens()` có dòng
+ * `if (!HEX.test(value)) continue`. Nên **cả hai** bản trước đây của bốn token này
+ * đều vô hình với cổng 9: bản dự phòng là `var(--surface-panel)` (không phải hex),
+ * bản `@supports` là `color-mix(...)` (không phải hex). Bốn nền nhạt chưa bao giờ
+ * được nghiệm ngưỡng, và cổng vẫn in `36 cặp … tất cả đạt ngưỡng`.
+ *
+ * Cấu trúc hai khối đó còn một cái bẫy nặng hơn: nếu ai đó đặt **hex đặc** vào khối
+ * dự phòng mà giữ nhánh `@supports`, cổng sẽ nhặt hex đó, tính đủ cặp, báo xanh —
+ * trong khi mọi browser hiện hành đi vào nhánh `@supports` và render `color-mix`.
+ * Lúc đó cổng nghiệm một màu **không tồn tại trên màn hình**. Đó là xanh giả ở dạng
+ * khó thấy nhất: thước đo và vật đo nhìn vào hai giá trị khác nhau.
+ *
+ * Bản này khai **hex đặc trong từng theme**, một giá trị duy nhất cho mỗi token ở
+ * mỗi theme. Mất tính "tự trộn theo theme" của `color-mix` — đó là giá đã trả có
+ * chủ đích: một token đo được đáng hơn một token tự động mà không ai kiểm được.
+ *
+ * Giá trị lấy từ `[ĐO]` trên Datacake: badge của họ là nền `oklch(0.936 0.032
+ * 17.717)` (= Tailwind `red-100` ≈ `#fee2e2`) với chữ `oklch(0.444 0.177 26.899)`
+ * (= `red-800`), bo tròn hết (`border-radius: 9999px`), `padding: 2px 10px`.
+ *
+ * **Theme tối giữ nền = màu panel**, tức badge ở theme tối vẫn là dạng viền. Nền
+ * nhạt pha màu trên nền tối cho ra vùng xám bẩn, và cặp chữ-trên-nền đó phải nghiệm
+ * lại từ đầu. Đặt bằng đúng hex của `--surface-panel` nên bốn cặp mới ở theme tối
+ * trùng với cặp `status-*`/`surface-panel` đã đo — không có bề mặt nào chưa nghiệm.
+ */
+html[data-theme='dark'] {
+  --status-success-soft: #1e1e1e;
+  --status-info-soft: #1e1e1e;
+  --status-warning-soft: #1e1e1e;
+  --status-danger-soft: #1e1e1e;
+}
+
+/*
+ * ## Màu toast — clone [ĐO 2026-09-05] trên app.datacake.de (toast THẬT được
+ * trigger + 70 rule Toastify của bundle `index-Cqo7-Ddd.css`)
+ *
+ * Datacake dùng react-toastify v11 và GHI ĐÈ từng mức: error nền `red-100`
+ * chữ `red-700`, success nền `green-100` chữ `green-700`, warning nền
+ * `yellow-50` chữ `yellow-700`, info KHÔNG ghi đè (nền trắng). Hex dưới đây
+ * là chính Tailwind v4 palette mà Datacake load (`oklch` đổi sang `#hex`).
+ *
+ * Token tách khỏi `--status-*-soft` có chủ đích: bốn token soft đang phục vụ
+ * Badge và hộp lỗi LoginView; đổi giá trị chúng theo toast sẽ làm trôi màu
+ * Badge mà không có phép đo nào bảo vệ chỗ đó. Token riêng = bề mặt đo được
+ * riêng (gate 9 khai cặp cho từng token, xem `scripts/check-contrast.mjs`).
+ *
+ * Theme tối: Giữ nền = `--surface-panel` (#18181b,
+ * cùng chiến lược với badge) và chữ = biến thể sáng của cùng họ màu — cặp này
+ * được gate 9 nghiệm ngưỡng 4.5:1.
+ */
+html[data-theme='dark'] {
+  --toast-info-bg: #18181b;
+  --toast-success-bg: #18181b;
+  --toast-warning-bg: #18181b;
+  --toast-danger-bg: #18181b;
+  --toast-success-fg: #4ade80;
+  --toast-warning-fg: #fbbf24;
+  --toast-danger-fg: #f87171;
+  --toast-success-close: #4ade80;
+  --toast-warning-close: #fbbf24;
+  --toast-danger-close: #f87171;
+  --toast-success-bar: #10b981;
+  --toast-warning-bar: #eab308;
+  --toast-danger-bar: #ef4444;
+  --toast-info-bar: #10b981;
+}
+
+:root,
+[data-theme='light'] {
+  --toast-info-bg: #ffffff;
+  --toast-success-bg: #dcfce7;
+  --toast-warning-bg: #fefce8;
+  --toast-danger-bg: #fee2e2;
+  --toast-success-fg: #15803d;
+  --toast-warning-fg: #a16207;
+  --toast-danger-fg: #b91c1c;
+  --toast-success-close: #166534;
+  --toast-warning-close: #854d0e;
+  --toast-danger-close: #991b1b;
+  --toast-success-bar: #22c55e;
+  --toast-warning-bar: #eab308;
+  --toast-danger-bar: #ef4444;
+  --toast-info-bar: #3b82f6;
+}
+
+/* Selector PHẢI khớp khối light ở trên (`:root, [data-theme='light']`). Chỉ khai
+   `[data-theme='light']` thì `:root` — trạng thái khi chưa có `data-theme` — không có
+   bốn token này, và badge mất nền cho tới khi theme store chạy. */
+:root,
+[data-theme='light'] {
+  --status-success-soft: #d1fae5;
+  --status-info-soft: #e0f2fe;
+  --status-warning-soft: #fef3c7;
+  --status-danger-soft: #fee2e2;
+}
+
+/* Tiện ích: chữ chỉ dành cho screen reader. Cần ở nhiều chỗ (nhãn mức độ của
+   toast, nhãn cột chỉ có icon), nên nằm ở tầng app thay vì lặp lại. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  background-color: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * DATACAKE UNIFIED SELECT STYLING — Chuẩn hóa toàn bộ thẻ select native
+ * Triệt tiêu mũi tên mặc định của hệ điều hành bằng `appearance: none`.
+ * Tích hợp SVG Chevron Datacake vector sắc nét, padding chống tràn chữ,
+ * Design Tokens tương thích 100% theme sáng/tối và vòng hào quang focus.
+ */
+.datacake-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.625rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25em 1.25em;
+  font-family: inherit;
+  color: var(--text-primary);
+  background-color: var(--surface-panel);
+  border: 1px solid var(--border-control, #d1d5db);
+  border-radius: 0.375rem;
+  box-shadow: var(--shadow-control);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.datacake-select:hover:not(:disabled) {
+  border-color: var(--text-secondary, #6b7280);
+}
+
+.datacake-select:focus,
+.datacake-select:focus-visible {
+  outline: none;
+  border-color: var(--input-border-focus, #3b82f6);
+  box-shadow: var(--input-focus-ring, 0 0 0 2px rgba(59, 130, 246, 0.18));
+}
+
+.datacake-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background-color: var(--surface-overlay, #e5e7eb);
+}
+
+/* Biến thể kích thước chuẩn */
+.datacake-select--md {
+  height: 38px;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.43;
+}
+
+.datacake-select--sm {
+  height: 32px;
+  padding: 0.25rem 2rem 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+/*
+ * Khung thẻ bao quanh bảng dữ liệu chuẩn Datacake Parity (.data-table-card)
+ * Đảm bảo mọi bảng và phân trang được gom thành một card liền khối, bo góc 0.5rem (8px),
+ * có viền hairline 1px solid var(--border-default), nền trắng var(--surface-card) và đổ bóng nhẹ.
+ */
+.data-table-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+

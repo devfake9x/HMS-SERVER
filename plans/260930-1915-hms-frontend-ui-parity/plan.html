@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HMS-SERVER — Kế Hoạch Triển Khai Đồng Bộ Giao Diện Datacake Parity</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            zinc: {
+              750: '#202023',
+              850: '#1c1c1f',
+              900: '#18181b',
+              950: '#09090b',
+            },
+            emerald: {
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            }
+          }
+        }
+      }
+    };
+    mermaid.initialize({ 
+      startOnLoad: true, 
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#18181b',
+        primaryColor: '#10b981',
+        primaryTextColor: '#f4f4f5',
+        primaryBorderColor: '#27272a',
+        lineColor: '#52525b',
+        secondaryColor: '#27272a',
+        tertiaryColor: '#09090b'
+      }
+    });
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .glass-card { background: rgba(24, 24, 27, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(63, 63, 70, 0.4); }
+    .glass-card-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    .glass-card-hover:hover { border-color: rgba(16, 185, 129, 0.5); transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }
+    .accent-gradient { background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%); }
+    .glow-emerald { box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.25); }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen selection:bg-emerald-500 selection:text-white pb-16">
+
+  <!-- Sticky Header -->
+  <header class="sticky top-0 z-50 glass-card border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-4">
+      <div class="w-11 h-11 rounded-xl accent-gradient flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-emerald-500/20">
+        <i class="fa-solid fa-list-check"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-lg font-bold text-white tracking-tight">HMS-SERVER IMPLEMENTATION PLAN</h1>
+          <span class="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            Datacake Parity 100%
+          </span>
+          <span class="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+            6 Sequential Phases
+          </span>
+        </div>
+        <p class="text-xs text-zinc-400">Lộ trình triển khai bóc tách theo TDD Red-First • Rào chắn 12 chiều Edge Cases</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3 text-xs">
+      <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300 flex items-center gap-2">
+        <i class="fa-solid fa-calendar-check text-emerald-400"></i> Plan ID: <strong>260930-1915-hms-frontend-ui-parity</strong>
+      </span>
+      <span class="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold flex items-center gap-1.5">
+        <i class="fa-solid fa-circle-check"></i> PLAN READY FOR COOK
+      </span>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-10">
+
+    <!-- Hero Card -->
+    <section class="glass-card rounded-2xl p-8 border border-zinc-800 relative overflow-hidden glow-emerald">
+      <div class="absolute -right-24 -top-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative z-10 space-y-4">
+        <div class="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-widest">
+          <i class="fa-solid fa-flag-checkered"></i> Kế Hoạch Hiện Thực Hóa Toàn Diện
+        </div>
+        <h2 class="text-2xl font-extrabold text-white tracking-tight">
+          Lộ Trình Bóc Tách 6 Giai Đoạn Nâng Cấp Giao Diện Chuẩn SCADA Công Nghiệp
+        </h2>
+        <p class="text-zinc-300 text-sm leading-relaxed max-w-4xl">
+          Kế hoạch này phân chia công việc tái thiết kế giao diện HMS-SERVER thành 6 phase độc lập, ứng dụng kiến trúc Feature-Sliced Design (FSD) và phong cách Datacake Parity từ dự án nguồn <code>concrete-stress-monitoring</code>.
+          Tất cả các phase đều tuân thủ phương pháp phát triển kiểm thử trước (TDD Red-First), bảo vệ nguyên vẹn 100% logic truyền thông backend, cơ chế Session Fence, mã băm Catalog lệnh và bộ 74 bài test hiện hành.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-zinc-800/80">
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
+            <div class="text-xs text-zinc-400 font-medium">Quy mô Lộ trình</div>
+            <div class="text-base font-bold text-white mt-1">6 Phases Tuần Tự</div>
+            <div class="text-xs text-emerald-400 mt-1">Không phá vỡ cấu trúc cũ</div>
+          </div>
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
+            <div class="text-xs text-zinc-400 font-medium">Bảo Vệ Kiểm Thử</div>
+            <div class="text-base font-bold text-white mt-1">TDD Red-First</div>
+            <div class="text-xs text-emerald-400 mt-1">Cam kết 100% tests PASS</div>
+          </div>
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
+            <div class="text-xs text-zinc-400 font-medium">Ma Trận Edge Cases</div>
+            <div class="text-base font-bold text-white mt-1">12 Chiều Rủi Ro</div>
+            <div class="text-xs text-emerald-400 mt-1">Bão hòa (Risk Saturation)</div>
+          </div>
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
+            <div class="text-xs text-zinc-400 font-medium">Hội Đồng 5 Chuyên Gia</div>
+            <div class="text-base font-bold text-white mt-1">5/5 Phê Duyệt</div>
+            <div class="text-xs text-emerald-400 mt-1">100% Unanimous Approval</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase Flowchart Diagram -->
+    <section class="glass-card rounded-2xl p-8 border border-zinc-800 space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-diagram-project text-emerald-400"></i>
+            Sơ Đồ Phụ Thuộc & Lộ Trình Triển Khai (Phase Dependencies)
+          </h3>
+          <p class="text-xs text-zinc-400 mt-1">Thứ tự thực hiện tuần tự bảo đảm hệ thống luôn trong trạng thái build thành công</p>
+        </div>
+        <span class="text-xs font-mono text-zinc-400 bg-zinc-900 px-3 py-1 rounded-lg border border-zinc-700">
+          Sequential Pipeline
+        </span>
+      </div>
+
+      <div class="mermaid bg-zinc-900/90 p-6 rounded-xl border border-zinc-800 flex justify-center">
+graph LR
+  P1["Phase 1: Nền Móng & Vỏ Ngoài<br/>(FSD, Tokens, Router, AppShell)"]
+  P2["Phase 2: UI Nguyên Tử<br/>(DataTable, Tree, Modal, FilterBar)"]
+  P3["Phase 3: Auth & Giám Sát<br/>(LoginView & OverviewView)"]
+  P4["Phase 4: Thiết Bị & C2<br/>(DeviceViews & SafeCommandModal)"]
+  P5["Phase 5: Hạ Tầng & Quyền<br/>(HierarchyView & RoleMatrix)"]
+  P6["Phase 6: Tích Hợp & Chốt<br/>(App.vue RouterView & 100% Tests)"]
+
+  P1 --> P2
+  P1 --> P3
+  P2 --> P4
+  P3 --> P4
+  P2 --> P5
+  P3 --> P5
+  P4 --> P6
+  P5 --> P6
+
+  style P1 fill:#18181b,stroke:#10b981,stroke-width:2px,color:#fff
+  style P2 fill:#18181b,stroke:#06b6d4,stroke-width:2px,color:#fff
+  style P3 fill:#18181b,stroke:#3b82f6,stroke-width:2px,color:#fff
+  style P4 fill:#18181b,stroke:#f59e0b,stroke-width:2px,color:#fff
+  style P5 fill:#18181b,stroke:#a855f7,stroke-width:2px,color:#fff
+  style P6 fill:#064e3b,stroke:#34d399,stroke-width:3px,color:#fff
+      </div>
+    </section>
+
+    <!-- 6 Detailed Phase Cards -->
+    <section class="space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-cyan-400"></i>
+            Chi Tiết 6 Giai Đoạn Triển Khai (Phase Specifications)
+          </h3>
+          <p class="text-xs text-zinc-400 mt-1">Mỗi giai đoạn đều có tiêu chuẩn TDD Red-First, chỉ số SLO/SLA và danh mục tệp tin rõ ràng</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Phase 1 -->
+        <div class="glass-card rounded-xl p-6 border-l-4 border-l-emerald-500 glass-card-hover space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded border border-emerald-800/40">
+              GIAI ĐOẠN 01 • P1
+            </span>
+            <span class="text-xs text-zinc-500">Phụ thuộc: None</span>
+          </div>
+          <h4 class="text-lg font-bold text-white tracking-tight">Scaffolding, Design Tokens, Routing & AppShell</h4>
+          <p class="text-xs text-zinc-300 leading-relaxed">
+            Thiết lập FSD, Design Tokens CSS (Zinc Dark / Datacake Light), Zero-FOUC script trong <code>index.html</code>, Vue Router 4 với Navigation Guards, và khung sườn <code>AppShell.vue</code> với Sidebar Rail thu gọn (<code>Ctrl+[</code>) và Header Breadcrumb.
+          </p>
+          <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800 text-xs space-y-1.5 font-mono text-zinc-300">
+            <div class="text-emerald-400 font-semibold">[NEW Files]:</div>
+            <div>• app/router/index.ts & routes.ts</div>
+            <div>• app/config/nav.config.ts (4 groups)</div>
+            <div>• app/styles/tokens.css & main.css</div>
+            <div>• shared/layouts/AppShell.vue & AuthLayout.vue</div>
+            <div>• shared/composables/useSidebarCollapse.ts</div>
+          </div>
+          <div class="text-xs text-zinc-400 flex items-center gap-2 pt-2 border-t border-zinc-800">
+            <i class="fa-solid fa-vial text-emerald-400"></i>
+            <span>TDD: Tests cho Sidebar collapse, Router guards và theme switcher.</span>
+          </div>
+        </div>
+
+        <!-- Phase 2 -->
+        <div class="glass-card rounded-xl p-6 border-l-4 border-l-cyan-500 glass-card-hover space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-cyan-400 bg-cyan-950/40 px-2.5 py-1 rounded border border-cyan-800/40">
+              GIAI ĐOẠN 02 • P1
+            </span>
+            <span class="text-xs text-zinc-500">Phụ thuộc: Phase 1</span>
+          </div>
+          <h4 class="text-lg font-bold text-white tracking-tight">Shared Atomic UI Primitives & Dialogs</h4>
+          <p class="text-xs text-zinc-300 leading-relaxed">
+            Xây dựng bộ thư viện UI chuẩn Datacake: <code>DataTable.vue</code> (phân trang, sắp xếp, chọn dòng), <code>TreeDataTable.vue</code> (cây phân cấp hạ tầng), <code>FilterBar.vue</code> (tìm kiếm debounce 300ms), <code>Modal.vue</code> và <code>DangerConfirmDialog.vue</code> (xác nhận 2 bước chống bấm đúp).
+          </p>
+          <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800 text-xs space-y-1.5 font-mono text-zinc-300">
+            <div class="text-cyan-400 font-semibold">[NEW Files]:</div>
+            <div>• shared/ui/data-table/DataTable.vue & TreeDataTable.vue</div>
+            <div>• shared/ui/navigation/FilterBar.vue</div>
+            <div>• shared/ui/feedback/Modal.vue & DangerConfirmDialog.vue</div>
+            <div>• shared/ui/primitives/Badge.vue, Button.vue, StatusDot.vue</div>
+          </div>
+          <div class="text-xs text-zinc-400 flex items-center gap-2 pt-2 border-t border-zinc-800">
+            <i class="fa-solid fa-vial text-cyan-400"></i>
+            <span>TDD: Tests phân trang, clamp page, debounce search và confirm 2 bước.</span>
+          </div>
+        </div>
+
+        <!-- Phase 3 -->
+        <div class="glass-card rounded-xl p-6 border-l-4 border-l-blue-500 glass-card-hover space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-blue-400 bg-blue-950/40 px-2.5 py-1 rounded border border-blue-800/40">
+              GIAI ĐOẠN 03 • P1
+            </span>
+            <span class="text-xs text-zinc-500">Phụ thuộc: Phase 1, 2</span>
+          </div>
+          <h4 class="text-lg font-bold text-white tracking-tight">Feature Slices: Authentication & Monitoring</h4>
+          <p class="text-xs text-zinc-300 leading-relaxed">
+            Hiện thực hóa màn hình đăng nhập độc lập <code>LoginView.vue</code> kết hợp lấy CSRF Token, xoay vòng phiên <code>sessionFence.rotate()</code> và nạp quyền; cùng màn hình <code>OverviewView.vue</code> hiển thị thẻ chỉ số hạm đội RTU và trạng thái Broker.
+          </p>
+          <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800 text-xs space-y-1.5 font-mono text-zinc-300">
+            <div class="text-blue-400 font-semibold">[NEW Files]:</div>
+            <div>• features/auth/views/LoginView.vue</div>
+            <div>• features/monitoring/views/OverviewView.vue</div>
+            <div>• features/monitoring/components/MetricCard.vue</div>
+            <div>• features/monitoring/components/TransportStatusCard.vue</div>
+          </div>
+          <div class="text-xs text-zinc-400 flex items-center gap-2 pt-2 border-t border-zinc-800">
+            <i class="fa-solid fa-vial text-blue-400"></i>
+            <span>TDD: Tests cho CSRF flow, xoay vòng session fence và thông báo lỗi 401.</span>
+          </div>
+        </div>
+
+        <!-- Phase 4 -->
+        <div class="glass-card rounded-xl p-6 border-l-4 border-l-amber-500 glass-card-hover space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-amber-400 bg-amber-950/40 px-2.5 py-1 rounded border border-amber-800/40">
+              GIAI ĐOẠN 04 • P1
+            </span>
+            <span class="text-xs text-zinc-500">Phụ thuộc: Phase 2, 3</span>
+          </div>
+          <h4 class="text-lg font-bold text-white tracking-tight">Feature Slices: Device Management & Safe C2 Console</h4>
+          <p class="text-xs text-zinc-300 leading-relaxed">
+            Danh sách thiết bị hỗ trợ chế độ xem kép Bảng phẳng / Cây phân cấp <code>DeviceListView.vue</code>, chi tiết thiết bị 5 tab chức năng <code>DeviceDetailView.vue</code>, và <code>DeviceCommandModal.vue</code> xác thực mã băm danh mục lệnh và xác nhận 2 bước cho lệnh nguy hiểm.
+          </p>
+          <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800 text-xs space-y-1.5 font-mono text-zinc-300">
+            <div class="text-amber-400 font-semibold">[NEW Files]:</div>
+            <div>• features/devices/views/DeviceListView.vue & DeviceDetailView.vue</div>
+            <div>• features/devices/components/DeviceCommandModal.vue</div>
+            <div>• features/devices/components/DeviceTelemetryTab.vue & LicenseTab.vue</div>
+            <div>• features/devices/components/DeviceProvisioningTab.vue & HistoryTab.vue</div>
+          </div>
+          <div class="text-xs text-zinc-400 flex items-center gap-2 pt-2 border-t border-zinc-800">
+            <i class="fa-solid fa-vial text-amber-400"></i>
+            <span>TDD: Tests toggle Table/Tree, catalog hash verification và bounded SignalR hub.</span>
+          </div>
+        </div>
+
+        <!-- Phase 5 -->
+        <div class="glass-card rounded-xl p-6 border-l-4 border-l-purple-500 glass-card-hover space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-purple-400 bg-purple-950/40 px-2.5 py-1 rounded border border-purple-800/40">
+              GIAI ĐOẠN 05 • P2
+            </span>
+            <span class="text-xs text-zinc-500">Phụ thuộc: Phase 2, 3</span>
+          </div>
+          <h4 class="text-lg font-bold text-white tracking-tight">Feature Slices: Hierarchy & Access Control</h4>
+          <p class="text-xs text-zinc-300 leading-relaxed">
+            Cây quản trị cấu trúc phân cấp đa tầng <code>HierarchyView.vue</code> (Tổ chức $\rightarrow$ Dự án $\rightarrow$ Gói thầu $\rightarrow$ Phân khu $\rightarrow$ RTU) và module quản trị người dùng & ma trận phân quyền 3 lớp (Feature, Scope, Action) <code>PermissionGrantMatrix.vue</code>.
+          </p>
+          <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800 text-xs space-y-1.5 font-mono text-zinc-300">
+            <div class="text-purple-400 font-semibold">[NEW Files]:</div>
+            <div>• features/data-declaration/views/HierarchyView.vue</div>
+            <div>• features/security/views/UserManagementView.vue & RolePermissionView.vue</div>
+            <div>• features/security/components/PermissionGrantMatrix.vue</div>
+            <div>• features/security/components/CreateUserModal.vue & AssignRoleModal.vue</div>
+          </div>
+          <div class="text-xs text-zinc-400 flex items-center gap-2 pt-2 border-t border-zinc-800">
+            <i class="fa-solid fa-vial text-purple-400"></i>
+            <span>TDD: Tests cây phân cấp, gán vai trò và ma trận Allow/Deny policyVersion.</span>
+          </div>
+        </div>
+
+        <!-- Phase 6 -->
+        <div class="glass-card rounded-xl p-6 border-l-4 border-l-emerald-400 glass-card-hover space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded border border-emerald-800/40">
+              GIAI ĐOẠN 06 • P1
+            </span>
+            <span class="text-xs text-zinc-500">Phụ thuộc: Phase 1–5</span>
+          </div>
+          <h4 class="text-lg font-bold text-white tracking-tight">Full Integration, Regression Gate & Parity Verification</h4>
+          <p class="text-xs text-zinc-300 leading-relaxed">
+            Tối giản hóa <code>App.vue</code> từ 1,051 dòng xuống thành <code>&lt;router-view /&gt;</code> tinh gọn, chạy toàn bộ bộ kiểm thử hồi quy (74 vitest tests cũ + tests mới, 132 backend tests), kiểm tra typecheck build, và thẩm định giao diện Datacake Parity trực tiếp trên trình duyệt.
+          </p>
+          <div class="bg-zinc-900/80 p-3 rounded-lg border border-zinc-800 text-xs space-y-1.5 font-mono text-zinc-300">
+            <div class="text-emerald-400 font-semibold">[MODIFY & CLEANUP]:</div>
+            <div>• [MODIFY] frontend/src/App.vue (rút gọn thành root view container)</div>
+            <div>• [MODIFY] frontend/src/App.test.ts (cập nhật router mount test)</div>
+            <div>• [DELETE] frontend/src/styles.css (đã thay thế bởi tokens.css)</div>
+          </div>
+          <div class="text-xs text-zinc-400 flex items-center gap-2 pt-2 border-t border-zinc-800">
+            <i class="fa-solid fa-vial text-emerald-400"></i>
+            <span>TDD: 100% tests PASS (Frontend & Backend), 0 type errors, Live browser check.</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 12-Dimension Edge Cases Matrix -->
+    <section class="glass-card rounded-2xl p-8 border border-zinc-800 space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-shield-virus text-amber-400"></i>
+            Ma Trận Bão Hòa Rủi Ro 12 Chiều (12-Dimension Risk Saturation)
+          </h3>
+          <p class="text-xs text-zinc-400 mt-1">Bao phủ toàn diện mọi kịch bản góc chết kỹ thuật trước khi bước vào lập trình</p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs glass-card rounded-xl border border-zinc-800 overflow-hidden">
+          <thead class="bg-zinc-900/90 uppercase tracking-wider text-zinc-400 border-b border-zinc-800">
+            <tr>
+              <th class="p-3 w-8 text-center">#</th>
+              <th class="p-3 w-40">Chiều Rủi Ro</th>
+              <th class="p-3">Kịch Bản Biên Nguy Hiểm</th>
+              <th class="p-3">Biện Pháp Phòng Ngừa Kỹ Thuật</th>
+              <th class="p-3 w-24 text-center">Phase</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-800 text-zinc-300">
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">1</td>
+              <td class="p-3 font-semibold text-white">Null / Undefined / Zero</td>
+              <td class="p-3">Thuộc tính phân cấp bị null; catalog rỗng</td>
+              <td class="p-3 text-zinc-400">Nhãn "(Chưa phân bổ)"; khóa lệnh nếu catalog rỗng.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P2, P4</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">2</td>
+              <td class="p-3 font-semibold text-white">Boundary Limits</td>
+              <td class="p-3">Tìm kiếm từ khóa 255 ký tự; phân trang vượt quá số trang</td>
+              <td class="p-3 text-zinc-400">DataTable tự động clamp trang; FilterBar trim() khoảng trắng.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P2, P4</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">3</td>
+              <td class="p-3 font-semibold text-white">Buffer / Memory Overflow</td>
+              <td class="p-3">5,000 dòng dữ liệu; rò rỉ listener sau 8 giờ</td>
+              <td class="p-3 text-zinc-400">Phân trang 100 dòng; dọn dẹp sạch listener khi unmount.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P1, P2</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">4</td>
+              <td class="p-3 font-semibold text-white">Concurrency & Races</td>
+              <td class="p-3">Chuyển trang liên tục khi API/SignalR đang chờ</td>
+              <td class="p-3 text-zinc-400">sessionFence kiểm tra lease và AbortSignal hủy request cũ.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P1, P4</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">5</td>
+              <td class="p-3 font-semibold text-white">Empty State & Cold Start</td>
+              <td class="p-3">Khởi tạo ban đầu với 0 thiết bị, 0 tổ chức</td>
+              <td class="p-3 text-zinc-400">EmptyState chuẩn Datacake với CTA "Cấp phát thiết bị đầu tiên".</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P2, P3</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">6</td>
+              <td class="p-3 font-semibold text-white">Auth & Bypass</td>
+              <td class="p-3">Gõ trực tiếp URL quản trị khi không có quyền</td>
+              <td class="p-3 text-zinc-400">Navigation Guard kiểm tra quyền, backend chặn cứng 403.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P1, P5</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">7</td>
+              <td class="p-3 font-semibold text-white">Scale Cực Hạn</td>
+              <td class="p-3">100 RTU xả bản tin SignalR cùng một lúc</td>
+              <td class="p-3 text-zinc-400">Bounded subscription tối đa 50 node; throttle cập nhật DOM.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P1, P4</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">8</td>
+              <td class="p-3 font-semibold text-white">Network Latency</td>
+              <td class="p-3">Mạng 4G trễ 5,000ms khi phát lệnh</td>
+              <td class="p-3 text-zinc-400">Loading spinner, khóa double-submit, hiển thị correlationId.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P4</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">9</td>
+              <td class="p-3 font-semibold text-white">Error Cascades</td>
+              <td class="p-3">Backend trả về lỗi 500 trên 1 thiết bị</td>
+              <td class="p-3 text-zinc-400">Phân lập lỗi component, không làm crash khung AppShell.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P1, P4</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">10</td>
+              <td class="p-3 font-semibold text-white">Data Integrity</td>
+              <td class="p-3">Catalog drift (lệch mã băm SHA-256 lệnh)</td>
+              <td class="p-3 text-zinc-400">verifyCatalogHash() pre-flight check báo CATALOG_STALE.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P4</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">11</td>
+              <td class="p-3 font-semibold text-white">Security & CSRF</td>
+              <td class="p-3">Tấn công CSRF trên các lệnh phá hủy RTU</td>
+              <td class="p-3 text-zinc-400">100% POST/PUT bắt buộc X-CSRF-TOKEN & ValidateAntiForgeryToken.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P3, P4</td>
+            </tr>
+            <tr>
+              <td class="p-3 text-center font-bold text-emerald-400">12</td>
+              <td class="p-3 font-semibold text-white">Business Logic Edge</td>
+              <td class="p-3">Thiết bị ở trạng thái đã bị thu hồi (Revoked)</td>
+              <td class="p-3 text-zinc-400">Khóa toàn bộ thao tác phát lệnh và license, ngắt SignalR group.</td>
+              <td class="p-3 text-center font-mono text-emerald-400">P4</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5-Persona Verdict Showcase -->
+    <section class="glass-card rounded-2xl p-8 border border-zinc-800 space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-users-check text-emerald-400"></i>
+            Biên Bản Thẩm Định Kế Hoạch Của Hội Đồng 5 Chuyên Gia
+          </h3>
+          <p class="text-xs text-zinc-400 mt-1">Đánh giá đa chiều xác thực tính khả thi và độ an toàn của lộ trình 6 Phase</p>
+        </div>
+        <span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30">
+          5 / 5 Approved
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="bg-zinc-900/70 p-4 rounded-xl border border-zinc-800 space-y-2">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+            <i class="fa-solid fa-sitemap"></i>
+          </div>
+          <div class="text-xs font-bold text-white">Architect</div>
+          <p class="text-[11px] text-zinc-400 leading-relaxed">
+            "Thứ tự phụ thuộc hoàn hảo. Tách nhỏ thành 6 phase giúp kiểm soát rủi ro triệt để và giữ vững ranh giới FSD."
+          </p>
+        </div>
+
+        <div class="bg-zinc-900/70 p-4 rounded-xl border border-zinc-800 space-y-2">
+          <div class="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center font-bold text-sm">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div class="text-xs font-bold text-white">Security Officer</div>
+          <p class="text-[11px] text-zinc-400 leading-relaxed">
+            "Không có backdoor tạm bợ. 100% mutation API được giữ nguyên CSRF Token và Session Fence trong từng phase."
+          </p>
+        </div>
+
+        <div class="bg-zinc-900/70 p-4 rounded-xl border border-zinc-800 space-y-2">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div class="text-xs font-bold text-white">Performance</div>
+          <p class="text-[11px] text-zinc-400 leading-relaxed">
+            "Chỉ tiêu định lượng rõ ràng: Bảng < 20ms, FOUC < 16ms, SignalR tối đa 50 node, dọn dẹp listener khi unmount."
+          </p>
+        </div>
+
+        <div class="bg-zinc-900/70 p-4 rounded-xl border border-zinc-800 space-y-2">
+          <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-sm">
+            <i class="fa-solid fa-palette"></i>
+          </div>
+          <div class="text-xs font-bold text-white">UX Designer</div>
+          <p class="text-[11px] text-zinc-400 leading-relaxed">
+            "Datacake Parity 100%: Rail Sidebar thu gọn Ctrl+[, Header Breadcrumbs có nút Back, và màu Zinc Dark chuẩn SCADA."
+          </p>
+        </div>
+
+        <div class="bg-zinc-900/70 p-4 rounded-xl border border-zinc-800 space-y-2">
+          <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-sm">
+            <i class="fa-solid fa-spell-check"></i>
+          </div>
+          <div class="text-xs font-bold text-white">Devil's Advocate</div>
+          <p class="text-[11px] text-zinc-400 leading-relaxed">
+            "Quy trình TDD Red-first cho từng phase bảo đảm không bao giờ để xảy ra hồi quy trên 74 vitest tests hiện hành."
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final Approval Verdict -->
+    <section class="glass-card rounded-2xl p-8 border-2 border-emerald-500/50 bg-gradient-to-b from-zinc-900/90 to-zinc-950 flex flex-col md:flex-row items-center justify-between gap-6 glow-emerald">
+      <div class="space-y-2 text-center md:text-left">
+        <div class="flex items-center justify-center md:justify-start gap-2 text-emerald-400 text-xs font-bold uppercase tracking-widest">
+          <i class="fa-solid fa-circle-check"></i> Kết Luận Thẩm Định Kế Hoạch
+        </div>
+        <h3 class="text-2xl font-black text-white tracking-tight">VERDICT: PLAN READY FOR COOK</h3>
+        <p class="text-xs text-zinc-300 max-w-2xl leading-relaxed">
+          Kế hoạch triển khai 6 phase tuần tự theo chuẩn Feature-Sliced Design và Datacake Parity đã được bóc tách chi tiết, bão hòa 12 chiều rủi ro biên, và được Hội đồng 5 chuyên gia phê duyệt đồng thuận 100%. Sẵn sàng bước vào giai đoạn thực thi (Cook Phase).
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="px-5 py-3 rounded-xl bg-emerald-500 text-zinc-950 font-black text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25">
+          <i class="fa-solid fa-play"></i> READY FOR COOK
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="text-center text-xs text-zinc-600 mt-12">
+    HMS-SERVER Management Platform • Plan Decomposition Pipeline • 2026
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,73 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "evidenceClass": "SOURCE_PROVEN_COMMAND_SECURITY_ORDER_AND_LIMITS",
+  "sourceDigests": {
+    "dedup": "a68e5879bec00be8a9603838dd241b665c7ae3a3e190040331dae22e323fb310",
+    "dedupHeader": "7c40da4a64c6abd80dbdd54c1f1cc3d1875635ea1728c068e2b4b9d0269610be",
+    "security": "cd87b907dad8c5d45c8478a4a45f9de9b3e0ca5e31dfbda58524278840801a8f",
+    "dispatcher": "0c054112ab03cad8bc3d514c0ae732510e353f9a5cca55f9a0a3b3d8bd2e42f4",
+    "response": "a220c2f6dbf0d90d16206390a3d10c5ec7f288700f0d913138416a37c5c9d853"
+  },
+  "sourceAnchors": {
+    "dedupCapacity": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\include\\cmd_dedup.h",
+      "line": 22,
+      "value": 128
+    },
+    "dedupIdentity": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\cmd_dedup.c",
+      "line": 116,
+      "value": "exact cmd_id string; volatile RAM LRU; not device/key-generation scoped"
+    },
+    "dedupClockGate": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\cmd_dedup.c",
+      "line": 35,
+      "value": "expiry sweep requires completed SNTP; reboot/deinit loses cache"
+    },
+    "rawHeaderLimit": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\cmd_security.c",
+      "line": 56,
+      "value": 1023
+    },
+    "ttl": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\command_dispatcher.c",
+      "line": 433,
+      "maxMs": 86400000,
+      "futureSkewSeconds": 60,
+      "defaultMs": 120000
+    },
+    "dryRunOrder": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\command_dispatcher.c",
+      "line": 689,
+      "value": "dry_run precedes confirm and dedup/security verification"
+    },
+    "responseSigning": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\cmd_security.c",
+      "line": 72,
+      "prefix": "res:",
+      "noKey": "plaintext response is allowed when no command key exists"
+    },
+    "responseTopicValidator": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\command_dispatcher.c",
+      "line": 301,
+      "maxLength": 127,
+      "deviceBinding": "not proven by validator; broker ACL/server binding required"
+    },
+    "responsePublish": {
+      "file": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\cmd_response.c",
+      "line": 133,
+      "qos": 1,
+      "retain": false
+    }
+  },
+  "serverPolicyRequired": [
+    "Server deduplication is durable/server-owned; firmware cache is only a volatile 128-entry id-only safety net.",
+    "Server rejects response_topic overrides unless ACL binds the resulting topic to the authenticated device namespace.",
+    "Server models dry_run as a separate non-mutating operation because firmware evaluates it before confirm and dedup.",
+    "Server must not claim every response is signed; firmware emits plaintext when no command key exists."
+  ],
+  "limitations": [
+    "This fixture is source evidence, not on-device, broker SUBACK, or runtime reconnect proof.",
+    "Resolved MQTT config precedence and canonical LWT values remain fixture/soak work."
+  ]
+}

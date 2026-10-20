@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi" data-theme="dark" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="HMS-SERVER Enterprise SCADA & Industrial IoT Management Platform" />
+    <title>HMS-SERVER — Industrial IoT Management Platform</title>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('csm.theme') || localStorage.getItem('hms-theme') || 'light';
+          document.documentElement.setAttribute('data-theme', saved);
+          if (saved === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-[var(--bg-canvas)] text-[var(--text-primary)] min-h-screen antialiased">
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

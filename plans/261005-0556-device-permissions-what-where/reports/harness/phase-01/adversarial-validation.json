@@ -1,0 +1,17 @@
+{
+  "decision": "PASS_WITH_RISK",
+  "disprovenClaims": [
+    "Claim 2 (low): the pair/namespace counts can be read from an inline HTML comment inside the §11 count sentence (e.g. 'Snapshot <!-- 94 cặp, 12 namespace --> 95 cặp, 13 namespace'); policy data cannot be hidden this way because inline HTML in a table cell already fails.",
+    "Claim 2 (very low): a list item directly above a table (no blank line) is accepted; GitHub renders that table as list text. Data and visible text are the same."
+  ],
+  "unverifiedClaims": [
+    "JS/C# hash equality for every loader-accepted catalog: 400-catalog differential run plus the charset argument, not a formal proof.",
+    "Frontend gate not re-run by the adversarial reviewer (DTO unchanged, keys pinned by the integration test; tester ran it green)."
+  ],
+  "missingProof": [
+    "Parser-level charset check for config.set permissions is untested (the later canonicalizer charset check still catches it).",
+    "Section end on an empty '##' and on an indented ' ## ' heading are untested.",
+    "The loader's per-row Type == \"config\" check is masked by the catalog-wide get/set check in the current test."
+  ],
+  "reachableRegressions": []
+}

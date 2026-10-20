@@ -1,0 +1,1 @@
+- [Test suite gotchas](project_test-suite-gotchas.md) — flaky SignalR tests, hang-prone command test, `-v q` [FAIL] format, CRLF sources, test only in a copy

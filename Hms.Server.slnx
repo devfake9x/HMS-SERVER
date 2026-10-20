@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Hms.Server.Api/Hms.Server.Api.csproj" />
+    <Project Path="src/Hms.Server.Application/Hms.Server.Application.csproj" />
+    <Project Path="src/Hms.Server.Domain/Hms.Server.Domain.csproj" />
+    <Project Path="src/Hms.Server.Infrastructure/Hms.Server.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Hms.Server.IntegrationTests/Hms.Server.IntegrationTests.csproj" />
+    <Project Path="tests/Hms.Server.UnitTests/Hms.Server.UnitTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,16 @@
+{
+  "decision": "PASS_WITH_RISK",
+  "disprovenClaims": [
+    "Claim H (low, docs): phase-04 contradicts itself on the permission snapshot shape: the cycle-3 notes ask for plain-Guid DTO rows while the original lines keep the old PermissionGrantSnapshot type filled with grant records; following both breaks ManagementApiTests deserialization",
+    "Claim H (low, docs): context-snippets publicContracts says phase 3 returns POST grant bodies with plain-Guid ids, while phase-03 keeps the shape ('shape giữ') and makes the note conditional; no planned test pins either shape",
+    "Claim H (very low, docs): the phase-02 stale-tracked-row risk row lists the remove-and-regrant case, which is in fact a retriable lost-race DEVICE_MEMBERSHIP_CHANGED that phase-3 handlers can hit"
+  ],
+  "unverifiedClaims": [
+    "PostgreSQL behaviour of the race paths is inferred, not run (no database in this environment)"
+  ],
+  "missingProof": [
+    "No planned test pins the JSON shape of grant ids on the POST bodies or the GET snapshot",
+    "Staging inside the try block (no reachable trigger) and PostgreSQL rolling back the loser's audit row (accepted deviation)"
+  ],
+  "reachableRegressions": []
+}

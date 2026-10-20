@@ -1,0 +1,1328 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "source": "HMS-IDF handler registration call paths",
+  "mappingCount": 94,
+  "namespaceCount": 12,
+  "counts": {
+    "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL": 94
+  },
+  "limitation": "This fixture proves namespace registration and action string presence only; it does not prove build conditions, payload schemas, response schemas, runtime capability, or end-to-end execution.",
+  "rows": [
+    {
+      "type": "adc",
+      "action": "get_channels",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"adc\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "adc",
+      "action": "get_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"adc\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "adc",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"adc\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "adc",
+      "action": "get_values",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"adc\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "adc",
+      "action": "set_channel",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"adc\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "adc",
+      "action": "toggle_channel",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"adc\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "battery",
+      "action": "clear_alert",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_battery.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"battery\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "battery",
+      "action": "get_alerts",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_battery.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"battery\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "battery",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_battery.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"battery\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "battery",
+      "action": "quick_start",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_battery.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"battery\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "create_pipeline",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "create_signal",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "delete_pipeline",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "delete_signal",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "diagnostics",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "get_signal",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "hook_stats",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "list_chains",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "list_filters",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "list_formulas",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "list_pipelines",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "list_scales",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "list_signals",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "rebuild",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "update_pipeline",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "broker",
+      "action": "update_signal",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"broker\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "config",
+      "action": "get",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_config.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"config\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "config",
+      "action": "list_domains",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_config.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"config\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "config",
+      "action": "set",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_config.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"config\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "control",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\do-service\\do_service.c",
+      "registrationAnchor": "cmd_dispatcher_register_ctx(\"control\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "control",
+      "action": "pulse",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\do-service\\do_service.c",
+      "registrationAnchor": "cmd_dispatcher_register_ctx(\"control\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "control",
+      "action": "set_all",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\do-service\\do_service.c",
+      "registrationAnchor": "cmd_dispatcher_register_ctx(\"control\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "control",
+      "action": "set_output",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\do-service\\do_service.c",
+      "registrationAnchor": "cmd_dispatcher_register_ctx(\"control\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "modbus",
+      "action": "check_rtu_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"modbus\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "modbus",
+      "action": "get_rtu_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"modbus\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "modbus",
+      "action": "get_rtu_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"modbus\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "modbus",
+      "action": "replace_rtu_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"modbus\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "modbus",
+      "action": "restart_rtu",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"modbus\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "modbus",
+      "action": "set_rtu_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"modbus\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "mqtt",
+      "action": "get_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_mqtt.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"mqtt\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "mqtt",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_mqtt.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"mqtt\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "mqtt",
+      "action": "reconnect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_mqtt.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"mqtt\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "mqtt",
+      "action": "set_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_mqtt.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"mqtt\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "configure_ethernet",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "get_all_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "get_ethernet",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "get_modem",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "get_priority",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "set_priority",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_clients",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_config_get",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_config_set",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_disable",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_enable",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_add",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_auto_connect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_connect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_list",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_remove",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_update",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_scan_results",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_scan_start",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_config_get",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_config_set",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_connect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_disable",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_disconnect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_enable",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"network\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "ota",
+      "action": "apply",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_ota.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"ota\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "ota",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_ota.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"ota\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "ota",
+      "action": "remote_config_get",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_ota.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"ota\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "ota",
+      "action": "remote_start",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_ota.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"ota\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "sms",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_sms.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"sms\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "sms",
+      "action": "list",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_sms.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"sms\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "sms",
+      "action": "storage_stats",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_sms.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"sms\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "status",
+      "action": "dump",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_status.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"status\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "status",
+      "action": "services",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_status.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"status\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "status",
+      "action": "tags",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_status.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"status\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "factory_reset",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "get_device_id",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "get_heap",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "get_hostname",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "get_info",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "get_operations",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "get_time",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "ping",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "reboot",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "set_hostname",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "set_ntp_servers",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "set_time",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "set_timezone",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    },
+    {
+      "type": "system",
+      "action": "sync_ntp",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "registrationAnchor": "cmd_dispatcher_register(\"system\"",
+      "registered": true,
+      "actionLiteralMatches": 1,
+      "evidenceStatus": "SOURCE_PROVEN_NAMESPACE_AND_ACTION_LITERAL",
+      "unresolved": [
+        "build/runtime condition is not inferred from registration alone",
+        "request/response schema and side effects require action-level source review",
+        "server policy remains outside firmware descriptor/handler registration"
+      ]
+    }
+  ]
+}

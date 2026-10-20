@@ -1,0 +1,360 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.16.0
+2 info using node@v24.18.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:D:\WORKSPACE\PROJECT\HMS-SERVER\frontend\.npmrc
+5 silly config load:file:C:\Users\toann\.npmrc
+6 silly config load:file:C:\Users\toann\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install @microsoft/signalr@8.0.0
+8 verbose argv "install" "@microsoft/signalr@8.0.0" "--save" "--cache" ".npm-cache" "--prefer-online"
+9 verbose logfile logs-max:10 dir:D:\WORKSPACE\PROJECT\HMS-SERVER\frontend\.npm-cache\_logs\2026-09-30T05_05_21_710Z-
+10 verbose logfile D:\WORKSPACE\PROJECT\HMS-SERVER\frontend\.npm-cache\_logs\2026-09-30T05_05_21_710Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly idealTree buildDeps
+14 silly fetch manifest @microsoft/signalr@8.0.0
+15 silly packumentCache full:https://registry.npmjs.org/@microsoft%2fsignalr cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/npm 234ms
+17 http fetch GET 200 https://registry.npmjs.org/@microsoft%2fsignalr 355ms (cache miss)
+18 silly packumentCache full:https://registry.npmjs.org/@microsoft%2fsignalr set size:undefined disposed:false
+19 silly placeDep ROOT @microsoft/signalr@8.0.0 OK for: hms-server-frontend@0.1.0 want: 8.0.0
+20 silly fetch manifest ws@^7.4.5
+21 silly packumentCache full:https://registry.npmjs.org/ws cache-miss
+22 silly fetch manifest node-fetch@^2.6.7
+23 silly packumentCache full:https://registry.npmjs.org/node-fetch cache-miss
+24 silly fetch manifest eventsource@^2.0.2
+25 silly packumentCache full:https://registry.npmjs.org/eventsource cache-miss
+26 silly fetch manifest fetch-cookie@^2.0.3
+27 silly packumentCache full:https://registry.npmjs.org/fetch-cookie cache-miss
+28 silly fetch manifest abort-controller@^3.0.0
+29 silly packumentCache full:https://registry.npmjs.org/abort-controller cache-miss
+30 http fetch GET 200 https://registry.npmjs.org/ws 63ms (cache miss)
+31 silly packumentCache full:https://registry.npmjs.org/ws set size:undefined disposed:false
+32 http fetch GET 200 https://registry.npmjs.org/node-fetch 85ms (cache miss)
+33 silly packumentCache full:https://registry.npmjs.org/node-fetch set size:undefined disposed:false
+34 http fetch GET 200 https://registry.npmjs.org/fetch-cookie 110ms (cache miss)
+35 silly packumentCache full:https://registry.npmjs.org/fetch-cookie set size:undefined disposed:false
+36 http fetch GET 200 https://registry.npmjs.org/abort-controller 121ms (cache miss)
+37 silly packumentCache full:https://registry.npmjs.org/abort-controller set size:undefined disposed:false
+38 http fetch GET 200 https://registry.npmjs.org/eventsource 124ms (cache miss)
+39 silly packumentCache full:https://registry.npmjs.org/eventsource set size:undefined disposed:false
+40 silly fetch manifest bufferutil@^4.0.1
+41 silly packumentCache full:https://registry.npmjs.org/bufferutil cache-miss
+42 http fetch GET 200 https://registry.npmjs.org/bufferutil 41ms (cache miss)
+43 silly packumentCache full:https://registry.npmjs.org/bufferutil set size:undefined disposed:false
+44 silly fetch manifest utf-8-validate@^5.0.2
+45 silly packumentCache full:https://registry.npmjs.org/utf-8-validate cache-miss
+46 http fetch GET 200 https://registry.npmjs.org/utf-8-validate 43ms (cache miss)
+47 silly packumentCache full:https://registry.npmjs.org/utf-8-validate set size:undefined disposed:false
+48 silly fetch manifest encoding@^0.1.0
+49 silly packumentCache full:https://registry.npmjs.org/encoding cache-miss
+50 http fetch GET 200 https://registry.npmjs.org/encoding 38ms (cache miss)
+51 silly packumentCache full:https://registry.npmjs.org/encoding set size:undefined disposed:false
+52 silly placeDep ROOT abort-controller@3.0.0 OK for: @microsoft/signalr@8.0.0 want: ^3.0.0
+53 silly placeDep ROOT eventsource@2.0.2 OK for: @microsoft/signalr@8.0.0 want: ^2.0.2
+54 silly placeDep ROOT fetch-cookie@2.2.0 OK for: @microsoft/signalr@8.0.0 want: ^2.0.3
+55 silly placeDep ROOT node-fetch@2.7.0 OK for: @microsoft/signalr@8.0.0 want: ^2.6.7
+56 silly placeDep ROOT ws@7.5.13 OK for: @microsoft/signalr@8.0.0 want: ^7.4.5
+57 silly fetch manifest event-target-shim@^5.0.0
+58 silly packumentCache full:https://registry.npmjs.org/event-target-shim cache-miss
+59 silly fetch manifest tough-cookie@^4.0.0
+60 silly packumentCache full:https://registry.npmjs.org/tough-cookie cache-miss
+61 silly fetch manifest set-cookie-parser@^2.4.8
+62 silly packumentCache full:https://registry.npmjs.org/set-cookie-parser cache-miss
+63 silly fetch manifest whatwg-url@^5.0.0
+64 silly packumentCache full:https://registry.npmjs.org/whatwg-url cache-miss
+65 http fetch GET 200 https://registry.npmjs.org/tough-cookie 50ms (cache miss)
+66 silly packumentCache full:https://registry.npmjs.org/tough-cookie set size:undefined disposed:false
+67 http fetch GET 200 https://registry.npmjs.org/set-cookie-parser 53ms (cache miss)
+68 silly packumentCache full:https://registry.npmjs.org/set-cookie-parser set size:undefined disposed:false
+69 http fetch GET 200 https://registry.npmjs.org/whatwg-url 56ms (cache miss)
+70 silly packumentCache full:https://registry.npmjs.org/whatwg-url set size:undefined disposed:false
+71 http fetch GET 200 https://registry.npmjs.org/event-target-shim 61ms (cache miss)
+72 silly packumentCache full:https://registry.npmjs.org/event-target-shim set size:undefined disposed:false
+73 silly placeDep ROOT event-target-shim@5.0.1 OK for: abort-controller@3.0.0 want: ^5.0.0
+74 silly placeDep ROOT set-cookie-parser@2.7.2 OK for: fetch-cookie@2.2.0 want: ^2.4.8
+75 silly placeDep ROOT tough-cookie@4.1.4 OK for: fetch-cookie@2.2.0 want: ^4.0.0
+76 silly fetch manifest psl@^1.1.33
+77 silly packumentCache full:https://registry.npmjs.org/psl cache-miss
+78 silly fetch manifest punycode@^2.1.1
+79 silly packumentCache full:https://registry.npmjs.org/punycode cache-miss
+80 silly fetch manifest url-parse@^1.5.3
+81 silly packumentCache full:https://registry.npmjs.org/url-parse cache-miss
+82 silly fetch manifest universalify@^0.2.0
+83 silly packumentCache full:https://registry.npmjs.org/universalify cache-miss
+84 http fetch GET 200 https://registry.npmjs.org/punycode 48ms (cache miss)
+85 silly packumentCache full:https://registry.npmjs.org/punycode set size:undefined disposed:false
+86 http fetch GET 200 https://registry.npmjs.org/psl 50ms (cache miss)
+87 silly packumentCache full:https://registry.npmjs.org/psl set size:undefined disposed:false
+88 http fetch GET 200 https://registry.npmjs.org/universalify 51ms (cache miss)
+89 silly packumentCache full:https://registry.npmjs.org/universalify set size:undefined disposed:false
+90 http fetch GET 200 https://registry.npmjs.org/url-parse 53ms (cache miss)
+91 silly packumentCache full:https://registry.npmjs.org/url-parse set size:undefined disposed:false
+92 silly placeDep ROOT whatwg-url@5.0.0 OK for: node-fetch@2.7.0 want: ^5.0.0
+93 silly fetch manifest tr46@~0.0.3
+94 silly packumentCache full:https://registry.npmjs.org/tr46 cache-miss
+95 silly fetch manifest webidl-conversions@^3.0.0
+96 silly packumentCache full:https://registry.npmjs.org/webidl-conversions cache-miss
+97 http fetch GET 200 https://registry.npmjs.org/webidl-conversions 39ms (cache miss)
+98 silly packumentCache full:https://registry.npmjs.org/webidl-conversions set size:undefined disposed:false
+99 http fetch GET 200 https://registry.npmjs.org/tr46 48ms (cache miss)
+100 silly packumentCache full:https://registry.npmjs.org/tr46 set size:undefined disposed:false
+101 silly placeDep ROOT psl@1.15.0 OK for: tough-cookie@4.1.4 want: ^1.1.33
+102 silly placeDep ROOT punycode@2.3.1 OK for: tough-cookie@4.1.4 want: ^2.1.1
+103 silly placeDep ROOT universalify@0.2.0 OK for: tough-cookie@4.1.4 want: ^0.2.0
+104 silly placeDep ROOT url-parse@1.5.10 OK for: tough-cookie@4.1.4 want: ^1.5.3
+105 silly fetch manifest punycode@^2.3.1
+106 silly packumentCache full:https://registry.npmjs.org/punycode cache-miss
+107 silly fetch manifest querystringify@^2.1.1
+108 silly packumentCache full:https://registry.npmjs.org/querystringify cache-miss
+109 silly fetch manifest requires-port@^1.0.0
+110 silly packumentCache full:https://registry.npmjs.org/requires-port cache-miss
+111 http fetch GET 200 https://registry.npmjs.org/querystringify 42ms (cache miss)
+112 silly packumentCache full:https://registry.npmjs.org/querystringify set size:undefined disposed:false
+113 http fetch GET 200 https://registry.npmjs.org/punycode 46ms (cache revalidated)
+114 silly packumentCache full:https://registry.npmjs.org/punycode set size:61278 disposed:false
+115 http fetch GET 200 https://registry.npmjs.org/requires-port 183ms (cache miss)
+116 silly packumentCache full:https://registry.npmjs.org/requires-port set size:undefined disposed:false
+117 silly placeDep ROOT querystringify@2.2.0 OK for: url-parse@1.5.10 want: ^2.1.1
+118 silly placeDep ROOT requires-port@1.0.0 OK for: url-parse@1.5.10 want: ^1.0.0
+119 silly placeDep ROOT tr46@0.0.3 OK for: whatwg-url@5.0.0 want: ~0.0.3
+120 silly placeDep ROOT webidl-conversions@3.0.1 OK for: whatwg-url@5.0.0 want: ^3.0.0
+121 silly reify moves {}
+122 silly audit bulk request {
+122 silly audit   '@babel/helper-string-parser': [ '7.29.7' ],
+122 silly audit   '@babel/helper-validator-identifier': [ '7.29.7' ],
+122 silly audit   '@babel/parser': [ '7.29.9' ],
+122 silly audit   '@babel/types': [ '7.29.8' ],
+122 silly audit   '@esbuild/aix-ppc64': [ '0.25.12' ],
+122 silly audit   '@esbuild/android-arm': [ '0.25.12' ],
+122 silly audit   '@esbuild/android-arm64': [ '0.25.12' ],
+122 silly audit   '@esbuild/android-x64': [ '0.25.12' ],
+122 silly audit   '@esbuild/darwin-arm64': [ '0.25.12' ],
+122 silly audit   '@esbuild/darwin-x64': [ '0.25.12' ],
+122 silly audit   '@esbuild/freebsd-arm64': [ '0.25.12' ],
+122 silly audit   '@esbuild/freebsd-x64': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-arm': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-arm64': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-ia32': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-loong64': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-mips64el': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-ppc64': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-riscv64': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-s390x': [ '0.25.12' ],
+122 silly audit   '@esbuild/linux-x64': [ '0.25.12' ],
+122 silly audit   '@esbuild/netbsd-arm64': [ '0.25.12' ],
+122 silly audit   '@esbuild/netbsd-x64': [ '0.25.12' ],
+122 silly audit   '@esbuild/openbsd-arm64': [ '0.25.12' ],
+122 silly audit   '@esbuild/openbsd-x64': [ '0.25.12' ],
+122 silly audit   '@esbuild/openharmony-arm64': [ '0.25.12' ],
+122 silly audit   '@esbuild/sunos-x64': [ '0.25.12' ],
+122 silly audit   '@esbuild/win32-arm64': [ '0.25.12' ],
+122 silly audit   '@esbuild/win32-ia32': [ '0.25.12' ],
+122 silly audit   '@esbuild/win32-x64': [ '0.25.12' ],
+122 silly audit   '@jridgewell/sourcemap-codec': [ '1.6.0' ],
+122 silly audit   '@napi-rs/lzma-linux-x64-gnu': [ '1.5.1' ],
+122 silly audit   '@rollup/rollup-android-arm-eabi': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-android-arm64': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-darwin-arm64': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-darwin-x64': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-freebsd-arm64': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-freebsd-x64': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-arm-gnueabihf': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-arm-musleabihf': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-arm64-gnu': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-arm64-musl': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-loong64-gnu': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-loong64-musl': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-ppc64-gnu': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-ppc64-musl': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-riscv64-gnu': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-riscv64-musl': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-s390x-gnu': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-x64-gnu': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-linux-x64-musl': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-openbsd-x64': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-openharmony-arm64': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-win32-arm64-msvc': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-win32-ia32-msvc': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-win32-x64-gnu': [ '4.63.5' ],
+122 silly audit   '@rollup/rollup-win32-x64-msvc': [ '4.63.5' ],
+122 silly audit   '@types/chai': [ '5.2.3' ],
+122 silly audit   '@types/deep-eql': [ '4.0.2' ],
+122 silly audit   '@types/estree': [ '1.0.9' ],
+122 silly audit   '@types/node': [ '22.20.4' ],
+122 silly audit   '@vitejs/plugin-vue': [ '5.2.4' ],
+122 silly audit   '@vitest/expect': [ '3.2.7' ],
+122 silly audit   '@vitest/mocker': [ '3.2.7' ],
+122 silly audit   '@vitest/pretty-format': [ '3.2.7' ],
+122 silly audit   '@vitest/runner': [ '3.2.7' ],
+122 silly audit   '@vitest/snapshot': [ '3.2.7' ],
+122 silly audit   '@vitest/spy': [ '3.2.7' ],
+122 silly audit   '@vitest/utils': [ '3.2.7' ],
+122 silly audit   '@volar/language-core': [ '2.4.15' ],
+122 silly audit   '@volar/source-map': [ '2.4.15' ],
+122 silly audit   '@volar/typescript': [ '2.4.15' ],
+122 silly audit   '@vue/compiler-core': [ '3.5.43' ],
+122 silly audit   'estree-walker': [ '2.0.2', '3.0.3' ],
+122 silly audit   '@vue/compiler-dom': [ '3.5.43' ],
+122 silly audit   '@vue/compiler-sfc': [ '3.5.43' ],
+122 silly audit   '@vue/compiler-ssr': [ '3.5.43' ],
+122 silly audit   '@vue/compiler-vue2': [ '2.7.16' ],
+122 silly audit   '@vue/language-core': [ '2.2.12' ],
+122 silly audit   '@vue/reactivity': [ '3.5.43' ],
+122 silly audit   '@vue/runtime-core': [ '3.5.43' ],
+122 silly audit   '@vue/runtime-dom': [ '3.5.43' ],
+122 silly audit   '@vue/server-renderer': [ '3.5.43' ],
+122 silly audit   '@vue/shared': [ '3.5.43' ],
+122 silly audit   'alien-signals': [ '1.0.13' ],
+122 silly audit   'assertion-error': [ '2.0.1' ],
+122 silly audit   'balanced-match': [ '1.0.2' ],
+122 silly audit   'brace-expansion': [ '2.1.7' ],
+122 silly audit   cac: [ '6.7.14' ],
+122 silly audit   chai: [ '5.3.3' ],
+122 silly audit   'check-error': [ '2.1.3' ],
+122 silly audit   csstype: [ '3.2.3' ],
+122 silly audit   'de-indent': [ '1.0.2' ],
+122 silly audit   debug: [ '4.4.3' ],
+122 silly audit   'deep-eql': [ '5.0.2' ],
+122 silly audit   entities: [ '7.0.1' ],
+122 silly audit   'es-module-lexer': [ '1.7.0' ],
+122 silly audit   esbuild: [ '0.25.12' ],
+122 silly audit   'expect-type': [ '1.4.0' ],
+122 silly audit   fdir: [ '6.5.0' ],
+122 silly audit   fsevents: [ '2.3.3' ],
+122 silly audit   he: [ '1.2.0' ],
+122 silly audit   'js-tokens': [ '9.0.1' ],
+122 silly audit   loupe: [ '3.2.1' ],
+122 silly audit   'magic-string': [ '0.30.21' ],
+122 silly audit   minimatch: [ '9.0.9' ],
+122 silly audit   ms: [ '2.1.3' ],
+122 silly audit   'muggle-string': [ '0.4.1' ],
+122 silly audit   nanoid: [ '3.3.19' ],
+122 silly audit   'path-browserify': [ '1.0.1' ],
+122 silly audit   pathe: [ '2.0.3' ],
+122 silly audit   pathval: [ '2.0.1' ],
+122 silly audit   picocolors: [ '1.1.1' ],
+122 silly audit   picomatch: [ '4.0.7' ],
+122 silly audit   postcss: [ '8.5.28' ],
+122 silly audit   rollup: [ '4.63.5' ],
+122 silly audit   siginfo: [ '2.0.0' ],
+122 silly audit   'source-map-js': [ '1.2.1' ],
+122 silly audit   stackback: [ '0.0.2' ],
+122 silly audit   'std-env': [ '3.10.0' ],
+122 silly audit   'strip-literal': [ '3.1.0' ],
+122 silly audit   tinybench: [ '2.9.0' ],
+122 silly audit   tinyexec: [ '0.3.2' ],
+122 silly audit   tinyglobby: [ '0.2.17' ],
+122 silly audit   tinypool: [ '1.1.1' ],
+122 silly audit   tinyrainbow: [ '2.0.0' ],
+122 silly audit   tinyspy: [ '4.0.6' ],
+122 silly audit   typescript: [ '5.9.3' ],
+122 silly audit   'undici-types': [ '6.21.0' ],
+122 silly audit   vite: [ '6.4.3' ],
+122 silly audit   'vite-node': [ '3.2.4' ],
+122 silly audit   vitest: [ '3.2.7' ],
+122 silly audit   'vscode-uri': [ '3.2.0' ],
+122 silly audit   vue: [ '3.5.43' ],
+122 silly audit   'vue-tsc': [ '2.2.12' ],
+122 silly audit   'why-is-node-running': [ '2.3.0' ],
+122 silly audit   '@microsoft/signalr': [ '8.0.0' ],
+122 silly audit   'abort-controller': [ '3.0.0' ],
+122 silly audit   eventsource: [ '2.0.2' ],
+122 silly audit   'fetch-cookie': [ '2.2.0' ],
+122 silly audit   'node-fetch': [ '2.7.0' ],
+122 silly audit   ws: [ '7.5.13' ],
+122 silly audit   'event-target-shim': [ '5.0.1' ],
+122 silly audit   'set-cookie-parser': [ '2.7.2' ],
+122 silly audit   'tough-cookie': [ '4.1.4' ],
+122 silly audit   'whatwg-url': [ '5.0.0' ],
+122 silly audit   psl: [ '1.15.0' ],
+122 silly audit   punycode: [ '2.3.1' ],
+122 silly audit   universalify: [ '0.2.0' ],
+122 silly audit   'url-parse': [ '1.5.10' ],
+122 silly audit   querystringify: [ '2.2.0' ],
+122 silly audit   'requires-port': [ '1.0.0' ],
+122 silly audit   tr46: [ '0.0.3' ],
+122 silly audit   'webidl-conversions': [ '3.0.1' ]
+122 silly audit }
+123 http fetch GET 200 https://registry.npmjs.org/requires-port/-/requires-port-1.0.0.tgz 71ms (cache miss)
+124 http fetch GET 200 https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-3.0.1.tgz 73ms (cache miss)
+125 http fetch GET 200 https://registry.npmjs.org/querystringify/-/querystringify-2.2.0.tgz 73ms (cache miss)
+126 http fetch GET 200 https://registry.npmjs.org/tr46/-/tr46-0.0.3.tgz 104ms (cache miss)
+127 http fetch GET 200 https://registry.npmjs.org/fetch-cookie/-/fetch-cookie-2.2.0.tgz 110ms (cache miss)
+128 http fetch GET 200 https://registry.npmjs.org/abort-controller/-/abort-controller-3.0.0.tgz 120ms (cache miss)
+129 http fetch GET 200 https://registry.npmjs.org/eventsource/-/eventsource-2.0.2.tgz 143ms (cache miss)
+130 http fetch GET 200 https://registry.npmjs.org/punycode/-/punycode-2.3.1.tgz 147ms (cache miss)
+131 http fetch GET 200 https://registry.npmjs.org/universalify/-/universalify-0.2.0.tgz 153ms (cache miss)
+132 http fetch GET 200 https://registry.npmjs.org/set-cookie-parser/-/set-cookie-parser-2.7.2.tgz 162ms (cache miss)
+133 http fetch GET 200 https://registry.npmjs.org/url-parse/-/url-parse-1.5.10.tgz 165ms (cache miss)
+134 http fetch GET 200 https://registry.npmjs.org/whatwg-url/-/whatwg-url-5.0.0.tgz 169ms (cache miss)
+135 http fetch GET 200 https://registry.npmjs.org/node-fetch/-/node-fetch-2.7.0.tgz 174ms (cache miss)
+136 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 191ms
+137 silly audit report {
+137 silly audit report   '@vitest/mocker': [
+137 silly audit report     {
+137 silly audit report       id: 1193684,
+137 silly audit report       url: 'https://github.com/advisories/GHSA-82fw-gwwq-j7x9',
+137 silly audit report       title: 'Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock',
+137 silly audit report       severity: 'moderate',
+137 silly audit report       vulnerable_versions: '>=2.1.0 <4.1.11',
+137 silly audit report       cwe: [Array],
+137 silly audit report       cvss: [Object]
+137 silly audit report     }
+137 silly audit report   ],
+137 silly audit report   vitest: [
+137 silly audit report     {
+137 silly audit report       id: 1193683,
+137 silly audit report       url: 'https://github.com/advisories/GHSA-82fw-gwwq-j7x9',
+137 silly audit report       title: 'Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock',
+137 silly audit report       severity: 'moderate',
+137 silly audit report       vulnerable_versions: '>=2.1.0 <4.1.11',
+137 silly audit report       cwe: [Array],
+137 silly audit report       cvss: [Object]
+137 silly audit report     }
+137 silly audit report   ]
+137 silly audit report }
+138 silly packumentCache corgi:https://registry.npmjs.org/@vitest%2fmocker cache-miss
+139 silly packumentCache corgi:https://registry.npmjs.org/vitest cache-miss
+140 http fetch GET 200 https://registry.npmjs.org/tough-cookie/-/tough-cookie-4.1.4.tgz 185ms (cache miss)
+141 http fetch GET 200 https://registry.npmjs.org/event-target-shim/-/event-target-shim-5.0.1.tgz 187ms (cache miss)
+142 http fetch GET 200 https://registry.npmjs.org/ws/-/ws-7.5.13.tgz 192ms (cache miss)
+143 http fetch GET 200 https://registry.npmjs.org/psl/-/psl-1.15.0.tgz 198ms (cache miss)
+144 http fetch GET 200 https://registry.npmjs.org/@vitest%2fmocker 82ms (cache miss)
+145 silly packumentCache corgi:https://registry.npmjs.org/@vitest%2fmocker set size:undefined disposed:false
+146 http fetch GET 200 https://registry.npmjs.org/vitest 96ms (cache miss)
+147 silly packumentCache corgi:https://registry.npmjs.org/vitest set size:undefined disposed:false
+148 http fetch GET 200 https://registry.npmjs.org/@microsoft/signalr/-/signalr-8.0.0.tgz 539ms (cache miss)
+149 silly ADD node_modules/webidl-conversions
+150 silly ADD node_modules/tr46
+151 silly ADD node_modules/requires-port
+152 silly ADD node_modules/querystringify
+153 silly ADD node_modules/url-parse
+154 silly ADD node_modules/universalify
+155 silly ADD node_modules/punycode
+156 silly ADD node_modules/psl
+157 silly ADD node_modules/whatwg-url
+158 silly ADD node_modules/tough-cookie
+159 silly ADD node_modules/set-cookie-parser
+160 silly ADD node_modules/event-target-shim
+161 silly ADD node_modules/ws
+162 silly ADD node_modules/node-fetch
+163 silly ADD node_modules/fetch-cookie
+164 silly ADD node_modules/eventsource
+165 silly ADD node_modules/abort-controller
+166 silly ADD node_modules/@microsoft/signalr
+167 warn allow-scripts 1 package has install scripts not yet covered by allowScripts:
+167 warn allow-scripts   esbuild@0.25.12 (install: (install scripts present))
+167 warn allow-scripts
+167 warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+168 verbose cwd D:\WORKSPACE\PROJECT\HMS-SERVER\frontend
+169 verbose os Windows_NT 10.0.26200
+170 verbose node v24.18.0
+171 verbose npm  v11.16.0
+172 notice
+172 notice New major version of npm available! 11.16.0 -> 12.1.0
+172 notice Changelog: https://github.com/npm/cli/releases/tag/v12.1.0
+172 notice To update run: npm install -g npm@12.1.0
+172 notice  { force: true, Symbol(proc-log.meta): true }
+173 verbose exit 0
+174 info ok

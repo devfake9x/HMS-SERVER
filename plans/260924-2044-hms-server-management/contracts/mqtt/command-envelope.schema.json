@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hms-server.invalid/contracts/mqtt/command-envelope-v1.schema.json",
+  "title": "HMS-IDF signed command envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "id", "ts", "data", "sig"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "ts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "data": {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true,
+      "x-action-schema-status": "DEFERRED_TO_PHASE_1/3 - ACTION_SOURCE_REVIEW_REQUIRED"
+    },
+    "key_ver": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ttl_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 86400000
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "confirm": {
+      "type": "string",
+      "maxLength": 256
+    },
+    "response_topic": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    }
+  },
+  "x-contract-status": "SOURCE_PROVEN_WIRE_ALLOWLIST",
+  "x-signature": "Direct HMAC-SHA256 with the 32-byte firmware crypto/cmd_key over exact raw JSON bytes before the final sig field.",
+  "x-wire-order": "sig must be serialized as the final field; JSON Schema cannot enforce member order.",
+  "x-size": "Normal signed JSON header is 1..1023 bytes inclusive; framed commands have a separate 131072-byte whole-message limit.",
+  "x-forbidden-wire-fields": ["kid", "generation", "catalogVersion", "catalogHash", "authorizationEpoch", "policyVersion"],
+  "x-does-not-prove": "Action-specific requiredness, types, nested schema, side effects, build conditions and runtime readiness remain phase-owned evidence gates."
+}

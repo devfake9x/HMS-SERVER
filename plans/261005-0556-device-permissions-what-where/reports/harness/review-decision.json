@@ -1,0 +1,28 @@
+{
+  "decision": "PASS",
+  "score": 9,
+  "criticalCount": 0,
+  "acceptanceCoverage": [
+    "1 build 0 errors; 251 unit + 77 integration pass (re-run by tester and both reviewers with --no-build; clean scratch builds)",
+    "2 migrations unchanged since cycle 1: §8 tables and indexes, UPDATE policy_versions before DELETE device-action, 2 grantor columns; no pending model changes",
+    "3 grantor round trip and legacy null/false",
+    "4 unique indexes, FK behaviours, model-only tokens",
+    "5 case-insensitive name per organization from the store, checked in the stored organization (EF and InMemory)",
+    "6 membership compare-and-set, no write on rejected pre-checks, regrant (EF and InMemory)",
+    "7 200 parallel upserts: one winner (probabilistic detector, accepted)",
+    "8 role update/remove order and single SaveChanges",
+    "9 EF lost race: tokens and database rejections map to store codes through one recheck path; audit in the same SaveChanges (rollback relies on PostgreSQL, accepted)",
+    "10 DI both branches",
+    "11 only Model_has_management_tables_only changed among pre-existing tests"
+  ],
+  "regressionProof": [
+    "cycle 2 touched only EfDeviceAccessStores.cs, DeviceRole.cs and the three test files; migrations, snapshot, DbContext, entities, DI and the InMemory store unchanged",
+    "mutation runs: reviewer 29 of 30 mutants killed, adversarial 37 of 44, tester 3 of 3 behavioural mutants"
+  ],
+  "contractStatus": "OK",
+  "blockingReasons": [],
+  "warnings": [
+    "N-1 (low): the token-conflict condition in EfDeviceMembershipStore.ThrowIfChanged has no test (member removed and re-added with the same role)",
+    "N-2 (low, docs): phase-02 plan text at the catch description, the clear-tracker risk row and the 'no audit on lost race' criteria no longer match the code or the accepted deviation"
+  ]
+}

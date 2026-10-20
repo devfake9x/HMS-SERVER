@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hms-server.invalid/contracts/security/license-trust-store-v1.schema.json",
+  "title": "HMS-SERVER license trust-store entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kid", "public_key", "issuer", "status", "effective_from", "rotation_audit", "revocation_audit"],
+  "properties": {
+    "kid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "public_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192,
+      "description": "Public key material or external KMS reference; private PEM is forbidden."
+    },
+    "issuer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "future", "retired", "revoked"]
+    },
+    "effective_from": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "effective_until": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "rotation_audit": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_at", "event", "actor"],
+        "properties": {
+          "event_at": { "type": "string", "format": "date-time" },
+          "event": { "type": "string", "enum": ["created", "activated", "retired"] },
+          "actor": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    },
+    "revocation_audit": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_at", "reason", "actor"],
+        "properties": {
+          "event_at": { "type": "string", "format": "date-time" },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "actor": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    }
+  },
+  "x-contract-status": "SERVER_CONTRACT",
+  "x-production-boundary": "Production signing uses an external signer or KMS/HSM; raw private PEM is forbidden in the web process.",
+  "x-does-not-prove": "This schema does not prove vendor key rotation or revocation propagation to an offline device."
+}

@@ -1,0 +1,51 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "planDir": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management",
+  "firmwareRoot": "D:/WORKSPACE/PROJECT/HMS-IDF",
+  "jsonArtifacts": [
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\mqtt\\broker-session-envelope.schema.json",
+      "sha256": "e9ad0a6e2cad90a57e80df25f51796308b2419f04e83fc053af378b9e46ac2f9"
+    },
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\mqtt\\command-catalog-manifest.schema.json",
+      "sha256": "d71bf5bda3f7a5404ec2fc2f45df2844ae697f05c4072fb6d567cf105d017429"
+    },
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\mqtt\\command-envelope.schema.json",
+      "sha256": "cb7f3dd6fb16df4ccfc9da2fc2f85d59876c455d7c6e4022927acd3087c85e0d"
+    },
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\mqtt\\capabilities.schema.json",
+      "sha256": "77956e6be14ad6554de11a3d8e11c11821455c52a417320f817e2c380df4cc7c"
+    },
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\mqtt\\command-catalog.json",
+      "sha256": "9959363c94990849e7ba95e6733d7f8ddef4198f3905293b31237b908c1476da"
+    },
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\operations\\load-profile-v1.json",
+      "sha256": "cbecc63080b89d576e1f6f05ad6e25aacbd922749e9c1f22b28b034ec9a40f86"
+    },
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\provisioning\\import-bootstrap.schema.json",
+      "sha256": "a8e8d37f1aa7603ab420a7d86c38368950dfadf09fa197f2f585a776d5194212"
+    },
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\provisioning\\device-bundle-v1.schema.json",
+      "sha256": "b1a8f730391bc1174413ea6d07181e35c2eb6021d7b4a072d9e5696a653c99fb"
+    },
+    {
+      "path": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\contracts\\security\\license-trust-store.schema.json",
+      "sha256": "59089d53a2ad304183a432492fc4f1dfa4b8faa111d79be4912f63233253a78c"
+    }
+  ],
+  "commandCatalogRows": 94,
+  "commandCatalogHash": "dbda8317758e5f25c5a4dee8456841ef3689fea4707cf5a27c30ffad656f78d9",
+  "licenseProtoByteExact": true,
+  "limitations": [
+    "This fixture validates contract artifact structure and selected invariants; it does not validate JSON Schema with a full external validator.",
+    "The contracts marked NEW_FIRMWARE_CONTRACT remain unavailable until firmware/importer implementation and integration fixtures pass.",
+    "The license proto byte match is against the current workspace source, not a Git commit or released firmware image."
+  ]
+}

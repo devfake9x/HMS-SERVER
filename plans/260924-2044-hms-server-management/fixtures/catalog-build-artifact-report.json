@@ -1,0 +1,672 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "buildRoot": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\build",
+  "buildRevision": "b774170ff46c393eeb5e495ea37936038d3f4f4f",
+  "objectPath": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\build\\esp-idf\\command-dispatcher\\CMakeFiles\\__idf_command-dispatcher.dir\\cmd_descriptor.c.obj",
+  "objectSha256": "0543c46dae94186df8c9972abff136f5d1c33f691184548ac3df1eef3c2d6590",
+  "rowCount": 94,
+  "presentCount": 89,
+  "missingCount": 5,
+  "status": "BUILD_ARTIFACT_STRING_SET_DRIFT_DETECTED",
+  "limitation": "Object string presence is not a full descriptor pair/order/schema proof. A clean match would still require a reproducible build manifest or an exported catalog from that build.",
+  "rows": [
+    {
+      "type": "adc",
+      "action": "get_channels",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "adc",
+      "action": "get_config",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "adc",
+      "action": "get_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "adc",
+      "action": "get_values",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "adc",
+      "action": "set_channel",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "adc",
+      "action": "toggle_channel",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "battery",
+      "action": "clear_alert",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "battery",
+      "action": "get_alerts",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "battery",
+      "action": "get_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "battery",
+      "action": "quick_start",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "create_pipeline",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "create_signal",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "delete_pipeline",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "delete_signal",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "diagnostics",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "get_signal",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "hook_stats",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "list_chains",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "list_filters",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "list_formulas",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "list_pipelines",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "list_scales",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "list_signals",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "rebuild",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "update_pipeline",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "broker",
+      "action": "update_signal",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "config",
+      "action": "get",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "config",
+      "action": "list_domains",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "config",
+      "action": "set",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "control",
+      "action": "get_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "control",
+      "action": "pulse",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "control",
+      "action": "set_all",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "control",
+      "action": "set_output",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "modbus",
+      "action": "check_rtu_config",
+      "typeStringPresent": true,
+      "actionStringPresent": false,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_MISSING"
+    },
+    {
+      "type": "modbus",
+      "action": "get_rtu_config",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "modbus",
+      "action": "get_rtu_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "modbus",
+      "action": "replace_rtu_config",
+      "typeStringPresent": true,
+      "actionStringPresent": false,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_MISSING"
+    },
+    {
+      "type": "modbus",
+      "action": "restart_rtu",
+      "typeStringPresent": true,
+      "actionStringPresent": false,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_MISSING"
+    },
+    {
+      "type": "modbus",
+      "action": "set_rtu_config",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "mqtt",
+      "action": "get_config",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "mqtt",
+      "action": "get_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "mqtt",
+      "action": "reconnect",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "mqtt",
+      "action": "set_config",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "configure_ethernet",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "get_all_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "get_ethernet",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "get_modem",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "get_priority",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "set_priority",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_clients",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_config_get",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_config_set",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_disable",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_enable",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_add",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_auto_connect",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_connect",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_list",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_remove",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_update",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_scan_results",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_scan_start",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_config_get",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_config_set",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_connect",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_disable",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_disconnect",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_enable",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "ota",
+      "action": "apply",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "ota",
+      "action": "get_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "ota",
+      "action": "remote_config_get",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "ota",
+      "action": "remote_start",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "sms",
+      "action": "get_status",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "sms",
+      "action": "list",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "sms",
+      "action": "storage_stats",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "status",
+      "action": "dump",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "status",
+      "action": "services",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "status",
+      "action": "tags",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "factory_reset",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "get_device_id",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "get_heap",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "get_hostname",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "get_info",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "get_operations",
+      "typeStringPresent": true,
+      "actionStringPresent": false,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_MISSING"
+    },
+    {
+      "type": "system",
+      "action": "get_time",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "ping",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "reboot",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "set_hostname",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "set_ntp_servers",
+      "typeStringPresent": true,
+      "actionStringPresent": false,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_MISSING"
+    },
+    {
+      "type": "system",
+      "action": "set_time",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "set_timezone",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    },
+    {
+      "type": "system",
+      "action": "sync_ntp",
+      "typeStringPresent": true,
+      "actionStringPresent": true,
+      "evidenceStatus": "BUILD_ARTIFACT_STRING_PRESENT"
+    }
+  ]
+}

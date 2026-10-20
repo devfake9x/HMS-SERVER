@@ -1,0 +1,37 @@
+{
+  "skill": "ck:cook",
+  "mode": "interactive",
+  "task": "Phase 1 rework (design contract Q14): generate command-catalog.json from spec §11 of HMS-IDF engineering-docs/api/mqtt-api.md @ 83e93d77e instead of firmware source; 9 fields per row exactly as §11 states; strict hash-checked loader; DevicePermissionCodes, DevicePermissionVocabulary (50 codes), CommandPermissionResolver, /api/v1/me/command-catalog DTO unchanged.",
+  "acceptanceCriteria": [
+    "generator reads only the spec document; no firmware source path in generator, tests, contract, plan, phases",
+    "catalog equals spec §11: 94 rows, 46 codes, 6 domains, R49 W18 C17 D3 B3 F4, 24 rows TTL 60000 + 70 rows 120000, 3 confirm templates + dry run",
+    "exactly 9 fields per row; no audit_publish, accepts_body, outcome_deferred, dispatcher_default_ttl_ms",
+    "hash JS equals C# (shared golden vector); a §11 layout the parser does not model makes the generator fail without writing a catalog",
+    "/me/command-catalog keeps its 10-field shape",
+    "dotnet test, node test and the frontend gate are green"
+  ],
+  "touchpoints": [
+    "scripts/generate-command-catalog.mjs",
+    "scripts/generate-command-catalog.test.mjs",
+    "src/Hms.Server.Infrastructure/Commands/command-catalog.json",
+    "src/Hms.Server.Infrastructure/Commands/CommandCatalogHash.cs",
+    "src/Hms.Server.Infrastructure/Commands/PinnedCommandCatalog.cs",
+    "tests/Hms.Server.UnitTests/CatalogTests.cs",
+    "docs/architecture-device-mqtt-api-catalog.md",
+    "plans/260924-2044-hms-server-management/plan.md",
+    "plans/261005-0556-device-permissions-what-where/plan.md",
+    "plans/261005-0556-device-permissions-what-where/reports/design-contract.md",
+    "plans/261005-0556-device-permissions-what-where/phase-01-catalog-v2-permission-vocabulary.md"
+  ],
+  "publicContracts": [
+    "catalog JSON v2 shape: 10 top-level keys, 9 fields per row; catalog_version mqtt-api-83e93d77e; clients holding an older hash get CATALOG_STALE (intentional)",
+    "CommandCatalogRow has 9 fields with a non-null TtlMs (intentional)",
+    "/api/v1/me/command-catalog DTO unchanged by the rework"
+  ],
+  "blastRadius": [
+    "first resolve of the ICommandCatalog singleton",
+    "SendDeviceCommandHandler TTL and permission input (unreachable: every row DeniedUntilActionContract)",
+    "/me/command-catalog consumers (values unchanged across all 94 rows)"
+  ],
+  "scoutSummary": "Server and device communicate over MQTT, so the contract is HMS-IDF engineering-docs/api/mqtt-api.md (published at the pinned commit 83e93d77e); §11 is the server permission manifest and matched the earlier code-derived catalog exactly. .NET 10 solution, Vue 3 frontend, no git repository. Firmware source is never read (Q14)."
+}

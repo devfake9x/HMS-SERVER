@@ -1,0 +1,40 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "commandIngress": {
+    "subscriptionFilter": "<prefix>/<device_id>/cmd/#",
+    "responseSuffixExcluded": "/cmd/res",
+    "canonicalServerLeaf": null,
+    "status": "NEW_FIRMWARE_CONTRACT",
+    "reason": "The firmware forwards every non-response topic under the wildcard filter and does not select one server command leaf."
+  },
+  "commandResponse": {
+    "defaultTopic": "<prefix>/<device_id>/cmd/res",
+    "qos": 1,
+    "retain": false,
+    "override": "Accepted only through the firmware response_topic validator; server must not use an unvalidated override.",
+    "source": [
+      "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\mqtt-service\\mqtt_service.c",
+      "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\cmd_response.c",
+      "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\command-dispatcher\\include\\cmd_response.h"
+    ]
+  },
+  "genericOutboundPublisher": {
+    "role": "Explicit-topic transport service, not command-leaf selection.",
+    "acceptsPrimaryOrSecondaryTarget": true,
+    "serverRelease1Policy": "PRIMARY_ONLY; server rejects SECONDARY_ONLY, BOTH and FAILOVER until a separate fixture-backed contract passes.",
+    "rejectsWildcardPublishTopic": true,
+    "rejectsRetainedMessagesInV1": true,
+    "source": [
+      "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-message-publish\\src\\mqtt_message_publish.c",
+      "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-message-publish\\include\\mqtt_message_publish.h"
+    ],
+    "limitation": "This API proves outbound validation only. It does not prove that any particular server leaf reaches the command dispatcher."
+  },
+  "sourceDigests": {
+    "service": "dc749168574d072274e644bbfb77c8a0dbe90eca1ef76ee1af985fbb6b8a8aec",
+    "response": "a220c2f6dbf0d90d16206390a3d10c5ec7f288700f0d913138416a37c5c9d853",
+    "responseHeader": "250d2e888be4881d522938a8e2e1fa30c748f322c332802d1960256de7b0705b",
+    "publish": "34e622844f158259c33ab872b7a92e494e1563add35aefcd50612f171bd1a60f",
+    "publishHeader": "f6d8b1c8ded978f87e67a1f53b02720ca8305cddb5fc6adc3b0e641083c7d84f"
+  }
+}

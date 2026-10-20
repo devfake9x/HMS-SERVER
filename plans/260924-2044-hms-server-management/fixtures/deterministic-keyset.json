@@ -1,0 +1,16 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "purpose": "Phase 2 to Phase 3 test seam only; never a production secret",
+  "deviceId": "fixture-device-001",
+  "generation": 7,
+  "mqttUsername": "fixture-device-001",
+  "mqttPassword": "test-only-password-not-for-production",
+  "commandKeyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "commandKeyVersion": 7,
+  "telemetryKeyHex": "1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100",
+  "limitations": [
+    "No production entropy claim",
+    "No broker credential validation",
+    "No proof of current firmware importer support"
+  ]
+}

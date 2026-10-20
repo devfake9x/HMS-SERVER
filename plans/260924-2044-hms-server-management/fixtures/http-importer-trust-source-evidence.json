@@ -1,0 +1,55 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "scope": "Selected HMS-IDF auth, license HTTP, and identity source files only",
+  "humanHttpAuth": {
+    "tokenScheme": "Bearer Authorization header, with legacy X-Auth-Token fallback when Authorization is absent",
+    "authorization": "auth_middleware_handler -> auth_require -> auth_validate_token -> permission check",
+    "loginBodyMaxBytes": 2048,
+    "loginRateLimit": {
+      "maxAttempts": 5,
+      "lockoutSeconds": 300
+    },
+    "source": [
+      "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\hms-http-api\\auth\\auth_manager.c",
+      "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\hms-http-api\\auth\\auth_handler.c"
+    ]
+  },
+  "licenseHttp": {
+    "applyRoute": "/api/license/apply",
+    "requiredPermission": "PERM_LICENSE_MANAGE",
+    "bodyMaxBytes": 2048,
+    "payload": "raw LicenseEnvelope bytes",
+    "invokes": "license_apply",
+    "source": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\hms-http-api\\license\\license_api.c"
+  },
+  "identity": {
+    "activeIdGetter": "device_identity_get_id -> enroll/device_info/device_id",
+    "setterStatus": "NOT_FOUND_IN_SELECTED_IDENTITY_COMPONENT",
+    "source": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\util-device-identity\\src\\device_identity.c"
+  },
+  "importerTrust": {
+    "status": "NEW_FIRMWARE_CONTRACT",
+    "requiredButUnproven": [
+      "device-bound bootstrap challenge/token",
+      "one-time import nonce and replay protection",
+      "local-only transport/authentication",
+      "import-specific CSRF policy",
+      "import-specific concurrency and recovery semantics",
+      "candidate identity setter/validation seam"
+    ],
+    "selectedScopeUnsupportedPatternSearch": [
+      "bootstrap_challenge",
+      "import_nonce",
+      "csrf",
+      "CSRF",
+      "device_bound_token"
+    ],
+    "limitation": "Absence in these selected files is not a whole-repository proof; an importer fixture and implementation are still required."
+  },
+  "sourceDigests": {
+    "authManager": "eb05b59ec21e1323fee54079f87e91f3d09915d0d6005762c8fc4b5c1b0540a0",
+    "authHandler": "c440169fa4f4b62705f2a3a1befaf63e6377224c5f1431da6b282bd9252d1209",
+    "licenseApi": "76b72350f7d20ccc13e8c221570edc03f2ef3e49864c8125c6fc17400c8dfb6f",
+    "identity": "cc34eaaa38a6167170fc68a30da8b5533ef1e08ae92b0d4a9beb2ae38ed5d924"
+  }
+}

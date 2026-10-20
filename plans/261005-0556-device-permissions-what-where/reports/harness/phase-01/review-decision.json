@@ -1,0 +1,23 @@
+{
+  "decision": "PASS",
+  "score": 9,
+  "criticalCount": 0,
+  "acceptanceCoverage": [
+    "1 generator reads only engineering-docs/api/mqtt-api.md via git show with a blob-id check; no firmware source path in generator, tests, contract, plan or phases",
+    "2 catalog equals spec §11 (independent re-parses: 0 differences over 94 rows and 6 domains); R49 W18 C17 D3 B3 F4, 46 codes, 24x60000 + 70x120000, 3 templates + dry run",
+    "3 every row has exactly the 9 §11 fields",
+    "4 JS and C# golden literals byte-identical; §11 layouts outside the modelled subset fail before anything is written; catalog content pinned by the catalog-hash literal in CatalogTests",
+    "5 /me/command-catalog keeps exactly its 10 keys (locked by the integration test)",
+    "6 build 0 errors/0 CS warnings; 219 unit + 43 integration; node 11/11; --check exit 0; frontend typecheck/135 tests/build green"
+  ],
+  "regressionProof": [
+    "committed catalog unchanged (hash b1d47a78...12c4) and still loads; only off-spec inputs are newly rejected",
+    "resolver behaviour and DTO unchanged; all rows DeniedUntilActionContract"
+  ],
+  "contractStatus": "OK",
+  "blockingReasons": [],
+  "warnings": [
+    "N3 (suggestion): a pipe-less GFM table inside §11 is read as prose; effect fails closed (row absent from the catalog)",
+    "N4 (suggestion): generator comment and contract §2 still say §11 ends at the next level-2 heading; code ends it at any ATX heading"
+  ]
+}

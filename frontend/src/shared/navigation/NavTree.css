@@ -1,0 +1,344 @@
+/*
+ * Style của cây điều hướng. Chuyển từ `AppShell.css` sang đây cùng với template.
+ *
+ * Vì sao tách: `AppShell` giờ không biết menu trông thế nào nữa, nên nếu style
+ * vẫn ở đó thì sửa `NavTree.vue` phải mở một file ở thư mục khác — và class nào
+ * còn ai dùng sẽ không đọc được ở một chỗ.
+ *
+ * `scoped`: component tự lồng chính nó, nên mọi cấp dùng cùng một scope id.
+ * Không cần `:deep()`.
+ */
+
+.navlist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * Thụt lề cho cấp con. Áp theo `depth > 1` chứ không lồng selector `.navlist
+ * .navlist`: với component đệ quy, độ sâu là dữ liệu, và selector lồng sẽ nhân
+ * lề lên theo cấp một cách không cố ý.
+ */
+.navlist--nested {
+  margin-left: 0.75rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border-subtle);
+}
+
+/*
+ * `[ĐO 2026-08-29]` Datacake: mục nav 14px weight 500. Bản trước dùng
+ * `0.8125rem` = 13px — một pixel không thấy được một mình, nhưng cả sidebar lệch
+ * một bậc so với bản tham chiếu thì thấy.
+ */
+.navlink,
+.navgroup {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/*
+ * Nền hover của mục điều hướng:
+ * Datacake Parity (media_1789029438953.png): Nền hover dùng màu --surface-page (#f3f4f6 light),
+ * chữ và icon chuyển sang than đen var(--text-heading) (#1e293b / #101828),
+ * tạo viên thuốc nổi khối êm ái sáng hơn nền sidebar (#e5e7eb) 1 bậc.
+ */
+.navlink:hover,
+.navgroup:hover {
+  background-color: var(--surface-page);
+  color: var(--text-heading);
+}
+
+.navlink:hover .navicon,
+.navgroup:hover .navicon {
+  color: var(--text-heading);
+}
+
+.navgroup:hover .navgroup__chevron {
+  color: var(--text-heading);
+}
+
+.navlink:focus-visible,
+.navgroup:focus-visible {
+  outline: 2px solid var(--status-info);
+  outline-offset: -2px;
+}
+
+/*
+ * Mục đang mở nhận dạng bằng `aria-current`, không bằng một class riêng.
+ * Một nguồn duy nhất: không có cách nào để hình và thứ screen reader nghe được
+ * lệch nhau.
+ */
+/*
+ * Datacake Parity: Mục active dùng nền pill (--surface-nav-active: #d1d5dc light, #27272a dark),
+ * chữ đậm nét font-weight 600, màu than đen var(--text-heading) (#1e293b light)
+ * đạt tỷ lệ tương phản vượt trội 9.45:1 (WCAG AAA).
+ * Icon đồng bộ màu chữ var(--text-heading).
+ */
+.navlink[aria-current='page'] {
+  background-color: var(--surface-nav-active);
+  color: var(--text-heading);
+  font-weight: 600;
+}
+
+.navlink[aria-current='page'] .navicon {
+  color: var(--text-heading);
+}
+
+/* Nuxt Dashboard Dark Theme Parity: Active pill Zinc-800 (#27272a) với chữ & icon Emerald (#10b981) */
+html[data-theme='dark'] .navlink[aria-current='page'] {
+  background-color: var(--surface-nav-active, #27272a);
+  color: #10b981;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .navlink[aria-current='page'] .navicon {
+  color: #10b981;
+}
+
+html[data-theme='dark'] .navlink:hover,
+html[data-theme='dark'] .navgroup:hover {
+  background-color: rgba(39, 39, 42, 0.5);
+  color: #f4f4f5;
+}
+
+html[data-theme='dark'] .navlink:hover .navicon,
+html[data-theme='dark'] .navgroup:hover .navicon {
+  color: #f4f4f5;
+}
+
+html[data-theme='dark'] .navgroup:hover .navgroup__chevron {
+  color: #f4f4f5;
+}
+
+.navicon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-secondary);
+}
+
+.navgroup__chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: auto;
+  transition: transform 120ms ease;
+}
+
+.navgroup__chevron--open {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navgroup__chevron {
+    transition: none;
+  }
+}
+
+/*
+ * Nhãn nhóm TĨNH — `collapsible: false`.
+ *
+ * `[ĐO 2026-08-29]` Datacake: `font-size: 12.8px`, `font-weight: 500`, màu gray-700
+ * (đậm hơn mục nav thường, vốn là gray-500). Đó là điều làm nó đọc như tiêu đề vùng
+ * chứ như một mục bị làm mờ.
+ *
+ * `padding` lệch so với `.navlink`: nhãn không có ô bấm nên không cần đệm dọc bằng
+ * mục bấm được, nhưng đệm ngang phải **khớp** để nhãn thẳng cột với các mục dưới nó.
+ * `margin-block-start` tạo khoảng nghỉ giữa hai vùng — thứ duy nhất phân tách chúng
+ * khi không còn chevron.
+ */
+.navsection {
+  padding: 0.35rem 0.75rem;
+  margin-block-start: 0.75rem;
+  color: var(--text-label, #4b5563);
+  font-size: 0.75rem;
+  font-weight: 600;
+  /* Không `text-transform: uppercase`: Datacake để nguyên dạng chữ ở nhãn nhóm, chỉ
+     dùng chữ hoa cho header cột của bảng. Hai chỗ khác nhau, đừng đồng nhất. */
+  letter-spacing: 0.025em;
+}
+
+/* Nhóm tĩnh ĐẦU TIÊN không cần khoảng nghỉ phía trên — nó đã ở đầu sidebar. */
+.navlist > li:first-child > .navsection {
+  margin-block-start: 0;
+}
+
+/* Badge số lượng cảnh báo phản ứng trên mục menu */
+.navbadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  margin-left: auto;
+  padding: 0 0.375rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  color: #ffffff;
+}
+
+.navbadge--critical {
+  background-color: var(--danger, #dc2626);
+}
+
+.navbadge--warning {
+  background-color: var(--warning, #d97706);
+  color: #ffffff;
+}
+
+.navbadge--info {
+  background-color: var(--primary, #2563eb);
+}
+
+.navbadge--pulse {
+  animation: navbadge-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes navbadge-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navbadge--pulse {
+    animation: none;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ── Chế độ thu gọn danh sách (Collapsed Rail) ────────────────────────────── */
+
+/*
+ * Triệt tiêu hoàn toàn 21px lề thụt của .navlist--nested ở mọi cấp đệ quy khi thu gọn.
+ * Bất kể component có ở depth nào, không bao giờ được có margin-left hay padding-left.
+ */
+.navlist--collapsed,
+.navlist--collapsed .navlist,
+.navlist--collapsed .navlist--nested {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  border-left: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.navlist--collapsed > li,
+.navlist--collapsed li {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.navlist--collapsed .navlink,
+.navlist--collapsed .navgroup {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  border-radius: 0.5rem !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+.navlist--collapsed .navlink__label,
+.navlist--collapsed .navgroup > span {
+  display: none;
+}
+
+.navlist--collapsed .navgroup__chevron {
+  display: none;
+}
+
+.navlist--collapsed .navicon {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  margin: 0 auto !important;
+  flex: none !important;
+}
+
+.navlist--collapsed .navsection {
+  width: 2rem !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: 0.5rem auto !important;
+  background-color: var(--border-subtle) !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  overflow: hidden !important;
+}
+
+.navlist--collapsed .navbadge {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  min-width: 0.5rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0;
+  font-size: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--surface-overlay);
+}
+
+/* ── Ancestor Shell Projection (V2) ────────────────────────────────────────── */
+.navlink--shell,
+.navgroup--shell {
+  opacity: 0.9;
+}
+
+.navlink--shell {
+  cursor: default;
+}
+
+.navbadge--shell {
+  background-color: var(--surface-panel);
+  color: var(--text-muted, #71717a);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.6875rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  margin-left: auto;
+  font-weight: 500;
+}
+
+

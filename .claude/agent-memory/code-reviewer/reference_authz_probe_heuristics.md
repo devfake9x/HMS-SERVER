@@ -1,0 +1,15 @@
+---
+name: authz-probe-heuristics
+description: Probe heuristics that found real authz defects in HMS-SERVER reviews (Unicode role-name case-fold bypass, deterministic TOCTOU via store hook, delegation-chain demoted-link lapse, latest-writer capture, depth-cap truncation, masked subset checks, per-handler lock pauses); use when reviewing role/permission guards, delegation chains or check-then-write handlers
+metadata:
+  type: reference
+---
+
+- Name-based guards vs ASP.NET Identity: a guard that compares role names with `StringComparison.OrdinalIgnoreCase` while Identity looks roles up with `Normalize().ToUpperInvariant()` can be bypassed with U+017F (long s): "maſter-admin" passed `RoleAuthorizationPolicy.IsReserved` and was added to the real master-admin role over HTTP (phase-3 review, 2026-10-06; fixed in cycle 2). U+0131 (dotless i) does not fold under .NET ToUpperInvariant, so it is not a bypass. Probe any reserved-name check with U+017F.
+- Check-then-write handlers (grant handlers that read the store, then `Advance()` + append) can be raced deterministically in a unit test: wrap `IPermissionStore` and run the competing write inside `Advance()`, after the checks and before the append. No real concurrency needed.
+- Delegation chains ("appointer = grantor of the latest X allow"): probe a 3-level non-master chain where the TOP demotes the MIDDLE. If the walk takes the latest row (allow or deny) and stops on a deny, everyone above the demoted link drops out: the bottom admin can act on the top and escape its bound. Found in phase-3 cycle 2 (2026-10-06, `DelegationChain.Of`), reachable over HTTP with persisted grants only.
+- Serialization tests over ONE global in-memory lock only prove that the PAUSED handler holds the lock; every store read of the other side blocks on the same gate anyway. Pause each handler in turn (a "resource handler skips WithUserLock" mutant survived when only the feature handler was paused).
+- Relations derived from "the latest writer" (appointer = grantor of the latest permissions.manage allow) can be CAPTURED by a redundant write: a peer whose scope covers the victim re-grants a permission the victim already holds and becomes its appointer (immune to it, bounds its delegation; the victim cannot undo it, the peer recaptures after a master re-grant). Probe every "latest grantor" rule with a no-op re-grant (phase-3 cycle 2, over HTTP).
+- Depth caps that TRUNCATE a walk (instead of failing closed) let cap+1 own accounts escape: an admin with users.manage + permissions.manage chained 32 sockpuppets and the 32nd demoted the appointer. Probe caps with exactly cap and cap+1 links through the real handlers.
+- Masked resolutions blind subset checks: "deny * clears Allowed" made RT4(b) see an empty feature set, and a later master lift revived the latent allows over scope widened meanwhile. Probe mask -> widen -> lift.
+- Related: [[reference-firmware-c-oracle]] for the scratch-copy probing rules in this repo; [[hms-review-workflow]] for the mutation harness.

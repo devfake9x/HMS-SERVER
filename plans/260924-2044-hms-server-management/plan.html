@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HMS-SERVER Management & Control Plane - Execution Plan</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      line-height: 1.6;
+      margin: 0;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 2.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    h1 { color: #38bdf8; font-size: 2rem; border-bottom: 2px solid #38bdf8; padding-bottom: 0.5rem; }
+    pre {
+      background: #090d16;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(74, 222, 128, 0.2);
+      color: #4ade80;
+      border: 1px solid #4ade80;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <h1>HMS-SERVER Execution Plan</h1>
+      <span class="badge">VERIFIED PLAN</span>
+    </div>
+    <pre>---
+title: &quot;HMS-SERVER management and control plane&quot;
+description: &quot;Implement the approved multi-organization ESP32 management, provisioning, license, MQTT command, and permission platform with tests first.&quot;
+status: in-progress
+priority: P1
+source: skill
+issue: &quot;&quot;
+created: 2026-09-24
+mode: deep
+tdd: true
+tags: [backend, frontend, database, api, auth, infra, critical]
+sourceReport: plans/reports/260924-2036-hms-server-management-design.md
+blockedBy: []
+blocks: []
+---
+# HMS-SERVER management and control plane
+
+## Overview
+
+Build a separate ASP.NET Core 10 backend and Vue 3 frontend for the approved HMS-SERVER management/control plane. The system manages a multi-level master-company hierarchy, nullable device classifications, three-layer authorization, device credentials and keysets, vendor/managed license workflows, broker credential contracts, firmware-compatible command intent, latest status/capabilities, and audited provisioning. The live MQTT/EMQX adapter is deliberately deferred behind a protocol/transport port in this goal because the ESP32 contract may change. It does not ingest telemetry.
+
+This is an implementation goal for HMS-SERVER core control-plane code. HMS-IDF is an immutable external source for previously recorded evidence only in this goal; no further firmware scan or firmware edits are allowed. The server-side importer/bundle workflow is implemented only to the proven contract boundary, with firmware-side importer behavior explicitly deferred.
+
+## Decision baseline
+
+- ASP.NET Core 10 modular monolith with `Api`, `Application`, `Domain`, and `Infrastructure` projects.
+- Vue 3 + TypeScript + Vite frontend with feature modules and a typed same-origin API client; generated OpenAPI types remain a future contract-generation layer.
+- PostgreSQL + EF Core; latest status and capabilities only.
+- A broker/EMQX adapter with dynamic authentication/ACL behind Infrastructure ports; browser never connects directly to MQTT. Live broker integration is a later phase and is not required for the core control-plane implementation.
+- SignalR for authorized device status, capabilities, command, license, and provisioning events.
+- Direct HMAC with firmware `crypto/cmd_key`; no HKDF/master-secret until firmware changes.
+- The provisional protocol profile records the signed JSON command header limit and firmware-proven fields (`type`, `id`, `ts`, nested `data.action`/`data.data`, optional `key_ver`, `ttl_ms`, `dry_run`, `confirm`, `response_topic`, `trace_id`, and final `sig`). Unknown `kid`/`generation` fields are rejected. The application command boundary is implemented independently of live MQTT; exact publish remains `CONTRACT_UNAVAILABLE` until a later server/ACL fixture selects a canonical leaf. A framed command may carry a separate body up to the firmware-proven 131,072-byte whole-message limit only for descriptor rows with `accepts_body=true` (`modbus.check_rtu_config` and `modbus.replace_rtu_config`); the body is not a new command-envelope field.
+- Vendor license bytes and server enrollment/keysets are separate aggregates.
+- Device capabilities describe availability only; a pinned server command catalog remains the authority for executable actions and permission metadata.
+- Production license signing requires an external signer or KMS/HSM boundary; raw private PEM configuration is rejected.
+- Release 1 provisions `PRIMARY_ONLY`; unsupported `SECONDARY_ONLY`, `BOTH`, and `FAILOVER` modes are rejected explicitly until fixture-backed support exists.
+- Importer bootstrap uses a device-bound one-time challenge/token plus import nonce, expiry, replay protection, bounded body, and local-only authenticated HTTP; human admin passwords never enter bundles.
+- Inbound MQTT state is accepted only through a trusted broker-session envelope carrying authenticated publisher identity; missing or inconsistent identity fails closed.
+- The server command catalog is generated or pinned from the HMS-IDF descriptor/build manifest with `catalogVersion`/`catalogHash`; unknown hashes deny commands.
+- Production secret roots and Data Protection keys are KMS-backed; the license trust store pins `kid` to issuer/public-key/effective interval and audits rotation/revocation.
+- SignalR events carry authorization epochs; latest state is coalesced through bounded queues and stale epochs are discarded.
+
+## TDD policy
+
+Every implementation phase follows this order:
+
+1. Write failing contract, unit, or integration tests for the behavior and boundary.
+2. Add the smallest seam or infrastructure needed to run the test.
+3. Implement/refactor the production code.
+4. Add negative and regression cases.
+5. Run the phase regression gate before marking the phase complete.
+
+No phase may mark a security or protocol acceptance criterion complete from a UI-only test.
+
+## CK activation and pre-cook artifact index
+
+This goal applies the CK workflow before implementation. `ck-brainstorm` used
+problem-first inversion and selected the pre-cook evidence-gate approach;
+`ck-scout` re-read HMS-IDF read-only; `ck-plan` reconciled the eight TDD phases,
+validation and red-team findings; `ck-ask` was reserved for decisions not
+derivable from source; `ck-security`/`ck-security-scan` reviewed trust boundaries;
+`ck-databases`, `ck-backend-development`, `ck-frontend-development`,
+`ck-web-testing`, and `ck-test` reviewed implementation contracts without
+scaffolding production code; `ck-project-organization` owns artifact placement;
+`ck-journal` is the closing journal gate. The active goal now uses the TDD cook
+loop for the authorized core slices; the cook boundary remains the plan and
+does not enable live MQTT or firmware-side behavior.
+
+Pre-cook artifacts are kept under this plan directory. The firmware matrix and
+14-finding ledger are in `reports/260925-firmware-contract-matrix.md` and
+`reports/260925-14-finding-readiness-ledger.md`. Executable fixtures are
+`fixtures/command-golden-vector.mjs`, `fixtures/catalog-drift-fixture.mjs`,
+`fixtures/catalog-build-artifact-fixture.mjs`,
+`fixtures/command-contract-fixture.mjs`,
+`fixtures/action-source-evidence-fixture.mjs`, `fixtures/framed-command-fixture.mjs`,
+`fixtures/mqtt-publish-path-evidence-fixture.mjs`,
+`fixtures/http-importer-trust-source-evidence-fixture.mjs`,
+`fixtures/identity-license-source-evidence-fixture.mjs`,
+`fixtures/command-security-source-evidence-fixture.mjs`,
+`fixtures/phase-gate-fixture.mjs`,
+`fixtures/handler-registration-fixture.mjs`, `fixtures/broker-session-envelope.test.mjs`, `fixtures/importer-contract.test.mjs`,
+`fixtures/license-recovery-model.test.mjs`, and `fixtures/deterministic-keyset.json`.
+Schemas and targets are in `contracts/`; API/DB/UI and TDD matrices are in
+`reports/260925-api-db-ui-contract.md`, `reports/260925-tdd-acceptance-matrix.md`,
+`reports/260925-load-and-recovery-contract.md`, and
+`reports/260925-final-readiness-audit.md`.
+
+The pre-cook contract set now includes the source-bound command envelope,
+capabilities observation, device bundle, MQTT topic contract, command catalog,
+trusted broker envelope, importer bootstrap, license trust store, pinned
+firmware `license.proto`, load profile and availability/recovery contract.
+`fixtures/contract-artifacts-fixture.mjs` checks their selected invariants and
+records hashes; it does not replace a full JSON Schema validator or runtime
+integration tests.
+
+Evidence labels are strict: `SOURCE_PROVEN`, `CONTRACT_TESTED`, `MODEL_TESTED`,
+`IMPLEMENTATION_TESTED`, `NOT_RUN`, and `DEFERRED_TO_PHASE_N — REQUIRED`.
+Fixtures never claim actual firmware, EMQX, KMS, browser, importer or 1,000-device
+runtime proof.
+
+## Problem-first decision record
+
+The real problem is a missing trust boundary between current HMS-IDF behavior and
+future server/importer behavior. Three approaches were considered: documentation
+only, implementation-first probing, and a pre-cook evidence gate. The third is
+selected because it allows deterministic fixtures and source matrices while
+preventing invented topics, identity setters, signer behavior or circular
+&quot;implementation must pass before cook&quot; gates.
+
+The contract is explicit where source is incomplete. The server must not publish
+commands until a server/ACL fixture pins a canonical leaf under the firmware
+`/cmd/#` ingress filter; it returns `CONTRACT_UNAVAILABLE` instead of guessing.
+For this goal, command use cases are implemented against a recording/deferred
+transport. This permits authorization, catalog, idempotency, audit, and
+frontend lifecycle work without claiming MQTT delivery. Live EMQX behavior is
+owned by the final integration phase and is not a prerequisite for the core
+control-plane phases.
+Likewise, importer bootstrap,
+candidate identity activation and trusted EMQX publisher metadata are
+`NEW_FIRMWARE_CONTRACT` items with phase-owned implementation gates.
+
+## Gate states
+
+- `DESIGN_CONTRACT_READY`: plan, evidence, decisions, schemas, fixtures and
+  phase gates are internally consistent; no production implementation is implied.
+- `IMPLEMENTATION_VERIFIED`: owning cook phases pass their real backend, frontend,
+  firmware, EMQX, signer and importer tests.
+- `RELEASE_READY`: deployed recovery, load, security, backup/restore, HA and drift
+  evidence pass. This goal must stop before the latter two states.
+
+## Phases
+| Phase | Name | Status |
+| --- | --- | --- |
+| 1 | [Contract and solution skeleton](./phase-01-contract-and-solution-skeleton.md) | in-progress |
+| 2 | [Persistence and authorization foundation](./phase-02-persistence-and-authorization-foundation.md) | in-progress |
+| 3 | [Command boundary and deferred transport](./phase-03-mqtt-control-plane-and-command-security.md) | in-progress |
+| 4 | [Provisioning and license workflow](./phase-04-provisioning-and-license-workflow.md) | in-progress |
+| 5 | [Firmware enrollment importer](./phase-05-firmware-enrollment-importer.md) | pending |
+| 6 | [Frontend administration and permissions](./phase-06-frontend-administration-and-permissions.md) | in-progress |
+| 7 | [Frontend operations and command UX](./phase-07-frontend-operations-and-command-ux.md) | in-progress |
+| 8 | [Integration and security hardening](./phase-08-integration-and-security-hardening.md) | in-progress |
+
+## Dependency graph
+
+```text
+1 Contract/skeleton
+  -&gt; 2 Persistence/auth foundation
+    -&gt; 3 Command boundary/deferred transport
+      -&gt; 4 Provisioning/license workflow
+        -&gt; 5 Firmware enrollment importer contract
+          -&gt; 6 Frontend administration/permissions
+            -&gt; 7 Frontend operations/command UX
+              -&gt; 8 Integration/security hardening and optional MQTT adapter
+```
+
+The sequence separates core implementation from mutable external integrations. Phase 1 freezes contracts; Phases 2-7 implement the server and frontend control plane using test seams. Phase 8 core hardening is required in this goal. Live EMQX, firmware-side importer execution, and other external runtime evidence remain deferred profiles and cannot be used to block core implementation.
+
+## File ownership matrix
+
+| Phase | Primary ownership | Must not edit |
+| --- | --- | --- |
+| 1 | solution skeleton, contracts, CI/test harness | domain behavior not yet covered by contracts |
+| 2 | backend domain, EF migrations, identity, authorization | MQTT transport and frontend screens |
+| 3 | application command boundary, protocol port, recording/deferred transport, signer seam, command audit/events | live MQTT worker, EMQX webhook, firmware NVS/import code |
+| 4 | backend provisioning, secrets, license adapters, bundle API | frontend implementation and firmware internals |
+| 5 | server-side enrollment/importer contract, bundle workflow, recovery model | HMS-IDF source, NVS writes, firmware implementation |
+| 6 | frontend hierarchy/device/user/role/scope screens | command transport and signer |
+| 7 | frontend provisioning/license/command/status screens | backend authorization rules |
+| 8 | integration harness, security/load checks, docs reconciliation | feature scope expansion into telemetry |
+
+## Research and scout evidence
+
+See [scout synthesis](./reports/scout-synthesis.md), the [red-team adjudication](./reports/260924-2115-red-team-adjudication.md), the [architecture validation hardening report](./reports/260924-2125-architecture-validation-hardening.md), and the approved [design report](../reports/260924-2036-hms-server-management-design.md).
+
+### Current contract re-scout — 2026-09-25
+
+The current HMS-IDF workspace was re-read before this plan update. The
+firmware directory contains a `.git` entry, but the available sandbox cannot
+resolve it as a Git repository; no commit is claimed. Contract evidence is
+therefore pinned to the source paths and SHA-256 file digests recorded in
+`plans/reports/260925-hms-idf-contract-rescout.md`, with freshness
+`verified: 2026-09-25@workspace-no-git`.
+
+The re-scout confirms the existing command allowlist, direct 32-byte command
+HMAC, final `sig` field, 1024-byte exclusive upper bound, required `id`/`ts`,
+TTL/future-skew checks, key-version fencing, and the firmware topic/QoS/retain
+map. The command-security source fixture additionally pins a volatile
+128-entry exact-`id` LRU dedup cache whose expiry sweep requires completed SNTP;
+it is not durable, device-scoped or key-generation-scoped. Firmware evaluates
+`dry_run` before `confirm` and before post-parse dedup/security verification.
+Responses use the `res:` HMAC domain when a command key exists and can be
+plaintext when no command key exists. The response-topic validator is syntax
+and reserved-segment based but does not prove device-prefix binding, so the
+server must bind overrides through ACL and authenticated enrollment metadata.
+A deeper MQTT call-path read also proves that the device subscribes to
+`&lt;prefix&gt;/&lt;device_id&gt;/cmd/#`, excludes topics ending in `/cmd/res`, and forwards
+every other received payload to the command queue; firmware does not select one
+canonical command leaf. The active manager disables ESP-MQTT auto-reconnect and
+uses a one-second wake debounce with an exponential 2/4/8/16-second path capped
+at 30 seconds and 20 attempts per cycle; broker timing, jitter and SUBACK are
+not proven. `mqtt_config.c` initializes a 30-second keepalive while the client
+constructor falls back to 120 seconds without a protobuf session config, so a
+resolved-config fixture is required before choosing an operational value.
+Connected wiring ordering is status-topic update, command/response wiring and
+subscription, retained capabilities, then status-plane connect. The server
+leaf therefore remains a server/ACL contract requiring an end-to-end fixture,
+not a guessed `/cmd/execute` path. The active
+identity module exposes getters for `enroll/device_info` and vendor identity but
+no complete combined importer, and the HTTP license routes prove human
+permission middleware rather than a device-bound bootstrap protocol. These facts
+remain source evidence; any server/importer behavior beyond them is a
+fixture-gated new contract. The publish-path fixture additionally proves that
+the firmware generic outbound publisher validates an explicit non-wildcard,
+non-retained topic and that command responses are wired to `/cmd/res`; it does
+not select a server command leaf. The HTTP/importer trust fixture separately
+pins human session authentication and license-route body limits while keeping
+device-bound bootstrap, local-only trust, import replay controls and identity
+setter behavior as new firmware contracts.
+
+The pre-cook fixture pass extracted 94 `(type, action)` descriptor rows and
+computed catalog hash
+`dbda8317758e5f25c5a4dee8456841ef3689fea4707cf5a27c30ffad656f78d9`. It also
+verified the known topic/session defaults and exercised five license recovery
+model cases. A second build-artifact scan pinned build revision
+`b774170ff46c393eeb5e495ea37936038d3f4f4f`, object SHA-256
+`0543c46dae94186df8c9972abff136f5d1c33f691184548ac3df1eef3c2d6590`, and found
+only 89/94 current action strings; the older object is missing
+`modbus.check_rtu_config`, `modbus.replace_rtu_config`, `modbus.restart_rtu`,
+`system.get_operations`, and `system.set_ntp_servers`. String presence is not
+descriptor-pair/order/schema proof, so this is drift evidence and not a
+compatible build manifest. The command-contract fixture now joins descriptor
+policy (class, permission, confirmation, body, TTL, dry-run, audit, and
+deferred-outcome flags) to the 94/94 handler-registration result while leaving
+payload/response schema, build condition, side effects, runtime readiness, and
+server policy explicitly deferred. These are `CONTRACT_TESTED`/`MODEL_TESTED` artifacts,
+not proof of production backend, actual EMQX, or actual NVS importer behavior.
+
+### Implementation boundary and readiness split
+
+This goal authorizes implementation of all non-MQTT core work: API, persistence, authorization, provisioning, license workflow, SignalR authorization/store behavior, frontend administration and deferred command UX. Phase 8 core hardening is required now. Live EMQX/MQTT delivery, firmware importer execution, and firmware-side changes are accepted release limitations and belong to a later integration profile. Runtime in-memory stores are test seams only; PostgreSQL and the configured server-side store remain the final implementations. The canonical API boundary is `/api/v1`; human authentication uses ASP.NET Identity cookie sessions with CSRF protection. Application owns ports; Infrastructure implements them; references point inward only.
+
+### Normative document authority and drift gate
+
+For this plan, authority is ordered as follows: user-approved architecture and
+scope; this plan plus reconciled decision records; current HMS-IDF source for
+existing firmware behavior; reference projects as non-authoritative examples.
+`ALIGNMENT.md`, `docs/journal.md`, `docs/architecture-hms-server.md`,
+`brainstorm-report.md`, and `research-report.md` currently contain stale
+telemetry/SCADA, Node/Fastify, React, TimescaleDB, Redis Streams,
+HKDF/master-secret, and over-strong protocol-alignment claims. They are
+documentation-drift blockers until updated to the approved ASP.NET/Vue
+control-plane scope or explicitly marked historical/superseded with misleading
+current-entry links removed. The current files now carry an explicit
+historical/superseded banner; Phase 8 still owns the final scope-aware drift
+scan and must fail if an unmarked stale document is reintroduced.
+
+## Global success criteria
+
+- [x] A device can be created with required owner organization and nullable classifications; classification references are rejected when the referenced resource is unknown.
+- [x] Feature, resource, and device-action permissions are independently enforced server-side, with explicit device/resource/feature denies taking precedence.
+- [ ] The broker adapter contract can authenticate each device with unique credentials and isolate its topic namespace; live EMQX proof is deferred to Phase 8.
+- [ ] Status, connectivity, capabilities, command response, and audit messages are handled without telemetry persistence.
+- [x] The command application boundary validates the provisional direct-key firmware contract, rejects oversized headers before transport, enforces timestamp/TTL limits, and keeps live publish deferred.
+- [x] Until the canonical server publish leaf/ACL fixture passes, deferred command submission emits no MQTT publish and never claims delivery; unresolved actions remain denied by the pinned catalog.
+- [x] License application preserves raw envelope bytes, hashes them for audit-safe references, rejects untrusted issuers and generation rollback, and remains behind a KMS/signer fail-closed seam.
+- [x] Provisioning bundle download is one-time, uses no-store/no-cache headers, includes an import nonce/hash, and rejects unsupported broker modes.
+- [ ] HMS-IDF imports the bundle with a crash-consistent generation/recovery protocol; failures before a durable license marker keep the prior generation authoritative, while failures after a durable target license marker roll forward or enter explicit recovery-required state without mixing generations or silently destroying license authority.
+- [ ] Backend and frontend tests cover all security boundaries before integration is accepted.
+- [x] Core command tests pass with a recording/deferred transport without requiring EMQX; no test claims delivery, acknowledgement, or device execution.
+
+## Historical implementation evidence — 2026-09-29 (superseded)
+
+The core solution now contains the four-project .NET solution, Vue shell,
+versioned `/api/v1` controllers, nullable organization/project/package/area
+classification model, EF Core management/Identity model, cookie session and
+CSRF foundation, three-layer command authorization with explicit deny support,
+server catalog metadata/fail-closed checks, provisional command size/time
+validation, recording/deferred transport, one-time primary-only provisioning,
+license trust/KMS/signer seams, and a bounded SignalR event/authorization-epoch
+seam. Device revocation now persists through the EF store and rejects callers
+outside their effective organization scope; persisted resource grants,
+including explicit descendant denies, participate in management-list
+authorization. The current pinned catalog keeps all 94 rows at
+`DENIED_UNTIL_ACTION_CONTRACT`; it is not a production command allowlist.
+
+Validation currently passes 72 backend unit tests, 28 backend integration tests,
+38 frontend tests, frontend typecheck and frontend production build. PostgreSQL
+repositories are selected when `ConnectionStrings:Postgres` is configured;
+development falls back to an in-memory provider and must not be treated as
+production persistence. Live EMQX/MQTT, firmware importer execution, raw
+private-key signing, live SignalR delivery integration, and firmware importer
+execution remain open gates. Production registration now fails closed unless
+the host supplies both an explicit `ISecretRootPolicy` implementation and an
+external non-ephemeral Data Protection provider; these registrations are the
+KMS/HSM boundary and still require a real deployment adapter.
+API tests verify CSRF filter registration, revoke scope isolation, permission
+grant target/resource scope, POST-only bundle download, enum response shape,
+catalog/permission no-store responses, and production secret-root/Data
+Protection fail-closed startup. Command audits now reserve a unique
+device/correlation key, persist a request fingerprint, reject collisions, and
+return `IDEMPOTENCY_IN_PROGRESS` for concurrent retries. An unfinished
+reservation has a five-minute lease: live reservations remain in progress and
+expired reservations return `IDEMPOTENCY_OUTCOME_UNKNOWN` without automatic
+reclaim or retry because the transport may already have caused a side effect.
+Authorization epochs use a persistent EF store when PostgreSQL is configured,
+with an atomic PostgreSQL upsert for multi-replica advancement. The bounded
+publisher filters stale epochs, preserves critical lifecycle events instead of
+coalescing them, and a hosted SignalR bridge reconciles memberships even when
+the event queue is empty before sending to explicit authorized connections.
+Provisioning keysets are now encrypted in a persistent `device_keysets` table
+with a unique `(device_id, generation)` key; the in-memory generator remains a
+development/test seam. License apply now requires an explicit cryptographic
+verifier port; the default adapter fails closed until the firmware
+license-parser/signature/binding contract is supplied. The frontend command
+form consumes the server&#x27;s 94-row catalog and disables untrusted, stale,
+unauthorized, or unresolved actions. License file selection no longer applies
+an invented 2,048-byte limit and the DOM file input is cleared after processing.
+Permission policy versions use a persistent singleton counter with an atomic
+PostgreSQL upsert (`policy_versions`) instead of deriving concurrency-sensitive
+versions from `MAX(permission_grants)`.
+
+### Continuation evidence — 2026-09-29
+
+- The command endpoint resolves the actor organization from the persisted
+  Identity user scope when the cookie does not carry an `org` claim. A
+  conflicting claim is rejected fail-closed; the regression test proves a
+  command request cannot depend on a stale or absent claim.
+- Identity user creation, role creation and role assignment now advance the
+  shared policy version so authorization snapshots cannot remain valid after
+  an Identity mutation.
+- Device listing now supports a server-side `q` filter while retaining all
+  organization, classification and lifecycle predicates.
+- SignalR reconciliation removes revoked or stale-epoch memberships without
+  requiring a new device event. Group-removal failures cannot retain registry
+  authorization, and status/capability coalescing no longer overwrites
+  critical lifecycle or command events.
+- Command requests must carry the frontend&#x27;s catalog version/hash. The
+  application requires both values, compares them with the trusted server
+  catalog, and returns `CATALOG_STALE` before any protocol or transport call
+  when either value is missing, blank, partial, or mismatched. The frontend
+  revalidates the catalog with a no-store request on focus and immediately
+  before submit, then disables the command surface until a trusted matching
+  snapshot is available. The backend remains the final authority.
+- `EfProvisioningSecretGenerator` persists protected username/password and
+  32-byte command-key material by device generation and reloads the winner
+  after a unique-insert race. The migration is
+  `20260929030014_AddDeviceKeysets`.
+- `EfPermissionStore` advances policy versions through the persistent
+  `policy_versions` counter and preserves monotonicity when legacy grants
+  predate the counter. The migration is
+  `20260929032719_AddPolicyVersionCounter`.
+- `ILicenseVerifier` is an explicit Application port. The default
+  `UnavailableLicenseVerifier` returns `LICENSE_VERIFIER_UNAVAILABLE`; tests
+  use a named accepting fixture, so no production path treats raw bytes as a
+  verified license.
+- Role creation and assignment now require the persisted `users.manage`
+  feature permission in addition to the HTTP policy claim. A persisted deny
+  therefore overrides a stale or forged allow claim; reserved-role and target
+  organization checks remain fail-closed.
+- Command authorization now treats a wildcard feature deny as stronger than an
+  exact feature allow, with a regression test at the domain boundary.
+- SignalR delivery refreshes the Identity principal before reconciliation and
+  event authorization. Missing, malformed, deleted, or refresh-failing users
+  are removed from the subscription registry and group membership fail-closed;
+  refreshed claims replace the stored principal snapshot.
+- SignalR hub join and revalidation now refresh the current Identity principal
+  before checking device scope, lifecycle, and authorization epoch; stale role
+  claims cannot authorize a new or renewed subscription.
+- SignalR `DeviceRevoked` notifications now use an explicit DTO containing the
+  device id, current authorization epoch, policy version, and revocation reason
+  on both event-delivery denial and periodic reconciliation paths, so clients
+  can discard stale revoke events consistently.
+- SignalR event `policyVersion` is numeric end to end, matching the persistent
+  permission counter and the frontend per-device policy fence. Principal
+  refresh now fails closed for locked users and for tickets carrying a stale
+  security stamp; successful refresh rebuilds claims from current Identity.
+- Frontend inventory filters now persist `organizationId`, `projectId`,
+  `packageId`, `areaId`, and `q` in the URL and call the server-side device
+  query. Device creation exposes nullable project/package/area assignments and
+  sends empty selections as explicit `null` values.
+- The command API now propagates catalog version/hash from the frontend and
+  rejects stale metadata with `CATALOG_STALE` before any protocol or transport
+  call. The frontend marks the catalog untrusted after that response and asks
+  the operator to reload it.
+- The latest regression gates are 70 backend unit tests, 26 backend integration
+  tests, 38 frontend tests, frontend typecheck, frontend production build,
+  `plan-ops validate`, `plan-ops status`, and 11/11 plan-helper tests. NuGet
+  vulnerability-feed warnings remain an offline-environment warning.
+- Stored model-only fixtures also pass: importer contract 6/6,
+  license-recovery model 5/5, broker-session envelope 5/5, and all eight phase
+  gates with 12/12 required sections. The historical documentation-banner
+  drift check passes with its stated limitation that it does not prove all
+  current implementation documents are drift-free.
+- Evidence provenance audit found that `fixtures/action-source-evidence.json`
+  was rewritten by an invalid fixture invocation that passed the plan directory
+  as its root. The report is now explicitly marked `INVALIDATED`; its rows and
+  hashes are retained only for forensic reference in
+  `fixtures/action-source-evidence.invalidated-20260929.json`. No new firmware
+  verification is claimed from this artifact, and the goal does not rescan
+  HMS-IDF to repair it. Existing dated reports remain historical evidence only
+  until a separately authorized fixture run restores provenance. The companion
+  `contract-artifacts-report.json` is marked `STORED_NOT_REVALIDATED` with an
+  unverified copy retained beside it; its contract hashes may guide local
+  tests, but no new firmware/license-source proof is claimed from this goal.
+  The source-evidence fixture now refuses to write unless its first argument is
+  an HMS-IDF root containing the expected component directory, preventing the
+  same provenance error from silently recurring.
+
+These changes improve core readiness but do not close the release gates for a
+real firmware importer, signed-license parser/binding verification, live
+trusted EMQX identity propagation, canonical publish topic/ACL, or broker
+load/HA evidence.
+
+### Active security remediation queue - 2026-09-28
+
+Continuation acceptance: command retries must re-check current authorization
+before returning cached outcomes; fingerprints canonicalize nested objects but
+preserve array order. Expired unfinished claims never trigger transport again.
+Realtime delivery must revalidate each subscribed principal against current
+resource scope and device epoch, remove denied memberships, and send only to
+explicitly authorized connections; group membership alone is not authority.
+The frontend must disable submission without a trusted matching action catalog
+and must clear selected license files after success or failure. Tests for these
+boundaries precede implementation; they do not require any additional firmware
+investigation or live MQTT.
+
+The following P0/P1 findings were re-confirmed during the implementation audit
+and must be resolved before the core control-plane can be called ready:
+
+- privileged role creation/assignment must be restricted to the master-admin
+  boundary and reserved roles must not be delegated;
+- permission grants must validate target existence and caller/target
+  organization scope;
+- wildcard device-action denies must override both exact and wildcard allows;
+- command correlation must reserve atomically, persist a request fingerprint,
+  reject collisions, and make concurrent retries side-effect free;
+- production KMS/Data Protection registration must be backed by a verifiable
+  provider boundary rather than a configuration boolean;
+- SignalR revocation/reconnect/event-delivery authorization must fail closed
+  across the declared deployment topology;
+- device command POSTs must enforce CSRF and one-time bundle consumption must
+  not be triggerable by an untrusted GET/prefetch.
+
+Each remediation follows the phase TDD gate: a failing regression test, the
+smallest application/infrastructure seam, implementation, negative tests, and
+phase evidence. These are core hardening tasks and are independent of the
+deferred live MQTT/EMQX integration.
+
+## Evidence-gated decisions to freeze in Phase 1
+
+1. Canonical device import representation: single JSON envelope for firmware ingestion, with optional raw protobuf sidecar for vendor exchange.
+2. The firmware ingress filter is `&lt;prefix&gt;/&lt;device_id&gt;/cmd/#` with `/cmd/res` excluded and all other received payloads forwarded to the dispatcher. The active reconnect and connected-wiring ordering are source-proven, but firmware does not define a canonical server publish leaf. The server must select and ACL-bind one leaf through a fixture; until then it returns `CONTRACT_UNAVAILABLE` and never publishes. `/cmd/execute` is not current firmware evidence.
+3. Human authentication token/session details, using ASP.NET Core Identity and the reference policy pattern; these credentials are never placed in device bundles.
+4. External vendor signer transport; managed signing is allowed only through a protected KMS/HSM adapter in production, with an explicit `kid` trust store.
+5. Firmware importer bootstrap proof/locality check, import nonce, generation journal, and recovery state machine; any unsupported behavior remains a release-blocking new firmware contract.
+6. Trusted EMQX broker-session envelope propagation into the server subscriber path; raw topic/payload callbacks cannot establish authenticated device identity.
+7. Firmware command catalog generation/pinning source and drift check; unknown `catalogVersion`/`catalogHash` denies commands.
+8. SignalR authorization epoch ordering, queue/coalescing limits, and fail-closed behavior during authorization-store outage.
+9. Firmware-derived retained/QoS topic behavior, primary-only broker support, and N-to-N+1 bundle compatibility.
+
+10. Catalog canonicalization is sorted unique UTF-8 JSON rows `[{type,action}]`
+    hashed with SHA-256. `fixtures/catalog-baseline.json` is a dated pinned
+    snapshot; `fixtures/catalog-drift-fixture.mjs` compares it independently and
+    proves synthetic drift detection. `fixtures/catalog-build-artifact-fixture.mjs`
+    records the older build object and its 89/94 action-string result. Because
+    that result detects drift and is not a full manifest, a second reproducible
+    build/source manifest plus complete action-level schema/condition/side-effect
+    mapping is still required before release compatibility is claimed. Static
+    handler branch/field-reference evidence is available from
+    `fixtures/action-source-evidence.json`, but it is not a runtime contract.
+    Until an action row has a closed request/response schema, build-condition
+    evidence and explicit side-effect/idempotency policy, its server status is
+    `DENIED_UNTIL_ACTION_CONTRACT`: no signature, publish or frontend command
+    action is allowed.
+
+11. Phase 2 publishes only deterministic test keysets (`fixtures/deterministic-keyset.json`)
+    to Phase 3. Production credentials and Phase 4 bundle generation are not
+    dependencies of Phase 3 contract tests.
+
+12. Core hardening continuation (2026-09-29): backend unit tests pass 70 and
+    integration tests pass 26; frontend tests pass 38, with typecheck and
+    production build passing. SignalR event delivery now checks both the
+    authorization epoch and current policy version immediately before send.
+    Its bounded in-memory publisher preserves non-coalescible lifecycle,
+    security, and command events, drops only coalescible latest-state events
+    when saturated, rejects a full critical queue explicitly, and exposes a
+    requeue seam for failed delivery. Frontend command readiness uses an
+    independently verified catalog identity with revision fencing and an
+    explicit reload latch. These changes are implementation-tested but do not
+    prove durable SignalR/browser delivery, multi-replica behavior, live MQTT,
+    firmware importer execution, or production KMS/signer behavior.
+    The external-source contract-artifact report remains `INVALIDATED`; no
+    fixture invocation in this continuation is used as fresh HMS-IDF evidence.
+    EF persistence now adds a unique `(device_id, generation)` license fence;
+    a failed concurrent candidate is detached before the recovery journal is
+    written, so the scoped context does not mask the explicit recovery state.
+
+## Acceptance Criteria
+- [x] Every phase has a read-before-write file inventory, test matrix, dependency map, TDD gate, and risk mitigation.
+- [x] `fixtures/phase-gate-fixture.mjs` confirms every phase has explicit Tests Before, smallest seam, implementation scope, negative/regression tests, phase regression gate, input/output contract, dependencies, ownership, risk, evidence classification, release gate, and definition of done sections.
+- [x] Plan is internally consistent after red-team and validation review.
+- [x] Implementation handoff contains the absolute plan path and `--tdd` cook reminder.
+
+## Red Team Review
+
+### Session — 2026-09-24
+
+**Findings:** 14 (14 accepted, 0 rejected)
+
+**Severity breakdown:** 2 P0, 12 P1
+
+| # | Finding | Severity | Disposition | Applied To |
+|---|---|---:|---|---|
+| 1 | Importer route/auth and missing NVS setter APIs | P0 | Accept | Phase 1, Phase 5 |
+| 2 | Cross-partition atomicity overstated | P0 | Accept | Plan, Phase 5, Phase 8 |
+| 3 | License commit ordering/recovery | P1 | Accept | Phase 4, Phase 5, Phase 8 |
+| 4 | Unverified command topic/QoS/retain/reconnect contract | P1 | Accept | Phase 1, Phase 3 |
+| 5 | Retry, dedup, TTL, and key-rotation fence | P1 | Accept | Phase 3, Phase 4 |
+| 6 | License payload/envelope/HTTP size limits | P1 | Accept | Phase 1, Phase 4, Phase 5 |
+| 7 | Immutable license binding/nonce/counter | P1 | Accept | Phase 4 |
+| 8 | Capabilities cannot grant authority | P1 | Accept | Phase 2, Phase 3, Phase 7 |
+| 9 | MQTT session identity binding | P1 | Accept | Phase 3, Phase 8 |
+| 10 | EMQX webhook replay/rotation protection | P1 | Accept | Phase 1, Phase 3, Phase 8 |
+| 11 | Managed signer trust boundary | P1 | Accept | Phase 1, Phase 4, Phase 8 |
+| 12 | Bundle secret/cache/backup lifecycle | P1 | Accept | Phase 4, Phase 7, Phase 8 |
+| 13 | SignalR revocation-aware authorization | P1 | Accept | Phase 3, Phase 7, Phase 8 |
+| 14 | Reproducible 1,000-device load topology/budget | P1 | Accept | Phase 8 |
+
+### Whole-Plan Consistency Sweep
+
+- Files reread: `plan.md`, all eight `phase-*.md` files, and `reports/scout-synthesis.md`.
+- Decision deltas checked: importer transport/write APIs, candidate identity binding, crash consistency, pre-marker/post-marker license recovery, exact command field allowlist and key version, license limits/binding, topic proof, command authority, signer boundary, secret download controls, SignalR revocation, and load topology.
+- Reconciled stale claims: no remaining claim of cross-partition atomicity, unconditional license rollback, capabilities-as-authority, guessed command TTL/correlation fields, or proven `/cmd/execute` behavior; remaining references are explicitly fixture-gated. No HKDF/master-secret behavior is part of the current command contract.
+- Unresolved contradictions: 0.
+- Remaining evidence gates: reproducible firmware catalog manifests across revisions plus action-level payload/response/build-condition/side-effect mapping, firmware fixture for importer bootstrap proof/locality, candidate-identity license binding, exact license journal recovery states, live trusted EMQX broker-session envelope propagation, canonical command publish leaf/ACL, and firmware-derived retained-message behavior. The current source snapshot has 94 rows and the pinned older build object contains only 89/94 action strings, so cross-revision compatibility is explicitly denied until a proper manifest proves it. Namespace registration, action literal presence, and static handler branch/field-reference extraction for all 94 rows are now fixture-tested; complete schemas and runtime behavior remain deferred. Reconnect backoff and connected-wiring ordering are source-proven, while runtime soak and jitter compatibility remain release tests. These are explicit new contracts or release gates, not assumptions.
+
+### Architecture Validation Gate
+
+- Status: implementation in progress under the approved core/deferred boundary; not release-ready.
+- Cook boundary: core slices may be implemented and tested now. Live EMQX,
+  firmware importer execution, and claims of firmware compatibility remain
+  blocked until their separate fixtures/contracts exist.
+- P0/P1 gates: importer bootstrap trust, candidate-identity license binding, broker-session identity propagation, command catalog drift source, exact MQTT publish/topic behavior, KMS/Data Protection and signer trust, SignalR epoch/backpressure, firmware-derived retained/QoS load behavior, and crash-recovery proof around `license_apply()` including post-marker `recovery-required` behavior.
+- Release limitation rule: if a firmware fixture cannot prove one of these contracts, the feature is explicitly unsupported and denied at the server boundary; it is never silently approximated.
+
+### Continuation evidence — device revoke closes pending command audits (2026-09-29)
+
+Device revocation now transitions every unfinished command audit for that device
+to terminal `Failed/DEVICE_REVOKED` in both the in-memory and EF stores. This
+prevents a revoked reservation from remaining retryable after the authorization
+epoch fence. Unit and EF integration regressions pass. It is a server-side
+lifecycle fence only; with MQTT deferred, it does not claim cancellation of a
+device-side effect that may already have occurred.
+
+The license trust boundary now persists rotation/revocation audit entries with
+the key id, issuer, previous/new status, actor and timestamp. The EF model and
+migration `20260929090323_AddLicenseTrustAudits` add the
+`license_trust_audits` table; verification remains fail-closed and no signer
+private material enters the web process.
+
+### Continuation evidence — terminal command fence and trust-store validation (2026-09-30)
+
+The EF command audit completion path now uses a relational conditional update
+whose predicate excludes `DEVICE_REVOKED`. A late completion therefore cannot
+overwrite the terminal revoke result after the revoke transaction commits. The
+development/in-memory fallback re-reads the row and fails closed, and a
+completion without a prior reservation is ignored without staging an incomplete
+audit entity. Regression coverage includes revoke/late-completion and
+unreserved-completion cases. A real PostgreSQL two-context race remains an open
+infrastructure gate because this workspace has no PostgreSQL/Testcontainers.
+
+The license trust store now validates the same contract in its in-memory and EF
+implementations: statuses are limited to `active`, `retired`, and `revoked`;
+effective intervals must be ordered; `Created` and `Rotated` require a new
+active `kid`; `Revoked` requires an existing active/retired key and a revoked
+target status; and issuer/public-key bindings are immutable for an existing
+`kid`. Audit reads are deterministic by timestamp and audit id. Unit and EF
+tests cover mutation, transition, interval, and ordering failures.
+
+Identity realtime principal refresh now has an exception/fail-closed regression
+and development DI wiring coverage. Full verification after this continuation
+passes 75 backend unit tests, 30 backend integration tests, 38 frontend tests,
+frontend typecheck, and frontend production build. The `NU1900` warning remains
+because the NuGet vulnerability feed is unreachable; no .NET vulnerability audit
+is claimed. Live EMQX, PostgreSQL concurrency, firmware importer runtime, KMS/
+HSM, browser SignalR delivery, load, HA, RTO/RPO, and rolling-upgrade gates
+remain explicitly deferred.
+
+### Continuation evidence — current-source verification (2026-09-30)
+
+The command application boundary now verifies that the request actor matches
+the already-authorized principal before fingerprinting, audit lookup, protocol
+preparation, or transport. A mismatch returns `COMMAND_ACTOR_MISMATCH` and
+produces no audit or transport side effect. API mutation bodies are bounded by
+a 1 MiB host limit and 64 KiB command, license-apply, and provisioning-create
+limits; license and provisioning DTO fields also carry explicit length/range
+validation. These are server-only boundaries and introduce no firmware wire
+claims.
+
+Fresh verification after rebuilding the current source passes 80 backend unit
+tests, 30 backend integration tests, 40 frontend tests, frontend typecheck,
+frontend production build, and offline npm audit with zero reported
+vulnerabilities. `plan-ops validate`, `plan-ops status`, all 11 plan helper
+tests, all eight phase gates, importer/license/broker model fixtures,
+command-catalog/source fixtures, and the EF pending-model check pass. The
+catalog source still contains 94 rows while the available older build artifact
+contains 89/94 action strings; the fixture therefore continues to deny
+cross-revision compatibility until a reproducible build manifest exists.
+
+The initial read-only inspection was limited and did not establish full core
+completion. The subsequent objective audit below recorded the core integration
+work that this continuation then addressed; external release gates remain
+separate.
+The NuGet vulnerability feed remains unreachable (`NU1900`), and live
+PostgreSQL concurrency, EMQX, firmware importer runtime, KMS/HSM, browser
+SignalR, load/HA, RTO/RPO, and rolling-upgrade evidence remain release gates.
+
+### Historical objective audit - core integration gaps (2026-09-30; superseded)
+
+- Firmware proof: no new firmware evidence is needed or authorized for these
+  server/browser corrections. Existing firmware facts remain deferred.
+- Prior assumption: green helper tests were enough to close realtime and
+  permission integration. Actual HTTP and browser call paths contradict that.
+- P1 AUTH: persisted users.manage/permissions.manage grants must authorize
+  ordinary Identity users at the HTTP policy boundary; persisted wildcard/exact
+  denies must still win. Test real cookie sessions with grant and revoke.
+- P1 UI: every authenticated response must be fenced by session revision and
+  cancelled on logout/session replacement, so delayed user A responses cannot
+  populate user B&#x27;s state. Test delayed reads and mutations across logout/login.
+- P1 RT: implement the existing Phase 3 per-connection backlog contract, send
+  deadlines, isolated retries, critical FIFO, overflow/retry resynchronization,
+  and membership removal during awaited principal refresh. Test the actual
+  delivery iteration using fake SignalR clients, not only publisher helpers.
+- P1 UI-RT: connect browser runtime to authorized SignalR subscriptions with
+  revoke/reconnect teardown and pending command cancellation. A pure reducer
+  fixture is not runtime integration proof. This remains required core work.
+- Recommended sequence: tests first for each independent seam, minimal
+  implementation, negative/regression gates, then independent review. No live
+  broker or device behavior is introduced. Unresolved items block core
+  completion; they are not reclassified as firmware release limitations.
+
+### Active verification slice - CRUD and realtime regressions (2026-09-30)
+
+The core integration changes described above have landed; their exact final
+evidence will be recorded after the following regression gates. This section
+does not claim core completion or release readiness.
+
+- Read-before-write inventory: management DTOs, update handlers/controllers,
+  EF management stores, `App.vue`, `adminApi.ts`, SignalR backlog/delivery and
+  browser hub lifecycle, with their existing unit/integration tests.
+- Firmware proof: none is needed for these server/browser fixes. No firmware
+  changes or new MQTT behavior are part of this slice.
+- Observed assumption: device classification update fields were serialized as
+  strong-id objects despite the backend accepting nullable GUID strings; UI
+  edits also read mutable form state after awaiting a response.
+- Contract: classification edits retain immutable ownership; device metadata
+  writes cannot overwrite lifecycle/key generation; GUID fields match the API;
+  response application is fenced by session, selected editor and navigation.
+- Realtime contract: removing one device subscription preserves other device
+  queues on the same connection. Logout always clears local state even if
+  transport shutdown fails; late subscription completions cannot restore it.
+- Tests Before: reproduce wrong GUID serialization, metadata versus revoke,
+  delayed edit response, multi-device revoke delivery and stop failure; use
+  existing HTTP/component/fake-client seams, then make the smallest fixes.
+- Negative/regression gate: cross-organization edits, mismatch/unknown ids,
+  empty names, CSRF and feature denies, delayed logout/reconnect, queue overflow
+  and principal refresh failures. Run backend/frontend suites after fixes.
+- Risk until closed: rejected valid device edits, stale UI writes, lost events
+  for unrelated subscriptions, or restoration of revoked lifecycle state.
+
+### Continuation evidence - core integration closure (2026-09-30)
+
+The CRUD slice now has backend `PUT` contracts for organization, project,
+package, area, and device metadata. Domain rename invariants reject empty names;
+device owner organization and key generation remain immutable. Application
+handlers validate project/package/area existence, organization ownership, and
+package/project consistency before mutation. API controllers check feature
+permission and resource scope before CSRF-protected mutation. Frontend edit
+forms use the same session fence as create/revoke flows; `updateDevice` sends
+nullable GUID strings matching the backend DTO and cannot update after logout.
+
+The realtime slice now preserves sibling device queues when one subscription is
+revoked or exhausts its isolated retry budget. Browser SignalR handlers are
+bound to the current connection/revision, so an old hub cannot resurrect state;
+disconnect forces local `disconnected` state even when `stop()` fails. A late
+join/revalidate cannot undo `DeviceRevoked` or a session replacement.
+
+Objective-audit P1 core findings are now implemented and regression-tested:
+
+- P1 AUTH: persisted feature grants and explicit denies are enforced at HTTP
+  policy boundaries, including ordinary users without bootstrap permission
+  claims; integration tests cover grant, deny, target, and scope paths.
+- P1 UI: session revision and abort fencing covers delayed authenticated reads,
+  mutations, logout, and login replacement; stale responses cannot repopulate
+  the next session.
+- P1 RT: principal refresh, epoch/policy checks, per-connection bounded
+  backlog, coalescing, isolated retry/deadline, critical-event preservation,
+  resynchronization, and multi-device revoke delivery are covered by unit
+  tests with fake SignalR clients.
+- P1 UI-RT: the browser SignalR adapter performs authorized join/revalidate/
+  leave, reconnect revalidation, stale-event discard, revoke teardown, and
+  pending-command cancellation.
+
+Fresh verification for this continuation is 91 backend unit tests, 35 backend
+integration tests, and 74 frontend tests; frontend typecheck/build pass and
+offline npm audit reports zero findings. The solution build passes. NuGet
+`NU1900` remains an unavailable online vulnerability feed, so no .NET
+dependency audit is claimed.
+
+The plan remains `in-progress`: live EMQX/ACL and canonical publish-leaf proof,
+firmware importer runtime and power-loss tests, PostgreSQL two-context race,
+external signer/KMS/HSM, reproducible 1,000-device load, two-replica soak,
+RTO/RPO, rolling upgrades, and operator filesystem/production observability
+evidence remain release limitations. The in-memory SignalR dropped/retry/
+resynchronization counters are test-visible but are not yet wired to a
+production metrics backend.
+
+### Continuation evidence - realtime and request-order fences (2026-09-30)
+
+The bounded code review found five concrete state/availability races in the
+otherwise tested core and they were closed with regression tests. Browser
+reconnect rejection and old disconnect completion now require the current hub
+and lifecycle revision, so a stale callback cannot resurrect reauthorization
+state or overwrite a replacement connection. SignalR backlog resynchronization
+is tracked per device; removing one device cannot clear a sibling&#x27;s fence, and
+an explicit leave removes only that device&#x27;s queued events. The delivery loop
+uses the same per-device removal when a queued head no longer has a registry
+membership, preserving sibling events.
+
+Frontend section and inventory loads now use independent request revisions in
+addition to the session fence. A slow response from an older section or filter
+cannot overwrite the currently selected view. Regression coverage includes
+old-section/new-section responses, old-filter/new-filter responses, reconnect
+failure after logout, replacement connection during shutdown, sibling queue
+preservation, and per-device resynchronization fencing.
+
+Fresh verification is 91 backend unit tests, 35 backend integration tests, and
+74 frontend tests; typecheck, production build, solution build, offline npm
+audit, plan validation/status, helper tests, documentation drift checks and
+the EF pending-model check pass. This is still server/browser core evidence;
+live MQTT, firmware importer runtime, KMS/HSM, PostgreSQL two-context race,
+load/HA, RTO/RPO and rolling-upgrade gates remain release limitations.
+
+### Continuation evidence - revoked provisioning fence (2026-09-30)
+
+Provisioning now rejects a device in terminal `Revoked` state before secret
+generation or bundle persistence. The application handler has a unit
+regression proving the generator is not called, and the HTTP integration test
+proves the public endpoint returns the stable `DEVICE_REVOKED` error after CSRF,
+scope, and model binding. The request record uses constructor-parameter
+validation metadata so ASP.NET Core does not throw during validation. This is a
+server lifecycle invariant and adds no MQTT or firmware behavior.
+
+### Continuation evidence - provisioning concurrency fences (2026-09-30)
+
+The development `InMemoryProvisioningBundleStore` now serializes `Save` and
+both one-time `Consume` overloads under one lock. A 64-consumer regression
+proves that exactly one caller receives a bundle and all other callers receive
+`null`; this closes the singleton-dictionary race in the development/test
+fallback without changing the production EF contract.
+
+The EF bundle store now rechecks the persisted device lifecycle immediately
+before insertion. On PostgreSQL it starts a serializable transaction and locks
+the device row with `FOR UPDATE` before accepting the bundle, so a revoke that
+commits first causes `DEVICE_REVOKED`, while a bundle transaction that acquires
+the row first completes before the revoke commit. The source-level fence and
+InMemory revoked-state regression are verified; a real PostgreSQL two-context
+race remains an external release gate because no PostgreSQL runtime is
+available in this environment.
+
+Fresh isolated verification is 96 backend unit tests, 36 backend integration
+tests, and 74 frontend tests. Infrastructure compilation and the isolated unit
+test assembly pass; the normal solution test/build path can be blocked by a
+pre-existing API process holding the Debug output DLLs. `NU1900` remains an
+environment warning because the NuGet vulnerability feed is unreachable.
+</pre>
+  </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "highRisk": true,
+  "reasons": [
+    "auth domain: replaces the device authorization evaluation, makes master-admin unconditional, drops wildcard allows and switches grant resolution to latest-wins",
+    "public API contracts: new 400/403 codes on the permission grant endpoints and new body codes plus the optional confirm field on device commands",
+    "delegation and ordering: five new handlers that write roles and memberships, then advance PolicyVersion and device epochs"
+  ],
+  "autoStopRequired": true,
+  "humanApproved": false,
+  "largeDiff": true
+}

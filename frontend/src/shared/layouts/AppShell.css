@@ -1,0 +1,462 @@
+/* Style của AppShell.vue. Base architecture §2.4 — tách file vì vượt ~50 dòng. */
+
+.shell {
+  --sidebar-width: 18rem;
+  --footer-height: 2.5rem;
+  display: grid;
+  /* 18rem (288px) khớp bản tham chiếu Datacake (287px), có thể thu gọn về 4rem (64px).
+     minmax(0, 1fr) thay vì 1fr: `1fr` là minmax(auto, 1fr) nên min-content
+     của con (bảng nowrap, chart) làm CỘT — và cả trang — nới rộng hơn viewport,
+     sinh scroll ngang ở pan hẹp. minmax(0,1fr) cho cột co; phần tràn đã có
+     overflow-x riêng ở container bảng (spec 012 — đo thực ở viewport 1280). */
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: 3.5rem minmax(0, 1fr) var(--footer-height);
+  grid-template-areas:
+    'nav header'
+    'nav main'
+    'nav footer';
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  transition: grid-template-columns 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shell--nav-collapsed {
+  --sidebar-width: 4rem;
+}
+
+/* Link bỏ qua điều hướng: ẩn tới khi nhận focus. KHÔNG dùng display:none —
+   phần tử display:none không nhận được focus nên link sẽ vô dụng. */
+.shell__skip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  padding: 0.5rem 0.75rem;
+  transform: translateY(-120%);
+  border-radius: 0 0 0.375rem 0;
+  background-color: var(--status-info);
+  /* KHÔNG viết cứng `#fff`: ở theme tối `--status-info` là màu sáng, và chữ
+     trắng trên nó chỉ đạt 2,14:1. Gate 9 chặn việc quay lại cách cũ. */
+  color: var(--status-info-on);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+
+.shell__skip:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+.shell__header {
+  grid-area: header;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  height: 3.5rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--surface-page);
+  box-sizing: border-box;
+  flex: none;
+}
+
+.shell__header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.shell__back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.shell__back-btn:hover {
+  background-color: var(--surface-panel);
+  color: var(--text-primary);
+}
+
+.shell__back-btn:focus-visible {
+  outline: 2px solid var(--status-info);
+  outline-offset: 2px;
+}
+
+.shell__back-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.shell__header-breadcrumb {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  display: flex;
+  align-items: center;
+}
+
+.shell__header-breadcrumb::-webkit-scrollbar {
+  display: none;
+}
+
+.shell__burger {
+  display: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.shell__burger svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.shell__tools {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.shell__divider {
+  width: 1px;
+  height: 1.125rem;
+  background-color: var(--border-subtle);
+  margin: 0 0.125rem;
+}
+
+.shell__side {
+  grid-area: nav;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-right: 1px solid var(--border-subtle);
+  background-color: var(--surface-overlay);
+}
+
+/* Khối Logo Thương hiệu ở ĐẦU sidebar */
+.shell__brand {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  height: 3.5rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--surface-overlay);
+  box-sizing: border-box;
+}
+
+.shell__brand-logo {
+  display: grid;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 0.5rem;
+  background-color: var(--status-info-soft);
+  color: var(--status-info);
+  flex: none;
+}
+
+.shell__brand-logo svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.shell__brand-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shell__brand-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.shell__brand-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.shell__brand-badge {
+  padding: 0.0625rem 0.25rem;
+  border-radius: 0.25rem;
+  background-color: var(--surface-panel);
+  color: var(--status-info);
+  font-size: 0.625rem;
+  font-weight: 600;
+  border: 1px solid var(--border-subtle);
+}
+
+/*
+ * `min-height: 0` là bắt buộc, không phải tuỳ chọn.
+ *
+ * Flex item mặc định `min-height: auto`, nên trong một flex column bị chặn chiều
+ * cao, phần tử này KHÔNG co lại và nội dung dài sẽ đẩy mọi thứ ra ngoài hộp thay
+ * vì tạo vùng cuộn. Một chữ, và nó là lý do menu dài không tràn khỏi drawer.
+ */
+.shell__nav {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.625rem 0.5rem;
+
+  /*
+   * Scrollbar tinh tế, nhạt vừa mắt — chuẩn Datacake / GitHub (Firefox 64+, Chrome 121+, Safari 18+).
+   * Dùng token riêng --scrollbar-thumb (alpha 20%) thay cho --text-secondary (#57606e)
+   * để không bị thô đậm, chuyển sang --scrollbar-thumb-hover (35%) khi hover vào vùng điều hướng.
+   */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+
+.shell__nav:hover {
+  scrollbar-color: var(--scrollbar-thumb-hover) transparent;
+}
+
+/* Fallback Webkit cho Safari < 18, Electron, Chromium cũ */
+.shell__nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.shell__nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.shell__nav::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.shell__nav::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* Ẩn các nút mũi tên cuộn stepper (Windows WebKit) */
+.shell__nav::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+
+
+/*
+ * Viewport-Locked Main Content: Vùng cuộn duy nhất của trang khi dữ liệu lớn.
+ * Sidebar và Header cố định 100% tại chỗ.
+ */
+.shell__main {
+  grid-area: main;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  padding: 1.25rem;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
+}
+
+/* Vùng nội dung nhận focus từ link bỏ qua điều hướng — không hiện viền cho nó. */
+.shell__main:focus {
+  outline: none;
+}
+
+/* ── Chế độ thu gọn thanh bên (Collapsed Sidebar Rail) ────────────────────── */
+
+.shell--nav-collapsed .shell__brand {
+  justify-content: center;
+  padding: 0 0.5rem;
+}
+
+.shell--nav-collapsed .shell__brand-logo {
+  margin: 0 auto;
+}
+
+.shell--nav-collapsed .shell__brand-info {
+  display: none;
+}
+
+.shell--nav-collapsed .shell__nav {
+  padding: 0.625rem 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.shell--nav-collapsed .shell__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.shell--nav-collapsed .shell__nav .navlist,
+.shell--nav-collapsed .shell__nav .navlist--nested {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  border-left: none !important;
+  width: 100% !important;
+}
+
+.shell--nav-collapsed .shell__nav .navlist > li,
+.shell--nav-collapsed .shell__nav .navlist li {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+/* Nút bấm thu gọn thanh bên ở chân cột (Ô vuông giao cắt chân cột) */
+.shell__collapse-footer {
+  margin-top: auto;
+  height: var(--footer-height, 2.5rem);
+  box-sizing: border-box;
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--surface-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 0.5rem;
+  flex: none;
+}
+
+.shell__collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+  box-sizing: border-box;
+}
+
+.shell__collapse-toggle:hover {
+  background-color: var(--surface-panel);
+  color: var(--text-primary);
+}
+
+.shell__collapse-toggle:focus-visible {
+  outline: 2px solid var(--status-info);
+  outline-offset: -2px;
+}
+
+.shell__collapse-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  transition: transform 150ms ease;
+}
+
+.shell--nav-collapsed .shell__collapse-footer {
+  height: var(--footer-height, 2.5rem);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.shell--nav-collapsed .shell__collapse-toggle {
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  border-radius: 0.375rem;
+  box-sizing: border-box;
+}
+
+/*
+ * Style của menu KHÔNG ở đây — nó ở `shared/navigation/NavTree.css`, cạnh
+ * component render nó. File này chỉ lo cái hộp chứa (`.shell__side`).
+ */
+
+/* ── Màn hình hẹp ────────────────────────────────────────────────────────── */
+
+/*
+ * Giá trị breakpoint này có một bản sao ở `shell-media.ts` và sự trùng lặp đó
+ * KHÔNG xoá được — CSS không đọc được biến JavaScript. Cái làm nó không lệch im
+ * lặng là một ca trong `AppShell.test.ts` đọc chính file này và so hai bên.
+ * Sửa số ở đây thì phải sửa cả bên kia, và cổng sẽ nói nếu quên.
+ */
+@media (max-width: 48rem) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 3.5rem minmax(0, 1fr) 2.25rem;
+    grid-template-areas:
+      'header'
+      'main'
+      'footer';
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .shell__burger {
+    display: grid;
+  }
+
+  .shell__side {
+    position: fixed;
+    top: 3.5rem;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: 18rem;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 160ms ease;
+  }
+
+  .shell--nav-open .shell__side {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell__side {
+    transition: none;
+  }
+}

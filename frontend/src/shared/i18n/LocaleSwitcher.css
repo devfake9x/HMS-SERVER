@@ -1,0 +1,73 @@
+/*
+ * Segmented control chuyển đổi ngôn ngữ (VI | EN).
+ *
+ * Dùng radio ẩn kích thước 0, giữ nguyên a11y và keyboard arrow navigation.
+ */
+
+.localeswitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin: 0;
+  padding: 0.125rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.375rem;
+  background-color: var(--surface-page);
+  height: 2rem;
+  box-sizing: border-box;
+}
+
+.localeswitch__option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: calc(100% - 0.125rem);
+  padding: 0 0.375rem;
+  border-radius: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.localeswitch__option:hover {
+  color: var(--text-primary);
+}
+
+.localeswitch__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  appearance: none;
+}
+
+.localeswitch__input:checked + .localeswitch__label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.localeswitch__option:has(.localeswitch__input:checked) {
+  background-color: var(--surface-overlay);
+  box-shadow: var(--shadow-control);
+}
+
+.localeswitch__option:has(.localeswitch__input:focus-visible) {
+  outline: 2px solid var(--status-info);
+  outline-offset: -1px;
+}
+
+@supports not selector(:has(*)) {
+  .localeswitch__input:checked + .localeswitch__label {
+    text-decoration: underline;
+  }
+}

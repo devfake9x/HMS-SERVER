@@ -1,0 +1,3 @@
+- [Device contract via spec only](reference_firmware_c_oracle.md) — use mqtt-api.md, never firmware source; scratch-only probing; fixtures write by default; ValueEquals probe pitfall
+- [HMS review workflow](reference_hms_review_workflow.md) — no git: mtime scope, fix diff vs tester copy; reuse tester mutate.js; Write tool for probes; EF DI probe
+- [Authz probe heuristics](reference_authz_probe_heuristics.md) — U+017F role bypass; store-hook TOCTOU; chain capture, depth cap, demoted link

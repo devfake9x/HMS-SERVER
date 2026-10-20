@@ -1,0 +1,2077 @@
+{
+  "evidence": "CONTRACT_TESTED",
+  "evidenceClass": "SOURCE_PROVEN_STATIC_HANDLER_REFERENCES",
+  "sourceRoot": "D:/WORKSPACE/PROJECT/HMS-SERVER/plans/260924-2044-hms-server-management",
+  "matrixSource": "D:\\WORKSPACE\\PROJECT\\HMS-SERVER\\plans\\260924-2044-hms-server-management\\fixtures\\command-evidence-matrix.json",
+  "rowCount": 94,
+  "handlerFileCount": 12,
+  "rows": [
+    {
+      "type": "adc",
+      "action": "get_channels",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "handlerSourceHash": "0171df18e440f86b51bc0b13d2ab11f5c37a70356a698b28d3cc7d40347679f5",
+      "branch": {
+        "action": "get_channels",
+        "sourceLine": 24,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_adc_get_channels"
+        ],
+        "branchSha256": "c01aa9190f3773998df69e4c9df6554d24b1f7daf6e77dc1acf6a3600c103f03",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "adc",
+      "action": "get_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "handlerSourceHash": "0171df18e440f86b51bc0b13d2ab11f5c37a70356a698b28d3cc7d40347679f5",
+      "branch": {
+        "action": "get_config",
+        "sourceLine": 21,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_adc_get_config"
+        ],
+        "branchSha256": "264b2c28fb8bb2ea9ad3035b3ff93eb4f4a12344f95eaa8dbde082591e30c69a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "adc",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "handlerSourceHash": "0171df18e440f86b51bc0b13d2ab11f5c37a70356a698b28d3cc7d40347679f5",
+      "branch": {
+        "action": "get_status",
+        "sourceLine": 27,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_adc_get_status"
+        ],
+        "branchSha256": "46a865d07e7a6a59bc69f71da326518ea5cce79b3c788df3d706978e55990c60",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "adc",
+      "action": "get_values",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "handlerSourceHash": "0171df18e440f86b51bc0b13d2ab11f5c37a70356a698b28d3cc7d40347679f5",
+      "branch": {
+        "action": "get_values",
+        "sourceLine": 30,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_adc_get_values"
+        ],
+        "branchSha256": "7dd6234a30833e1417c7205bf8327f5c2af0aca32b26347ec7112da1328093ef",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "adc",
+      "action": "set_channel",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "handlerSourceHash": "0171df18e440f86b51bc0b13d2ab11f5c37a70356a698b28d3cc7d40347679f5",
+      "branch": {
+        "action": "set_channel",
+        "sourceLine": 33,
+        "inputFieldReferences": [
+          "ai"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_adc_set_channel"
+        ],
+        "branchSha256": "7a04110778d12b9e3fbfc5fe9a23b42e5dd8e1a0a0df92599d7d291bf8ffbd45",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "adc",
+      "action": "toggle_channel",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_adc.c",
+      "handlerSourceHash": "0171df18e440f86b51bc0b13d2ab11f5c37a70356a698b28d3cc7d40347679f5",
+      "branch": {
+        "action": "toggle_channel",
+        "sourceLine": 41,
+        "inputFieldReferences": [
+          "ai",
+          "enabled"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_adc_toggle_channel"
+        ],
+        "branchSha256": "eed7e1266b4733a455062fd8f4012ca48839a87a40ad139bdf4797b42ba557d2",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "battery",
+      "action": "clear_alert",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_battery.c",
+      "handlerSourceHash": "5f05d8bb5037929287c717d6b9a879a06fa201bb8a5ba33d41e376cdd3505e6b",
+      "branch": {
+        "action": "clear_alert",
+        "sourceLine": 27,
+        "inputFieldReferences": [
+          "flag"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_battery_clear_alert"
+        ],
+        "branchSha256": "ec3d88906160fa82f57d2c8991453151f8436c07018a4d9e22ae8542c13b5d51",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "battery",
+      "action": "get_alerts",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_battery.c",
+      "handlerSourceHash": "5f05d8bb5037929287c717d6b9a879a06fa201bb8a5ba33d41e376cdd3505e6b",
+      "branch": {
+        "action": "get_alerts",
+        "sourceLine": 24,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_battery_get_alerts"
+        ],
+        "branchSha256": "0b478861133575ffd3fcbdc6770d327db7a7447cf5fb7610be3fbc66e14e278e",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "battery",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_battery.c",
+      "handlerSourceHash": "5f05d8bb5037929287c717d6b9a879a06fa201bb8a5ba33d41e376cdd3505e6b",
+      "branch": {
+        "action": "get_status",
+        "sourceLine": 21,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_battery_get_status"
+        ],
+        "branchSha256": "0e86d00c21ce936ae31b7fbd8fc5802b5d0548fbc5de2e63a6a5079200321603",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "battery",
+      "action": "quick_start",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_battery.c",
+      "handlerSourceHash": "5f05d8bb5037929287c717d6b9a879a06fa201bb8a5ba33d41e376cdd3505e6b",
+      "branch": {
+        "action": "quick_start",
+        "sourceLine": 35,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_battery_quick_start"
+        ],
+        "branchSha256": "ea0c576931ca3bab81a18237e4f66dac99dbf052af6bdae2f83b80460ce53a21",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "create_pipeline",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "create_pipeline",
+        "sourceLine": 52,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_create_pipeline"
+        ],
+        "branchSha256": "4d515f0e26ceaf3ff26b7ac4fdacc508fe4aa076caeee953d40d23bf0514912c",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "create_signal",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "create_signal",
+        "sourceLine": 31,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_create_signal"
+        ],
+        "branchSha256": "9cbb284400014399055053b471b9afffebb0f8ee85f3e56ef0f9f44abea926b4",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "delete_pipeline",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "delete_pipeline",
+        "sourceLine": 63,
+        "inputFieldReferences": [
+          "id"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_delete_pipeline"
+        ],
+        "branchSha256": "8552d873002f5ab80dc253fd03d606a4e185e472ee0408126a20d9c343981bf5",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "delete_signal",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "delete_signal",
+        "sourceLine": 42,
+        "inputFieldReferences": [
+          "signal_id",
+          "tag_name"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_delete_signal"
+        ],
+        "branchSha256": "5bdf83f4a2af78e1718a7219d8a8b35aaaf4c07119cfb9731d85bd8b088af361",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "diagnostics",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "diagnostics",
+        "sourceLine": 88,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_get_diagnostics"
+        ],
+        "branchSha256": "16c450d9bb1d84bd80bd5abdb9a6d9789724ec92c70a0b369f8e000f7f0f0381",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "get_signal",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "get_signal",
+        "sourceLine": 24,
+        "inputFieldReferences": [
+          "signal_id",
+          "tag_name"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_get_signal"
+        ],
+        "branchSha256": "59ffc8d378c37e96e38172af0b31d81858c71a5d6d9fa900c45f4ca768255e76",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "hook_stats",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "hook_stats",
+        "sourceLine": 85,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_get_hook_stats"
+        ],
+        "branchSha256": "e32f25e467a4de5b0933adcb8aea3a5bf10cb0c18a8b140ef2ea92c57f13596e",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "list_chains",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "list_chains",
+        "sourceLine": 70,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_list_chains"
+        ],
+        "branchSha256": "68b3468d7372632e7892a6d4971328aeb852673cb69549bb997abefc14745e26",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "list_filters",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "list_filters",
+        "sourceLine": 76,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_list_filters"
+        ],
+        "branchSha256": "d19680325556b7e16138bd0daf70cfde2e95f702102a18b0f0d73770482c61e9",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "list_formulas",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "list_formulas",
+        "sourceLine": 79,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_list_formulas"
+        ],
+        "branchSha256": "fa8658e927f02ca0ca30803f481d5c39e21ab4cffc60c880a6c7a496ca82d310",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "list_pipelines",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "list_pipelines",
+        "sourceLine": 49,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_list_pipelines"
+        ],
+        "branchSha256": "8a60f78312a53c00b7a48a04d31bccf882c44ba5ed122717dbb4c86fb7ed4e4a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "list_scales",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "list_scales",
+        "sourceLine": 73,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_list_scales"
+        ],
+        "branchSha256": "f8ea9f529cb318e5959dd776f782b252d53b206c68bab5449dee2a95c8df560b",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "list_signals",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "list_signals",
+        "sourceLine": 21,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_list_signals"
+        ],
+        "branchSha256": "b78bbc10ed1153b064231b558579f5761b38a84c458594e43eada8b6430d40a4",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "rebuild",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "rebuild",
+        "sourceLine": 82,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_rebuild"
+        ],
+        "branchSha256": "dc00f9463a92634c9f10cb91dc7a9685b4e98d7e4e6a880e512f700096ca4582",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "update_pipeline",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "update_pipeline",
+        "sourceLine": 56,
+        "inputFieldReferences": [
+          "id"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_update_pipeline"
+        ],
+        "branchSha256": "6cbbe68daedf4ea735b7fc994014dca082f3987a94346c4d0356fef1a961cf5c",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "broker",
+      "action": "update_signal",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_broker.c",
+      "handlerSourceHash": "3e16ed4d79e556213732091daaedbe2b55c1921262cb32e9a19ff3c79e5efad2",
+      "branch": {
+        "action": "update_signal",
+        "sourceLine": 35,
+        "inputFieldReferences": [
+          "signal_id",
+          "tag_name"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_broker_update_signal"
+        ],
+        "branchSha256": "4813b8abfd4b5639f60d3b5ef3dc23965ebcb9af301b5f6b602ddd6c1431f5a1",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "config",
+      "action": "get",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_config.c",
+      "handlerSourceHash": "55fbe3313d1cc49d99c88fcc93ffcd687fae874762c17b604fa16913c4272cb5",
+      "branch": {
+        "action": "get",
+        "sourceLine": 24,
+        "inputFieldReferences": [
+          "domain"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_config_get"
+        ],
+        "branchSha256": "21ca95dcc0bf2913732e693330185e3029f1b3c68570b6839b176d0d3a49491c",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "config",
+      "action": "list_domains",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_config.c",
+      "handlerSourceHash": "55fbe3313d1cc49d99c88fcc93ffcd687fae874762c17b604fa16913c4272cb5",
+      "branch": {
+        "action": "list_domains",
+        "sourceLine": 21,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_config_list_domains"
+        ],
+        "branchSha256": "68efed7dc25710cc55f05b13762589580ed0662d139f4afe94c73ad87224288c",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "config",
+      "action": "set",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_config.c",
+      "handlerSourceHash": "55fbe3313d1cc49d99c88fcc93ffcd687fae874762c17b604fa16913c4272cb5",
+      "branch": {
+        "action": "set",
+        "sourceLine": 30,
+        "inputFieldReferences": [
+          "config",
+          "domain"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_config_set"
+        ],
+        "branchSha256": "314a44e4ea2bc17b931c859b217f841cc38a7fec0d535593bd2e88d65893db29",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "control",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\do-service\\do_service.c",
+      "handlerSourceHash": "e7aa790c27aa0b17afa80103a78e21ae30826b86c259e42a6eacb81cf09e6e3d",
+      "branch": {
+        "action": "get_status",
+        "sourceLine": 488,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "7a75988d467a2d71ca59441a6737605e9b4b7ea078d903fa2b742db386b36c1b",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "control",
+      "action": "pulse",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\do-service\\do_service.c",
+      "handlerSourceHash": "e7aa790c27aa0b17afa80103a78e21ae30826b86c259e42a6eacb81cf09e6e3d",
+      "branch": {
+        "action": "pulse",
+        "sourceLine": 485,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "205ff59c8356dc2084fb84efe472ec02aa3a8ef171d3ddbedd8753765c20781a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "control",
+      "action": "set_all",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\do-service\\do_service.c",
+      "handlerSourceHash": "e7aa790c27aa0b17afa80103a78e21ae30826b86c259e42a6eacb81cf09e6e3d",
+      "branch": {
+        "action": "set_all",
+        "sourceLine": 491,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "63ce601b365e6b5f25d98d083f05794f5b172f64ba9158ddb344e8b6485bb4d0",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "control",
+      "action": "set_output",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\services\\do-service\\do_service.c",
+      "handlerSourceHash": "e7aa790c27aa0b17afa80103a78e21ae30826b86c259e42a6eacb81cf09e6e3d",
+      "branch": {
+        "action": "set_output",
+        "sourceLine": 482,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "de5596c10b6de9b3ca5f44b38c366ea73bd603cc57ed13801e39c2a63c98a3fa",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "modbus",
+      "action": "check_rtu_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "handlerSourceHash": "222283ee24ca9f572c488709df44651595374445572254705ab594e79fbc3cc6",
+      "branch": {
+        "action": "check_rtu_config",
+        "sourceLine": 317,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "d2e933b8f3161f21a2d6030d815309f291a5699ae693446394839dea034e60e0",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "modbus",
+      "action": "get_rtu_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "handlerSourceHash": "222283ee24ca9f572c488709df44651595374445572254705ab594e79fbc3cc6",
+      "branch": {
+        "action": "get_rtu_config",
+        "sourceLine": 294,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_modbus_get_rtu_config"
+        ],
+        "branchSha256": "a50e4b1fdb0dfed4c196a5d5d50cca803e92129fd20fd4f8b636fc4378c2d22e",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "modbus",
+      "action": "get_rtu_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "handlerSourceHash": "222283ee24ca9f572c488709df44651595374445572254705ab594e79fbc3cc6",
+      "branch": {
+        "action": "get_rtu_status",
+        "sourceLine": 323,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_modbus_get_rtu_status"
+        ],
+        "branchSha256": "f1cfbb81cda76dcfd9d7dad5d3c1f0bc69601cd958d302a129fd74a0f64759a5",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "modbus",
+      "action": "replace_rtu_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "handlerSourceHash": "222283ee24ca9f572c488709df44651595374445572254705ab594e79fbc3cc6",
+      "branch": {
+        "action": "replace_rtu_config",
+        "sourceLine": 320,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "29580b66121895ed10e362756c1c6a175b71320675765a3e4cc366d5d423cee1",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "modbus",
+      "action": "restart_rtu",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "handlerSourceHash": "222283ee24ca9f572c488709df44651595374445572254705ab594e79fbc3cc6",
+      "branch": {
+        "action": "restart_rtu",
+        "sourceLine": 326,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [
+          "accepted",
+          "error",
+          "operation_id",
+          "retryAfterMs"
+        ],
+        "helperCalls": [],
+        "branchSha256": "d4980695070337a849d746805a777bbcbcc354f3448aed429316481f5d589ef0",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "modbus",
+      "action": "set_rtu_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_modbus.c",
+      "handlerSourceHash": "222283ee24ca9f572c488709df44651595374445572254705ab594e79fbc3cc6",
+      "branch": {
+        "action": "set_rtu_config",
+        "sourceLine": 297,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "fd0f1fea9442b1cc745b4834b7d7d1d4d442bbaa92bea71fb62c57eae7366370",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "mqtt",
+      "action": "get_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_mqtt.c",
+      "handlerSourceHash": "eccdaa17aaaf365c5ed54c67da973dbd1f30aa00311e1dcf482e38b57bbcfa54",
+      "branch": {
+        "action": "get_config",
+        "sourceLine": 106,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_mqtt_get_config"
+        ],
+        "branchSha256": "afbe27579394c464f36ba02d0d161aaebfa316f727706e863d16a6e7ba30b955",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "mqtt",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_mqtt.c",
+      "handlerSourceHash": "eccdaa17aaaf365c5ed54c67da973dbd1f30aa00311e1dcf482e38b57bbcfa54",
+      "branch": {
+        "action": "get_status",
+        "sourceLine": 103,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_mqtt_get_status"
+        ],
+        "branchSha256": "744eec70e9601f5aad5baad76aeaab8b85e189aba7c810e0efce1a0c65d40e3a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "mqtt",
+      "action": "reconnect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_mqtt.c",
+      "handlerSourceHash": "eccdaa17aaaf365c5ed54c67da973dbd1f30aa00311e1dcf482e38b57bbcfa54",
+      "branch": {
+        "action": "reconnect",
+        "sourceLine": 119,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "b91585c7e467826e1593947270d75cbea03911b754ff2f1489b46367c1a99f6e",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "mqtt",
+      "action": "set_config",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_mqtt.c",
+      "handlerSourceHash": "eccdaa17aaaf365c5ed54c67da973dbd1f30aa00311e1dcf482e38b57bbcfa54",
+      "branch": {
+        "action": "set_config",
+        "sourceLine": 109,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "cb46a6ffd12e4f05ceaaa4a608c9ee1bed70eb0d59d35c38bdcebd0771220a19",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "configure_ethernet",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "configure_ethernet",
+        "sourceLine": 172,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "906ea628eed9161b24f416a60000ccf8114b58495d6dfa393c4629b4c35804c8",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "get_all_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "get_all_status",
+        "sourceLine": 195,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_network_get_all_status"
+        ],
+        "branchSha256": "c36d7a573fdc06d443adbe277827318bca54aa9fc2e53f439833e8c0e3052791",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "get_ethernet",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "get_ethernet",
+        "sourceLine": 169,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_network_get_ethernet_status"
+        ],
+        "branchSha256": "6a7b3a7b469b745180a95c373845557ea26ad2b77bcf7e6a6b3aac70e4bbe67d",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "get_modem",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "get_modem",
+        "sourceLine": 198,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_network_get_modem_status"
+        ],
+        "branchSha256": "942690c85a4c22561798b003a43dffbd59bbd2cd293165f92aa532354d1a7274",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "get_priority",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "get_priority",
+        "sourceLine": 182,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_network_get_priority"
+        ],
+        "branchSha256": "0679329dc911f67ce0cbdacdc8ef77bd1d66afbd436157414cb33ed06a460a0c",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "set_priority",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "set_priority",
+        "sourceLine": 185,
+        "inputFieldReferences": [
+          "priority"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "a183e11442403c61316adae186a5e136759ce56ba35d3ca3ce1f07df70f1892a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_clients",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_ap_clients",
+        "sourceLine": 233,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_wifi_ap_clients"
+        ],
+        "branchSha256": "09c54c45afabbe1a861e5faf48d920507cb1e9eb9698c6cc6abc401d39fcffda",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_config_get",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_ap_config_get",
+        "sourceLine": 236,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_wifi_ap_get_config"
+        ],
+        "branchSha256": "3987e3f6bfda975276cba1066fe62f157802ef3e473393bf197254f7b397db82",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_config_set",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_ap_config_set",
+        "sourceLine": 239,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "a52d8516d06811ea277fa0b3a383fb777e53adcd0794b2a2db6a98a846f990a5",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_disable",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_ap_disable",
+        "sourceLine": 248,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "167f75c51936d44e4b3ded70afa347848a1fa98f71713f1db021d436d84e6312",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_enable",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_ap_enable",
+        "sourceLine": 244,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "d79e3e1c6606f8114af581b4826d25f4b01b213093f8a199f3f781d3f2ae09b5",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_ap_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_ap_status",
+        "sourceLine": 230,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_wifi_ap_status"
+        ],
+        "branchSha256": "abbce5b7a761bf61ca925d4a6426c748610cbbab89f545847b80ab183c5e0046",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_add",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_known_add",
+        "sourceLine": 262,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "0c8684d735aac1ee0ff5da818a4f22ca44adff269f5ecb129b96d2614d025ddf",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_auto_connect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_known_auto_connect",
+        "sourceLine": 282,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "542e4f17377ffd4c2f8329dcb4cd96c689a051b3f4a00467de5f811e6b293063",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_connect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_known_connect",
+        "sourceLine": 277,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "a412873bef4288ee0ad3b6deb94b6de0bfc629e68dff9b55ddf1e1dbbf78035f",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_list",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_known_list",
+        "sourceLine": 259,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_wifi_known_list"
+        ],
+        "branchSha256": "487c7e3c5ad67904e42d7813c5cc49c98955142b2901456be3d8a4051397fb50",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_remove",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_known_remove",
+        "sourceLine": 272,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "b612a91b0d678900310d5f93e54756e03657e473e265361f6305844d6ad9be47",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_known_update",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_known_update",
+        "sourceLine": 267,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "524c9c8a4d928f3060119aa62c91001d780e721ea12a864eb3969863cc12e84b",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_scan_results",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_scan_results",
+        "sourceLine": 256,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_wifi_scan_results"
+        ],
+        "branchSha256": "22ab94929f1bc3956637a45c94e69c9dc81154d7d70ad430f2cbed6a9a44d35a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_scan_start",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_scan_start",
+        "sourceLine": 252,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "4081f674782cebaaf53f775f4e087eb017c004c2c014e6a36c426f3ddf0c5f5c",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_config_get",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_sta_config_get",
+        "sourceLine": 204,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_wifi_sta_get_config"
+        ],
+        "branchSha256": "0a581037030293e0e2de12607d6fb304fe64c2ecf733341d6f60421f2fe4158d",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_config_set",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_sta_config_set",
+        "sourceLine": 207,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "bcf11544aca7887b9b4b91d95a59aa6c081d8693274b5d5a1e0a2f7677e8840b",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_connect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_sta_connect",
+        "sourceLine": 212,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "3c29d970a97bc8c49f5350bbc5cf9ba7780cc63389adf068de3aba8580a33ebe",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_disable",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_sta_disable",
+        "sourceLine": 226,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "9cdcd376d1671b5b2555e26cdfbcab4cf3510ac3afce1181ec82d24c3e7ed43b",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_disconnect",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_sta_disconnect",
+        "sourceLine": 217,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "48b0f5fa13ea272967335e7e6f45b1fe9d32b89f5ae475cfbadec8cd8185ef2f",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_enable",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_sta_enable",
+        "sourceLine": 222,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "8be86b82885b5a9f754efff213b736d780b16a5f515070a1763a1723de998426",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "network",
+      "action": "wifi_sta_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_network.c",
+      "handlerSourceHash": "fa1b153768bd3b75dce756549f2d868e5cd21212fdc0e96ce690a72474b81358",
+      "branch": {
+        "action": "wifi_sta_status",
+        "sourceLine": 201,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_wifi_sta_status"
+        ],
+        "branchSha256": "3fda6452066f1e6f2b1aa40d5ca643f234aa916d72b4e4adc48fff659b1ce83a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "ota",
+      "action": "apply",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_ota.c",
+      "handlerSourceHash": "4464a3fda995a1d31a171f7f1109826b670b21fa74e797d6cf8f23aaf5f11de0",
+      "branch": {
+        "action": "apply",
+        "sourceLine": 51,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_ota_apply"
+        ],
+        "branchSha256": "59f58355f491e6fb7d99056dddf693db5f397298361589f15da4910407044969",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "ota",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_ota.c",
+      "handlerSourceHash": "4464a3fda995a1d31a171f7f1109826b670b21fa74e797d6cf8f23aaf5f11de0",
+      "branch": {
+        "action": "get_status",
+        "sourceLine": 20,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_ota_get_status"
+        ],
+        "branchSha256": "d325227eee79c6ecc3d335a47fc1927b1d5921c6a0a803c5fc1237d223072525",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "ota",
+      "action": "remote_config_get",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_ota.c",
+      "handlerSourceHash": "4464a3fda995a1d31a171f7f1109826b670b21fa74e797d6cf8f23aaf5f11de0",
+      "branch": {
+        "action": "remote_config_get",
+        "sourceLine": 24,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_ota_remote_config_get"
+        ],
+        "branchSha256": "136eeeb8deeb3024095524b420b993a10f6a97ae6d6395e5f3176dc1e115fc83",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "ota",
+      "action": "remote_start",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_ota.c",
+      "handlerSourceHash": "4464a3fda995a1d31a171f7f1109826b670b21fa74e797d6cf8f23aaf5f11de0",
+      "branch": {
+        "action": "remote_start",
+        "sourceLine": 28,
+        "inputFieldReferences": [
+          "data"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_ota_remote_start",
+          "ota_https_start",
+          "ota_manager_is_busy"
+        ],
+        "branchSha256": "cab3479399738cb037427ac6a8a16ec35ec353e25c6ab5e3c590fc60de7032f9",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "sms",
+      "action": "get_status",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_sms.c",
+      "handlerSourceHash": "705a318ed106b027e6d6f1ea4f6ad86fd00613caf939727eda8384530175da94",
+      "branch": {
+        "action": "get_status",
+        "sourceLine": 30,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_sms_get_status"
+        ],
+        "branchSha256": "fc9e78cbbb78f0eec4a09290b7a75c485232c3b85698702a9580d200fab72984",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "sms",
+      "action": "list",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_sms.c",
+      "handlerSourceHash": "705a318ed106b027e6d6f1ea4f6ad86fd00613caf939727eda8384530175da94",
+      "branch": {
+        "action": "list",
+        "sourceLine": 38,
+        "inputFieldReferences": [
+          "data"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_sms_list"
+        ],
+        "branchSha256": "024630134db922ab46074447fb159284a8494aa05843753a5653e615cf269477",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "sms",
+      "action": "storage_stats",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_sms.c",
+      "handlerSourceHash": "705a318ed106b027e6d6f1ea4f6ad86fd00613caf939727eda8384530175da94",
+      "branch": {
+        "action": "storage_stats",
+        "sourceLine": 34,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_sms_storage_stats"
+        ],
+        "branchSha256": "d39faccde6ec67b75df7e6d5d88562b5c82627cd466d6d1488d5a7ac2b342d2c",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "status",
+      "action": "dump",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_status.c",
+      "handlerSourceHash": "1205d259836c863352e12f10260755a2704c6b020bbe932bab2f978acd08814d",
+      "branch": {
+        "action": "dump",
+        "sourceLine": 19,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_status_dump"
+        ],
+        "branchSha256": "f69c7de1484263368a48cd3c3091225a60ba2359314a2d87512d864d3685d57d",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "status",
+      "action": "services",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_status.c",
+      "handlerSourceHash": "1205d259836c863352e12f10260755a2704c6b020bbe932bab2f978acd08814d",
+      "branch": {
+        "action": "services",
+        "sourceLine": 22,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_status_services"
+        ],
+        "branchSha256": "7223f6d12dd29c5a54475563239dd946a0e751f444c9e7bf51e0c3d2690523e9",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "status",
+      "action": "tags",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_status.c",
+      "handlerSourceHash": "1205d259836c863352e12f10260755a2704c6b020bbe932bab2f978acd08814d",
+      "branch": {
+        "action": "tags",
+        "sourceLine": 25,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_status_tags"
+        ],
+        "branchSha256": "8a54048657f085085eef68253de52d9707dcb48e5ba5c643112cd5e689232475",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "factory_reset",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "factory_reset",
+        "sourceLine": 201,
+        "inputFieldReferences": [
+          "confirmed",
+          "level"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "410458798288bd406d9eabcc55f56333b465aeb87f696bbbfde10b871dad464a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "get_device_id",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "get_device_id",
+        "sourceLine": 276,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_system_get_device_id"
+        ],
+        "branchSha256": "79aa1c6d3766b66e360c36c7e3c25713f163421ca6dc286bbca9012f1c23b61a",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "get_heap",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "get_heap",
+        "sourceLine": 167,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_system_get_heap"
+        ],
+        "branchSha256": "c6cf3d84e32811e214222857208c8eec223a99cb785c5bf5b3563a4632e198fb",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "get_hostname",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "get_hostname",
+        "sourceLine": 170,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_system_get_hostname"
+        ],
+        "branchSha256": "840a60e0a6a9b13639687387de01ad8400104db79eca17dc2d9b3abcb48fa415",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "get_info",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "get_info",
+        "sourceLine": 164,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_system_get_info"
+        ],
+        "branchSha256": "58313a91928e2b7918b189dab1c021d907222a70e99b7f6f949014b4f839ca5f",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "get_operations",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "get_operations",
+        "sourceLine": 220,
+        "inputFieldReferences": [
+          "operation_id"
+        ],
+        "responseFieldReferences": [
+          "detail",
+          "operationId",
+          "resultCode",
+          "resultMessage",
+          "resultSuccess",
+          "state",
+          "terminal"
+        ],
+        "helperCalls": [],
+        "branchSha256": "531ec63aa4047d3e7ae3456f43ff5782cd174264443162732f6b68715a0f26fb",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "get_time",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "get_time",
+        "sourceLine": 279,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_system_get_time"
+        ],
+        "branchSha256": "58f653e7f02c78505976ec5462d76605125e54b0d8c79f22ffb662c00b54ee76",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "ping",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "ping",
+        "sourceLine": 183,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [
+          "ops_system_ping"
+        ],
+        "branchSha256": "37d9f9418afb3e045a80ea7164ee7a5642f20f737094bc041829b8e2074faca0",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "reboot",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "reboot",
+        "sourceLine": 186,
+        "inputFieldReferences": [
+          "delay_ms"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "28d2fa0476f8d006a8977683d3c98c86db64aca79d99e88205228b2fde3b9fc3",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "set_hostname",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "set_hostname",
+        "sourceLine": 173,
+        "inputFieldReferences": [
+          "hostname"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "6bd24d713e67d05af61c5fa52b43a7978d896a99bba45dc4c285e8b3b714eb78",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "set_ntp_servers",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "set_ntp_servers",
+        "sourceLine": 308,
+        "inputFieldReferences": [
+          "servers"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "29b44ad2eab84a5a0bad77a40ee60bc0d3f69e2796be8c9de9b54d83eeb521e8",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "set_time",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "set_time",
+        "sourceLine": 282,
+        "inputFieldReferences": [
+          "epoch"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "440dcd2bbc2621ab6e02dd8d16612012a4216ceaae1b5b0ee0bdc234dc07623d",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "set_timezone",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "set_timezone",
+        "sourceLine": 298,
+        "inputFieldReferences": [
+          "timezone"
+        ],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "edb3d08f455fcbf88d267b96ae409f6b6b0e9fac2f8aea20ace0a8e8b4e5752b",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    },
+    {
+      "type": "system",
+      "action": "sync_ntp",
+      "handlerSource": "D:\\WORKSPACE\\PROJECT\\HMS-IDF\\components\\mqtt-cmd-handlers\\src\\cmd_system.c",
+      "handlerSourceHash": "2ec674a647d3e21b4d40a994853cc2a1ece17899fe8f739db87f77987c062679",
+      "branch": {
+        "action": "sync_ntp",
+        "sourceLine": 292,
+        "inputFieldReferences": [],
+        "responseFieldReferences": [],
+        "helperCalls": [],
+        "branchSha256": "422b84404fdb3774928fe55b416ad46a1470db36ddeb4defc3a88f12a6f2ac98",
+        "evidence": "SOURCE_PROVEN_STATIC_HANDLER_BRANCH_AND_FIELD_REFERENCES"
+      },
+      "requestSchema": "DEFERRED: static field references do not prove requiredness, type, nesting, or accepted range",
+      "responseSchema": "DEFERRED: static field references do not prove complete response shape or error variants",
+      "sideEffects": "DEFERRED: helper references do not prove runtime side effects or durability",
+      "buildCondition": "DEFERRED: source branch presence does not prove build/runtime availability",
+      "limitation": "This fixture is source evidence only; it is not an end-to-end firmware execution test."
+    }
+  ],
+  "limitations": [
+    "Does not prove cJSON type checks, requiredness, nesting, ranges, or default values.",
+    "Does not prove helper side effects, persistence, build conditions, or runtime readiness.",
+    "Does not define server authorization policy or a canonical MQTT publish leaf.",
+    "Actual firmware execution and negative-path tests remain implementation/release gates."
+  ]
+}

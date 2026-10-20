@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hms-server.invalid/contracts/provisioning/device-bundle-v1.schema.json",
+  "title": "HMS-SERVER device provisioning bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "device_id",
+    "generation",
+    "import_nonce",
+    "expires_at",
+    "bootstrap_proof",
+    "physical_binding",
+    "broker_mode",
+    "primary_broker",
+    "credentials",
+    "keyset",
+    "license_envelope"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+$"
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "x-firmware-limit-status": "EXACT_IMPORTER_LIMIT_PENDING"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "import_nonce": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128,
+      "description": "Opaque one-time replay fence; encoding is a server/importer contract."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "bootstrap_proof": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 512
+    },
+    "physical_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mac"],
+      "properties": {
+        "mac": {
+          "type": "string",
+          "pattern": "^[0-9A-Fa-f]{12}$"
+        },
+        "board_serial": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "product_model": {
+          "type": "string",
+          "maxLength": 32
+        }
+      },
+      "x-contract-status": "NEW_FIRMWARE_CONTRACT"
+    },
+    "broker_mode": {
+      "const": "PRIMARY_ONLY"
+    },
+    "primary_broker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpoint"],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "tls_profile": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "x-contract-status": "NEW_FIRMWARE_CONTRACT_IMPORTER_BINDING"
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mqtt_username", "mqtt_password"],
+      "properties": {
+        "mqtt_username": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "mqtt_password": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 256,
+          "writeOnly": true
+        }
+      },
+      "x-secret-lifecycle": "Never place human admin credentials here; redact from logs, browser state, analytics and ordinary API responses."
+    },
+    "keyset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_key_base64", "command_key_version"],
+      "properties": {
+        "command_key_base64": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "maxLength": 64,
+          "description": "Exactly 32 raw bytes after base64 decoding."
+        },
+        "command_key_version": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "x-contract-status": "SOURCE_PROVEN_CRYPTO_RULE_IMPORTER_NEW"
+    },
+    "license_envelope": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "maxLength": 2732,
+      "description": "Opaque signed LicenseEnvelope bytes; preserve exact bytes."
+    }
+  },
+  "x-forbidden-fields": ["admin_password", "human_password", "secondary_broker", "telemetry_key"],
+  "x-contract-status": "NEW_FIRMWARE_CONTRACT",
+  "x-required-controls": ["local-only authenticated HTTP", "one-time proof", "nonce replay protection", "bounded body", "CSRF decision", "redacted response", "crash-consistent staged generation"],
+  "x-does-not-prove": "Current HMS-IDF has no complete combined identity/credentials/key/license importer or candidate identity setter."
+}

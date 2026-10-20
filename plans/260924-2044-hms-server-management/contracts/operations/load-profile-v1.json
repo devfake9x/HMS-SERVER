@@ -1,0 +1,13 @@
+{
+  "profile": "hms-server-control-plane-v1",
+  "evidence": "DESIGN_TARGET_NOT_MEASURED",
+  "clients": 1000,
+  "commandsPerDevicePerSecond": 0.1,
+  "reconnectWavePerSecond": 100,
+  "reconnectJitter": "pinned seed and documented distribution required",
+  "broker": { "product": "EMQX", "replicasCi": 1, "inflight": "record configured value", "keepaliveSeconds": 30, "sessionExpiry": "record configured value" },
+  "database": { "product": "PostgreSQL", "pool": "record min/max and utilization" },
+  "targets": { "authSuccessWithinSeconds": 120, "authSuccessRate": 0.999, "statusP95Ms": 2000, "statusP99Ms": 5000, "commandAckP95Ms": 3000, "commandAckP99Ms": 5000, "errorRateBelow": 0.01, "brokerLossBelow": 0.001, "cpuBelow": 0.70, "rssBelowBytes": 1073741824, "dbPoolBelow": 0.80, "reconnectStateWithinSeconds": 60 },
+  "ha": { "claimAllowedOnlyAfter": "two-replica soak", "rto": "must be measured/documented", "rpo": "must be measured/documented", "multiRegionActiveActive": false },
+  "limitation": "No runtime load or soak result exists before implementation."
+}
