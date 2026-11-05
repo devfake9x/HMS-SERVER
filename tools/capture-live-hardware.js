@@ -1,8 +1,9 @@
 const WebSocket = require('ws');
+const { screenshotDir } = require('./tool-env');
 const fs = require('fs');
 const path = require('path');
 
-const ARTIFACT_DIR = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54';
+const ARTIFACT_DIR = screenshotDir();
 const DEVICE_UUID = '12133938-d604-4386-a58c-b454a5ef7ae7';
 const TARGET_URL = `http://127.0.0.1:5173/devices/${DEVICE_UUID}`;
 

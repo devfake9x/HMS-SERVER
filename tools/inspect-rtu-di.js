@@ -1,5 +1,6 @@
 // tools/inspect-rtu-di.js
 const { getTabs, createCdpSession, evalInPage, captureScreenshot } = require('./cdp-client');
+const { screenshotFile } = require('./tool-env');
 
 async function main() {
   const tabs = await getTabs();
@@ -32,7 +33,7 @@ async function main() {
   console.log(JSON.stringify(pageDetails, null, 2));
 
   // Capture screenshot
-  const screenshotPath = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54/maitech_rtu_di_page.png';
+  const screenshotPath = screenshotFile('maitech_rtu_di_page.png');
   await captureScreenshot(cdp, screenshotPath);
   console.log('Saved DI screenshot to:', screenshotPath);
 

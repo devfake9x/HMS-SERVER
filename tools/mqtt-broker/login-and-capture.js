@@ -2,8 +2,11 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const { hmsAdminCredentials, screenshotDir } = require('../tool-env');
 
-const ARTIFACT_DIR = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54';
+const hms = hmsAdminCredentials();
+
+const ARTIFACT_DIR = screenshotDir();
 const DEVICE_UUID = '12133938-d604-4386-a58c-b454a5ef7ae7';
 
 function getTabs() {
@@ -70,7 +73,7 @@ async function main() {
           'Content-Type': 'application/json',
           'X-CSRF-TOKEN': csrf.requestToken
         },
-        body: JSON.stringify({ email: 'admin@hms.local', password: 'AdminPassword123!', rememberMe: false })
+        body: JSON.stringify(${JSON.stringify({ ...hms, rememberMe: false })})
       });
       return res.status;
     })()

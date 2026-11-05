@@ -1,5 +1,6 @@
 // tools/inspect-rtu-do-and-mqtt.js
 const { getTabs, createCdpSession, evalInPage, captureScreenshot } = require('./cdp-client');
+const { screenshotFile } = require('./tool-env');
 
 async function main() {
   const tabs = await getTabs();
@@ -25,7 +26,7 @@ async function main() {
   await new Promise(r => setTimeout(r, 1200));
 
   // Take screenshot of DO page
-  const doScreenshot = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54/maitech_rtu_do_page.png';
+  const doScreenshot = screenshotFile('maitech_rtu_do_page.png');
   await captureScreenshot(cdp, doScreenshot);
 
   // Inspect DO page elements
@@ -58,7 +59,7 @@ async function main() {
 
   await new Promise(r => setTimeout(r, 1500));
 
-  const mqttScreenshot = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54/maitech_rtu_mqtt_page.png';
+  const mqttScreenshot = screenshotFile('maitech_rtu_mqtt_page.png');
   await captureScreenshot(cdp, mqttScreenshot);
 
   const mqttPageInfo = await evalInPage(cdp, `(() => {

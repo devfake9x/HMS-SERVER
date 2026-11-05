@@ -1,5 +1,6 @@
 // tools/inspect-hms-server-tab.js
 const { getTabs, createCdpSession, evalInPage, captureScreenshot } = require('./cdp-client');
+const { screenshotFile } = require('./tool-env');
 
 async function main() {
   const tabs = await getTabs();
@@ -20,7 +21,7 @@ async function main() {
   console.log('HMS Server Device Tab Info:');
   console.log(JSON.stringify(pageInfo, null, 2));
 
-  const screenshotPath = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54/hms_server_device_detail_live.png';
+  const screenshotPath = screenshotFile('hms_server_device_detail_live.png');
   await captureScreenshot(cdp, screenshotPath);
 
   cdp.close();

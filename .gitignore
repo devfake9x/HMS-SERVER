@@ -5,3 +5,16 @@ frontend/dist/
 frontend/.vite/
 *.user
 *.suo
+
+# Node dependencies and package caches
+**/node_modules/
+frontend/.npm-cache/
+
+# Local build and test outputs
+**/.tmp-unit-out/
+.tmp-backend-obj/
+tools/screenshots/
+test-output-*.txt
+
+# Local HTTP cookie jars (contain session/CSRF values)
+cookies.txt

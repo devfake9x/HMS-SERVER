@@ -4,6 +4,9 @@ const http = require('http');
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:5099';
 const BROKER_URL = process.env.BROKER_URL || 'mqtt://broker.emqx.io:1883';
 const RTU_WEB_URL = process.env.RTU_WEB_URL || 'http://maitech-rtu.local';
+const { hmsAdminCredentials, rtuWebCredentials } = require('../tool-env');
+const HMS_ADMIN = hmsAdminCredentials();
+const RTU_WEB = rtuWebCredentials();
 const TOPIC_PREFIX = 'hms_toan_lab';
 const HARDWARE_DEVICE_ID = 'gateway_870c';
 const HARDWARE_DEVICE_UUID = '870c870c-870c-870c-870c-870c870c870c';
@@ -84,7 +87,7 @@ async function authenticateBackend() {
     const csrf = JSON.parse(csrfRes.data);
     const token = csrf.requestToken;
 
-    console.log('[BRIDGE] Logging in as admin@hms.local...');
+    console.log(`[BRIDGE] Logging in as ${HMS_ADMIN.email}...`);
     const loginRes = await request(`${BACKEND_URL}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
@@ -92,8 +95,7 @@ async function authenticateBackend() {
         'X-CSRF-TOKEN': token
       }
     }, {
-      email: 'admin@hms.local',
-      password: 'AdminPassword123!',
+      ...HMS_ADMIN,
       rememberMe: false
     });
 
@@ -159,7 +161,7 @@ async function authenticateRtuWeb() {
     const res = await fetch(`${RTU_WEB_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: 'admin123' }),
+      body: JSON.stringify(RTU_WEB),
       signal: AbortSignal.timeout(3000)
     });
     if (res.ok) {

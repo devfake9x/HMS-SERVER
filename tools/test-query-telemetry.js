@@ -1,4 +1,7 @@
 const http = require('http');
+const { hmsAdminCredentials } = require('./tool-env');
+
+const hms = hmsAdminCredentials();
 
 http.get('http://127.0.0.1:5099/api/v1/auth/csrf', (res) => {
   let cookie = res.headers['set-cookie']?.[0]?.split(';')[0] || '';
@@ -22,7 +25,7 @@ http.get('http://127.0.0.1:5099/api/v1/auth/csrf', (res) => {
         });
       });
     });
-    req.write(JSON.stringify({ email: 'admin@hms.local', password: 'AdminPassword123!' }));
+    req.write(JSON.stringify(hms));
     req.end();
   });
 });

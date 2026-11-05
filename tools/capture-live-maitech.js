@@ -1,5 +1,6 @@
 // tools/capture-live-maitech.js
 const { getTabs, createCdpSession, evalInPage, captureScreenshot } = require('./cdp-client');
+const { screenshotFile } = require('./tool-env');
 
 async function testHmsPage() {
   const tabs = await getTabs();
@@ -17,7 +18,7 @@ async function testHmsPage() {
   `);
   await new Promise(r => setTimeout(r, 1000));
 
-  const screenshotPath = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54/maitech_rtu_hms_server_full_card_scrolled.png';
+  const screenshotPath = screenshotFile('maitech_rtu_hms_server_full_card_scrolled.png');
   await captureScreenshot(cdp, screenshotPath);
   console.log('Saved scrolled view to:', screenshotPath);
 

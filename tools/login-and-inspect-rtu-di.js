@@ -1,5 +1,8 @@
 // tools/login-and-inspect-rtu-di.js
 const { getTabs, createCdpSession, evalInPage, captureScreenshot } = require('./cdp-client');
+const { rtuWebCredentials, screenshotFile } = require('./tool-env');
+
+const rtu = rtuWebCredentials();
 
 async function main() {
   const tabs = await getTabs();
@@ -19,12 +22,12 @@ async function main() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'admin', password: 'admin123' })
+        body: JSON.stringify(${JSON.stringify(rtu)})
       });
       const data = await res.json();
       if (data.token) {
         const user = {
-          username: 'admin',
+          username: ${JSON.stringify(rtu.username)},
           role: data.role || 'administrator',
           role_id: data.role_id ?? 2,
           permissions: data.permissions || [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF]
@@ -60,7 +63,7 @@ async function main() {
   console.log('RTU DI Page:', JSON.stringify(pageDetails, null, 2));
 
   // 4. Capture screenshot
-  const screenshotPath = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54/maitech_rtu_di_page.png';
+  const screenshotPath = screenshotFile('maitech_rtu_di_page.png');
   await captureScreenshot(cdp, screenshotPath);
   console.log('Saved screenshot to:', screenshotPath);
 

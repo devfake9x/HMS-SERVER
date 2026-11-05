@@ -1,6 +1,7 @@
 // tools/cdp-client.js
 // Lightweight native WebSocket CDP client for Chrome Remote Debugging
 const fs = require('fs');
+const { screenshotFile } = require('./tool-env');
 
 async function getTabs() {
   const res = await fetch('http://[::1]:9222/json/list');
@@ -94,7 +95,7 @@ if (require.main === module) {
       console.log('RTU Page Info:', JSON.stringify(pageInfo, null, 2));
       
       // Save screenshot to brain directory
-      const screenshotPath = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54/maitech_rtu_initial.png';
+      const screenshotPath = screenshotFile('maitech_rtu_initial.png');
       await captureScreenshot(cdp, screenshotPath);
       
       cdp.close();

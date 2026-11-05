@@ -1,5 +1,8 @@
 // tools/login-and-verify-do1.js
 const { getTabs, createCdpSession, evalInPage, captureScreenshot } = require('./cdp-client');
+const { hmsAdminCredentials, screenshotFile } = require('./tool-env');
+
+const hms = hmsAdminCredentials();
 
 async function main() {
   const tabs = await getTabs();
@@ -23,7 +26,7 @@ async function main() {
           'Content-Type': 'application/json',
           'X-CSRF-TOKEN': csrf.requestToken
         },
-        body: JSON.stringify({ email: 'admin@hms.local', password: 'AdminPassword123!', rememberMe: true })
+        body: JSON.stringify(${JSON.stringify({ ...hms, rememberMe: true })})
       });
       return { status: loginRes.status, ok: loginRes.ok };
     } catch (e) {
@@ -72,7 +75,7 @@ async function main() {
   await new Promise(r => setTimeout(r, 1000));
 
   // 4. Capture screenshot
-  const screenshotPath = 'C:/Users/toann/.gemini/antigravity/brain/ebb00cfc-bcd4-439d-b063-ce9916bf5e54/maitech_rtu_do1_on_verified.png';
+  const screenshotPath = screenshotFile('maitech_rtu_do1_on_verified.png');
   await captureScreenshot(cdp, screenshotPath);
   console.log('Screenshot saved to:', screenshotPath);
 
