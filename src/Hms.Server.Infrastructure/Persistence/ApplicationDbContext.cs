@@ -21,6 +21,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<DeviceRecord> Devices => Set<DeviceRecord>();
     public DbSet<DeviceAuthorizationEpochRecord> DeviceAuthorizationEpochs => Set<DeviceAuthorizationEpochRecord>();
     public DbSet<DeviceKeysetRecord> DeviceKeysets => Set<DeviceKeysetRecord>();
+    public DbSet<DeviceMqttBindingRecord> DeviceMqttBindings => Set<DeviceMqttBindingRecord>();
     public DbSet<PolicyVersionRecord> PolicyVersions => Set<PolicyVersionRecord>();
     public DbSet<ProjectRecord> Projects => Set<ProjectRecord>();
     public DbSet<PackageRecord> Packages => Set<PackageRecord>();
@@ -85,6 +86,20 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.ToTable("device_keysets");
             entity.HasKey(x => new { x.DeviceId, x.Generation });
             entity.Property(x => x.ProtectedPayload).IsRequired();
+        });
+
+        modelBuilder.Entity<DeviceMqttBindingRecord>(entity =>
+        {
+            entity.ToTable("device_mqtt_bindings");
+            entity.HasKey(x => x.DeviceId);
+            entity.Property(x => x.TopicPrefix).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.MqttDeviceId).HasMaxLength(63).IsRequired();
+            // One device per topic base: two devices on one base would share replies.
+            entity.HasIndex(x => new { x.TopicPrefix, x.MqttDeviceId }).IsUnique();
+            entity.HasOne<DeviceRecord>()
+                .WithOne()
+                .HasForeignKey<DeviceMqttBindingRecord>(x => x.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PolicyVersionRecord>(entity =>

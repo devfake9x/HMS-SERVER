@@ -4,6 +4,7 @@ using Hms.Server.Application.Provisioning;
 using Hms.Server.Application.Licensing;
 using Hms.Server.Application.Realtime;
 using Hms.Server.Application.Authorization;
+using Hms.Server.Application.DeviceLink;
 using Hms.Server.Infrastructure.Identity;
 using Hms.Server.Domain.Devices;
 using Hms.Server.Infrastructure.Persistence;
@@ -29,14 +30,34 @@ public static class DependencyInjection
         IDataProtectionProvider? productionDataProtectionProvider = null,
         ISecretRootPolicy? productionSecretRootPolicy = null)
     {
+        // The device link (MQTT spec): protocol adapter and reply handling are always registered,
+        // so commands are fully prepared and checked; only the live broker session is optional.
+        services.AddScoped<ICommandProtocolAdapter, Commands.HmsIdfCommandProtocolAdapter>();
+        services.AddSingleton<IDeviceResponseCodec, Commands.HmsIdfResponseCodec>();
+        services.AddSingleton<IDeviceLinkStateStore, InMemoryDeviceLinkStateStore>();
+        services.AddSingleton<IPendingDeviceCommandRegistry, InMemoryPendingDeviceCommandRegistry>();
+        services.AddSingleton<ICommandResponseStore>(_ => new InMemoryCommandResponseStore());
+        if (!string.IsNullOrWhiteSpace(databaseConnectionString))
+            services.AddScoped<IDeviceMqttBindingStore, EfDeviceMqttBindingStore>();
+        else
+            services.AddSingleton<IDeviceMqttBindingStore, InMemoryDeviceMqttBindingStore>();
+        services.AddScoped<DeviceCommandResponseCorrelator>();
+        services.AddScoped<DeviceInboundMessageHandler>();
+        services.AddScoped<ConfigureDeviceMqttBindingHandler>();
+        services.AddScoped<ImportDeviceCommandKeyHandler>();
         if (enableLiveMqtt)
         {
-            throw new InvalidOperationException(
-                "Live MQTT is deferred until the Phase 8 broker contract is proven.");
+            services.AddSingleton<Mqtt.MqttDeviceLinkService>();
+            services.AddHostedService(sp => sp.GetRequiredService<Mqtt.MqttDeviceLinkService>());
+            services.AddSingleton<IDeviceLinkTransportStatus>(sp => sp.GetRequiredService<Mqtt.MqttDeviceLinkService>());
+            services.AddScoped<IDeviceCommandTransport, Mqtt.MqttDeviceCommandTransport>();
+        }
+        else
+        {
+            services.AddSingleton<IDeviceLinkTransportStatus, DisabledDeviceLinkTransportStatus>();
+            services.AddSingleton<IDeviceCommandTransport, DeferredDeviceCommandTransport>();
         }
 
-        services.AddSingleton<ICommandProtocolAdapter, Commands.HmsIdfProvisionalProtocolAdapter>();
-        services.AddSingleton<IDeviceCommandTransport, DeferredDeviceCommandTransport>();
         if (!string.IsNullOrWhiteSpace(databaseConnectionString))
             services.AddScoped<ICommandAuditStore, EfCommandAuditStore>();
         else

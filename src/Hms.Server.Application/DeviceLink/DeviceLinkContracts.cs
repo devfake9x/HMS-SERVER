@@ -1,0 +1,317 @@
+using System.Collections.Concurrent;
+using System.Collections.Frozen;
+using System.Text.Json;
+using Hms.Server.Application.Commands;
+using Hms.Server.Domain.Devices;
+
+namespace Hms.Server.Application.DeviceLink;
+
+/// <summary>
+/// Where a device lives on the broker. The firmware publishes under
+/// <c>B = TopicPrefix/MqttDeviceId</c> (MQTT spec §1, §2); the prefix is per deployment and is
+/// never assumed. <see cref="KeyVersion"/> pins the device's command key version when known.
+/// </summary>
+public sealed record DeviceMqttBinding(
+    DeviceId DeviceId,
+    string TopicPrefix,
+    string MqttDeviceId,
+    uint? KeyVersion = null)
+{
+    public string TopicBase => $"{TopicPrefix}/{MqttDeviceId}";
+
+    public static DeviceMqttBinding Create(DeviceId deviceId, string topicPrefix, string mqttDeviceId, uint? keyVersion)
+    {
+        var prefix = topicPrefix?.Trim() ?? string.Empty;
+        var id = mqttDeviceId?.Trim() ?? string.Empty;
+        // Topic segments the firmware builds from configured strings; wildcards, empty segments and
+        // control characters would change which messages the server matches or publishes to.
+        if (prefix.Length is 0 or > 64 || prefix.StartsWith('/') || prefix.EndsWith('/') ||
+            prefix.Split('/').Any(segment => segment.Length == 0 || !segment.All(IsTopicChar)))
+            throw new ArgumentException("MQTT_TOPIC_PREFIX_INVALID", nameof(topicPrefix));
+        if (id.Length is 0 or > 63 || !id.All(IsTopicChar))
+            throw new ArgumentException("MQTT_DEVICE_ID_INVALID", nameof(mqttDeviceId));
+        if (keyVersion == 0)
+            throw new ArgumentException("MQTT_KEY_VERSION_INVALID", nameof(keyVersion));
+        return new DeviceMqttBinding(deviceId, prefix, id, keyVersion);
+    }
+
+    private static bool IsTopicChar(char c) => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.';
+}
+
+public interface IDeviceMqttBindingStore
+{
+    DeviceMqttBinding? Find(DeviceId deviceId);
+    IReadOnlyList<DeviceMqttBinding> List();
+
+    /// <summary>Adds or replaces a device's binding. Throws <c>MQTT_TOPIC_BASE_IN_USE</c> when
+    /// another device already owns the same topic base.</summary>
+    void Upsert(DeviceMqttBinding binding);
+}
+
+public sealed class InMemoryDeviceMqttBindingStore : IDeviceMqttBindingStore
+{
+    private readonly object _gate = new();
+    private readonly Dictionary<DeviceId, DeviceMqttBinding> _items = [];
+
+    public DeviceMqttBinding? Find(DeviceId deviceId)
+    {
+        lock (_gate) return _items.GetValueOrDefault(deviceId);
+    }
+
+    public IReadOnlyList<DeviceMqttBinding> List()
+    {
+        lock (_gate) return _items.Values.ToArray();
+    }
+
+    public void Upsert(DeviceMqttBinding binding)
+    {
+        lock (_gate)
+        {
+            if (_items.Values.Any(x => x.DeviceId != binding.DeviceId &&
+                                       StringComparer.Ordinal.Equals(x.TopicBase, binding.TopicBase)))
+                throw new InvalidOperationException("MQTT_TOPIC_BASE_IN_USE");
+            _items[binding.DeviceId] = binding;
+        }
+    }
+}
+
+/// <summary>Device topics under the base, as the firmware publishes them (spec §2).</summary>
+public enum DeviceInboundKind
+{
+    Status,
+    Connectivity,
+    Events,
+    Capabilities,
+    CommandResponse
+}
+
+public static class DeviceLinkTopics
+{
+    public static readonly FrozenDictionary<string, DeviceInboundKind> InboundSuffixes =
+        new Dictionary<string, DeviceInboundKind>(StringComparer.Ordinal)
+        {
+            ["status"] = DeviceInboundKind.Status,
+            ["status/connectivity"] = DeviceInboundKind.Connectivity,
+            ["status/events"] = DeviceInboundKind.Events,
+            ["capabilities"] = DeviceInboundKind.Capabilities,
+            ["cmd/res"] = DeviceInboundKind.CommandResponse
+        }.ToFrozenDictionary(StringComparer.Ordinal);
+
+    public static string Command(DeviceMqttBinding binding, string type) => $"{binding.TopicBase}/cmd/{type}";
+
+    public static IEnumerable<string> InboundTopics(DeviceMqttBinding binding) =>
+        InboundSuffixes.Keys.Select(suffix => $"{binding.TopicBase}/{suffix}");
+}
+
+/// <summary>What the broker side of the link knows about one device.</summary>
+public sealed record DeviceLinkSnapshot(
+    DeviceId DeviceId,
+    string? Connectivity,
+    DateTimeOffset? ConnectivityAt,
+    DateTimeOffset? LastHeartbeatAt,
+    DateTimeOffset? CapabilitiesAt,
+    int CapabilityCount);
+
+public interface IDeviceLinkStateStore
+{
+    void RecordHeartbeat(DeviceId deviceId, DateTimeOffset receivedAt);
+    void RecordConnectivity(DeviceId deviceId, string state, DateTimeOffset receivedAt);
+    void RecordCapabilities(DeviceId deviceId, DeviceCapabilities capabilities, DateTimeOffset receivedAt);
+    DeviceLinkSnapshot? Get(DeviceId deviceId);
+    DeviceCapabilities? GetCapabilities(DeviceId deviceId);
+}
+
+/// <summary>The retained <c>B/capabilities</c> document. <c>available</c> only says a handler is
+/// registered, not that hardware is ready (spec §2).</summary>
+public sealed record DeviceCapabilities(
+    IReadOnlyDictionary<(string Type, string Action), bool> Availability,
+    string RawJson)
+{
+    public bool? IsAvailable(string type, string action) =>
+        Availability.TryGetValue((type, action), out var available) ? available : null;
+
+    public static DeviceCapabilities? TryParse(ReadOnlySpan<byte> payload)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(payload.ToArray());
+            if (!document.RootElement.TryGetProperty("actions", out var actions) ||
+                actions.ValueKind != JsonValueKind.Array)
+                return null;
+
+            var availability = new Dictionary<(string Type, string Action), bool>();
+            foreach (var row in actions.EnumerateArray())
+            {
+                if (row.ValueKind != JsonValueKind.Object ||
+                    !row.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String ||
+                    !row.TryGetProperty("action", out var action) || action.ValueKind != JsonValueKind.String)
+                    continue;
+                var available = row.TryGetProperty("available", out var flag) && flag.ValueKind == JsonValueKind.True;
+                availability[(type.GetString()!, action.GetString()!)] = available;
+            }
+
+            return new DeviceCapabilities(availability, document.RootElement.GetRawText());
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+}
+
+public sealed class InMemoryDeviceLinkStateStore : IDeviceLinkStateStore
+{
+    private sealed record Entry(
+        string? Connectivity,
+        DateTimeOffset? ConnectivityAt,
+        DateTimeOffset? LastHeartbeatAt,
+        DeviceCapabilities? Capabilities,
+        DateTimeOffset? CapabilitiesAt);
+
+    private readonly ConcurrentDictionary<DeviceId, Entry> _entries = new();
+
+    public void RecordHeartbeat(DeviceId deviceId, DateTimeOffset receivedAt) =>
+        _entries.AddOrUpdate(deviceId,
+            _ => new Entry(null, null, receivedAt, null, null),
+            (_, current) => current with { LastHeartbeatAt = receivedAt });
+
+    public void RecordConnectivity(DeviceId deviceId, string state, DateTimeOffset receivedAt) =>
+        _entries.AddOrUpdate(deviceId,
+            _ => new Entry(state, receivedAt, null, null, null),
+            (_, current) => current with { Connectivity = state, ConnectivityAt = receivedAt });
+
+    public void RecordCapabilities(DeviceId deviceId, DeviceCapabilities capabilities, DateTimeOffset receivedAt) =>
+        _entries.AddOrUpdate(deviceId,
+            _ => new Entry(null, null, null, capabilities, receivedAt),
+            (_, current) => current with { Capabilities = capabilities, CapabilitiesAt = receivedAt });
+
+    public DeviceLinkSnapshot? Get(DeviceId deviceId) =>
+        _entries.TryGetValue(deviceId, out var entry)
+            ? new DeviceLinkSnapshot(deviceId, entry.Connectivity, entry.ConnectivityAt, entry.LastHeartbeatAt,
+                entry.CapabilitiesAt, entry.Capabilities?.Availability.Count ?? 0)
+            : null;
+
+    public DeviceCapabilities? GetCapabilities(DeviceId deviceId) =>
+        _entries.TryGetValue(deviceId, out var entry) ? entry.Capabilities : null;
+}
+
+/// <summary>State of the server's own broker session, for status endpoints.</summary>
+public sealed record DeviceLinkTransportStatus(
+    bool Enabled,
+    bool Connected,
+    string? Broker,
+    DateTimeOffset? ConnectedSince,
+    string? LastError);
+
+public interface IDeviceLinkTransportStatus
+{
+    DeviceLinkTransportStatus Current { get; }
+}
+
+public sealed class DisabledDeviceLinkTransportStatus : IDeviceLinkTransportStatus
+{
+    public DeviceLinkTransportStatus Current { get; } = new(false, false, null, null, null);
+}
+
+/// <summary>A command this server published and still waits a device reply for.</summary>
+public sealed record PendingDeviceCommand(
+    CommandExecutionPlan Plan,
+    DateTimeOffset PublishedAt,
+    DateTimeOffset Deadline);
+
+public interface IPendingDeviceCommandRegistry
+{
+    void Register(PendingDeviceCommand pending);
+    PendingDeviceCommand? Find(DeviceId deviceId, string correlationId);
+    bool Remove(DeviceId deviceId, string correlationId);
+    IReadOnlyList<PendingDeviceCommand> TakeExpired(DateTimeOffset now);
+}
+
+public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommandRegistry
+{
+    private readonly ConcurrentDictionary<(DeviceId DeviceId, string CorrelationId), PendingDeviceCommand> _pending = new();
+
+    public void Register(PendingDeviceCommand pending) =>
+        _pending[(pending.Plan.Request.DeviceId, pending.Plan.Request.CorrelationId)] = pending;
+
+    public PendingDeviceCommand? Find(DeviceId deviceId, string correlationId) =>
+        _pending.GetValueOrDefault((deviceId, correlationId));
+
+    public bool Remove(DeviceId deviceId, string correlationId) =>
+        _pending.TryRemove((deviceId, correlationId), out _);
+
+    public IReadOnlyList<PendingDeviceCommand> TakeExpired(DateTimeOffset now)
+    {
+        var expired = new List<PendingDeviceCommand>();
+        foreach (var (key, pending) in _pending)
+        {
+            if (pending.Deadline <= now && _pending.TryRemove(key, out var removed))
+                expired.Add(removed);
+        }
+
+        return expired;
+    }
+}
+
+/// <summary>A device reply on <c>B/cmd/res</c> whose HMAC was verified (spec §4.1, §5).</summary>
+public sealed record DeviceCommandResponse(
+    string Id,
+    string Type,
+    string? Action,
+    bool Success,
+    long? Timestamp,
+    uint? KeyVersion,
+    JsonElement? Data,
+    string? Error);
+
+/// <summary>Reads the firmware's response wire format; implemented by the protocol adapter side.</summary>
+public interface IDeviceResponseCodec
+{
+    /// <summary>The root <c>id</c>, read without trusting the payload, to find the pending command.</summary>
+    string? PeekId(ReadOnlySpan<byte> wire);
+
+    /// <summary>Verifies the <c>res:</c>-prefixed HMAC and parses the reply; null when the
+    /// signature is missing or wrong or the JSON is not a response.</summary>
+    DeviceCommandResponse? Verify(ReadOnlySpan<byte> wire, ReadOnlySpan<byte> commandKey);
+}
+
+/// <summary>Latest device reply per command, kept for the issuing user to read back.</summary>
+public sealed record StoredCommandResponse(
+    Domain.Authorization.UserId IssuedBy,
+    string Type,
+    string Action,
+    bool Success,
+    string? Error,
+    string? DataJson,
+    DateTimeOffset ReceivedAt);
+
+public interface ICommandResponseStore
+{
+    void Save(DeviceId deviceId, string correlationId, StoredCommandResponse response);
+    StoredCommandResponse? Find(DeviceId deviceId, string correlationId);
+}
+
+public sealed class InMemoryCommandResponseStore(int capacity = 2048) : ICommandResponseStore
+{
+    private readonly object _gate = new();
+    private readonly Dictionary<(DeviceId, string), StoredCommandResponse> _items = [];
+    private readonly Queue<(DeviceId, string)> _order = [];
+
+    public void Save(DeviceId deviceId, string correlationId, StoredCommandResponse response)
+    {
+        lock (_gate)
+        {
+            var key = (deviceId, correlationId);
+            if (!_items.ContainsKey(key))
+                _order.Enqueue(key);
+            _items[key] = response;
+            while (_order.Count > capacity)
+                _items.Remove(_order.Dequeue());
+        }
+    }
+
+    public StoredCommandResponse? Find(DeviceId deviceId, string correlationId)
+    {
+        lock (_gate) return _items.GetValueOrDefault((deviceId, correlationId));
+    }
+}

@@ -67,6 +67,8 @@ export interface CommandCatalogAction {
   dangerous: boolean
   requiresConfirmation: boolean
   featurePermission: string
+  /** The spec §11 permission the server enforces for this action (null for config domains). */
+  requiredPermission?: string | null
   idempotent: boolean
   defaultTtlMs: number | null
 }
@@ -89,6 +91,25 @@ export interface CommandExecutionResult {
   correlationId: string
   detail?: string | null
   keyGeneration?: number | null
+  isSuccess?: boolean
+}
+/** A command's latest outcome; `reply` is present only for the user who sent it. */
+export interface CommandResultDto {
+  correlationId: string
+  result: CommandExecutionResult | null
+  reply: { type: string; action: string; success: boolean; error: string | null; data: unknown; receivedAt: string } | null
+}
+export interface DeviceLinkDto {
+  binding: { topicPrefix: string; mqttDeviceId: string; keyVersion: number | null } | null
+  keyGeneration: number
+  commandKeyProvisioned: boolean
+  connectivity: string | null
+  connectivityAt: string | null
+  lastHeartbeatAt: string | null
+  online: boolean
+  capabilitiesAt: string | null
+  capabilityCount: number
+  brokerConnected: boolean
 }
 export interface ManagedUserDto { id: string; email: string; emailConfirmed: boolean; roles: string[] }
 export interface RealtimeAuthorizationDto { deviceId: string; authorizationEpoch: number; policyVersion: number }
@@ -212,4 +233,8 @@ export const adminApi = {
     request<DevicePermissionMatrixDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/permissions`, { method: 'PUT', body: JSON.stringify(body) }, options),
   deviceTelemetry: (deviceId: string, options?: AdminApiOptions) =>
     request<DeviceTelemetryDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/telemetry`, { cache: 'no-store' }, options),
+  commandResult: (deviceId: string, correlationId: string, options?: AdminApiOptions) =>
+    request<CommandResultDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/commands/${encodeURIComponent(correlationId)}`, { cache: 'no-store' }, options),
+  deviceLink: (deviceId: string, options?: AdminApiOptions) =>
+    request<DeviceLinkDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/link`, { cache: 'no-store' }, options),
 }

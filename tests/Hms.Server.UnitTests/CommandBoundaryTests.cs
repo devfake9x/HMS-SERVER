@@ -229,7 +229,7 @@ public sealed class CommandBoundaryTests
             new CommandCatalogMetadata("test", "hash", IsTrusted: true));
         var handler = new SendDeviceCommandHandler(
             catalog,
-            new Hms.Server.Infrastructure.Commands.HmsIdfProvisionalProtocolAdapter(),
+            new PublishableTestProtocolAdapter(),
             new RecordingDeviceCommandTransport(),
             audit,
             id => id == device.Id ? device : null,
@@ -242,7 +242,7 @@ public sealed class CommandBoundaryTests
             new InMemoryCommandCatalog(
                 [new CommandDefinition("system", "get_info", "device.read", CommandAvailability.Enabled, false, true, 120_000)],
                 new CommandCatalogMetadata("test", "hash", IsTrusted: false)),
-            new Hms.Server.Infrastructure.Commands.HmsIdfProvisionalProtocolAdapter(),
+            new PublishableTestProtocolAdapter(),
             new RecordingDeviceCommandTransport(),
             audit,
             id => id == device.Id ? device : null,
@@ -265,7 +265,7 @@ public sealed class CommandBoundaryTests
             new CommandCatalogMetadata("current", "current-hash"));
         var handler = new SendDeviceCommandHandler(
             catalog,
-            new Hms.Server.Infrastructure.Commands.HmsIdfProvisionalProtocolAdapter(),
+            new PublishableTestProtocolAdapter(),
             transport,
             new InMemoryCommandAuditStore(),
             id => id == device.Id ? device : null,
@@ -365,7 +365,7 @@ public sealed class CommandBoundaryTests
                 new CommandDefinition("system", "get_info", "device.read", CommandAvailability.Enabled, false, true, 120_000),
                 new CommandDefinition("system", "restart", "device.write", CommandAvailability.Enabled, true, false, 120_000)
             ]),
-            new Hms.Server.Infrastructure.Commands.HmsIdfProvisionalProtocolAdapter(),
+            new PublishableTestProtocolAdapter(),
             transport,
             audit,
             id => id == device.Id ? device : null,
@@ -541,7 +541,7 @@ public sealed class CommandBoundaryTests
         ICommandAuditStore audit,
         CommandDefinition definition) => new(
             new InMemoryCommandCatalog([definition]),
-            new Hms.Server.Infrastructure.Commands.HmsIdfProvisionalProtocolAdapter(),
+            new PublishableTestProtocolAdapter(),
             transport,
             audit,
             id => id == device.Id ? device : null,

@@ -192,7 +192,11 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Contains(actions.EnumerateArray(), action =>
             action.GetProperty("type").GetString() == "system" &&
             action.GetProperty("action").GetString() == "get_info");
-        Assert.All(actions.EnumerateArray(), action => Assert.False(action.GetProperty("available").GetBoolean()));
+        // Only the server's allowlist of closed read actions is offered as available.
+        Assert.All(actions.EnumerateArray(), action => Assert.Equal(
+            Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.EnabledActions.Contains(
+                (action.GetProperty("type").GetString()!, action.GetProperty("action").GetString()!)),
+            action.GetProperty("available").GetBoolean()));
     }
 
     [Fact]

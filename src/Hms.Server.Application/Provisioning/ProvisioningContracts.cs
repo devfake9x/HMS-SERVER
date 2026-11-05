@@ -45,7 +45,16 @@ public sealed record ProvisioningBundleMetadata(
 
 public interface IProvisioningSecretGenerator
 {
+    /// <summary>Returns the keyset of a generation, creating it on first use.</summary>
     ProvisioningSecrets Generate(DeviceId deviceId, int generation);
+
+    /// <summary>Returns the keyset of a generation, or null when none was created or imported.
+    /// Signing must use this: a freshly generated key is one the device has never seen.</summary>
+    ProvisioningSecrets? Find(DeviceId deviceId, int generation);
+
+    /// <summary>Stores a command key provisioned onto the device out of band for a generation
+    /// that has no keyset yet. Throws <c>KEYSET_EXISTS</c> otherwise.</summary>
+    ProvisioningSecrets Import(DeviceId deviceId, int generation, byte[] commandKey);
 }
 
 public interface IProvisioningBundleStore
@@ -134,6 +143,24 @@ public sealed class RandomProvisioningSecretGenerator(
             return new ProvisioningSecrets(credentials.Username, credentials.Password,
                 RandomNumberGenerator.GetBytes(32), key.Generation);
         });
+    }
+
+    public ProvisioningSecrets? Find(DeviceId deviceId, int generation) =>
+        keysets.GetValueOrDefault((deviceId, generation));
+
+    public ProvisioningSecrets Import(DeviceId deviceId, int generation, byte[] commandKey)
+    {
+        if (generation < 1)
+            throw new InvalidOperationException("KEY_GENERATION_INVALID");
+        if (commandKey is not { Length: 32 })
+            throw new ArgumentException("COMMAND_KEY_INVALID", nameof(commandKey));
+        var credentials = (brokerCredentials ?? new RandomBrokerCredentialProvider())
+            .CreatePrimary(deviceId, generation);
+        var imported = new ProvisioningSecrets(credentials.Username, credentials.Password,
+            commandKey.ToArray(), generation);
+        if (!keysets.TryAdd((deviceId, generation), imported))
+            throw new InvalidOperationException("KEYSET_EXISTS");
+        return imported;
     }
 }
 

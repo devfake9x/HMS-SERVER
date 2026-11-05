@@ -60,6 +60,18 @@ vi.mock('@/core/api/adminApi', () => ({
         services: [{ name: 'mqtt', health: 'HEALTHY' }],
       },
     }),
+    deviceLink: vi.fn().mockResolvedValue({
+      binding: { topicPrefix: 'lab_prefix', mqttDeviceId: 'gw_101', keyVersion: 3 },
+      keyGeneration: 2,
+      commandKeyProvisioned: false,
+      connectivity: 'online',
+      connectivityAt: '2026-09-30T16:00:00Z',
+      lastHeartbeatAt: '2026-09-30T16:00:00Z',
+      online: true,
+      capabilitiesAt: null,
+      capabilityCount: 0,
+      brokerConnected: true,
+    }),
   },
   getCsrf: vi.fn().mockResolvedValue({ requestToken: 'test-csrf' }),
 }))
@@ -85,6 +97,16 @@ describe('DeviceDetailView', () => {
     expect(wrapper.text()).toContain('ESP32-S3 Physical RTU Hardware Telemetry')
     expect(wrapper.text()).toContain('Last Heartbeat')
     expect(wrapper.text()).toContain('Supply Voltage')
+  })
+
+  it('shows the device MQTT binding from the server instead of a fixed broker', async () => {
+    const wrapper = mount(DeviceDetailView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="device-link-topic"]').text()).toBe('lab_prefix/gw_101/status')
+    expect(wrapper.find('[data-test="device-link-online"]').text()).toBe('Online')
+    expect(wrapper.find('[data-test="device-link-key"]').text()).toBe('not registered')
+    expect(wrapper.text()).not.toContain('broker.emqx.io')
   })
 
   it('switches between tabs when navigation is clicked', async () => {

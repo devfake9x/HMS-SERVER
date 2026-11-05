@@ -7,6 +7,7 @@ export interface CatalogAction {
   dangerous: boolean
   requiresConfirmation: boolean
   featurePermission: string
+  requiredPermission?: string | null
 }
 
 export function canRenderCommand(

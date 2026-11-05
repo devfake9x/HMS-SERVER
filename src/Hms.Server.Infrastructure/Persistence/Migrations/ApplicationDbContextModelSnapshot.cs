@@ -316,6 +316,35 @@ namespace Hms.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("device_memberships", (string)null);
                 });
 
+            modelBuilder.Entity("Hms.Server.Infrastructure.Persistence.DeviceMqttBindingRecord", b =>
+                {
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("KeyVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MqttDeviceId")
+                        .IsRequired()
+                        .HasMaxLength(63)
+                        .HasColumnType("character varying(63)");
+
+                    b.Property<string>("TopicPrefix")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("DeviceId");
+
+                    b.HasIndex("TopicPrefix", "MqttDeviceId")
+                        .IsUnique();
+
+                    b.ToTable("device_mqtt_bindings", (string)null);
+                });
+
             modelBuilder.Entity("Hms.Server.Infrastructure.Persistence.DeviceRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -864,6 +893,15 @@ namespace Hms.Server.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hms.Server.Infrastructure.Persistence.DeviceMqttBindingRecord", b =>
+                {
+                    b.HasOne("Hms.Server.Infrastructure.Persistence.DeviceRecord", null)
+                        .WithOne()
+                        .HasForeignKey("Hms.Server.Infrastructure.Persistence.DeviceMqttBindingRecord", "DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { adminApi, type CommandCatalogSnapshot } from '@/core/api/adminApi'
+import { adminApi, type CommandCatalogSnapshot, type CommandExecutionResult, type CommandResultDto } from '@/core/api/adminApi'
 import { canRenderCommand, findCatalogAction, type CatalogAction } from '@/core/commands/commandAvailability'
 import { can as canPermission, type PermissionSnapshot } from '@/core/auth/permissions'
 import Modal from '@/shared/ui/feedback/Modal.vue'
@@ -30,8 +30,55 @@ const selectedType = ref<string | null>(null)
 const selectedAction = ref<string | null>(null)
 const correlationId = ref('')
 const executing = ref(false)
-const executionResult = ref<{ status: string; code: string; correlationId: string } | null>(null)
+const executionResult = ref<CommandExecutionResult | null>(null)
 const executionError = ref('')
+// The device answers on MQTT after the API call returns "Published"; the outcome is read back.
+const deviceOutcome = ref<CommandResultDto | null>(null)
+const awaitingDevice = ref(false)
+let pollGeneration = 0
+
+const OUTCOME_POLL_MS = 1000
+// The server times a command out after 30 s without a reply (spec R4); poll a little longer.
+const OUTCOME_POLL_LIMIT_MS = 40_000
+
+const dispatchAccepted = computed(() => {
+  const status = executionResult.value?.status
+  return status === 'Published' || status === 'Acknowledged' || status === 'Executed' || status === 'Recorded' || status === 'MqttDeferred'
+})
+
+const outcomeStatus = computed(() => deviceOutcome.value?.result?.status ?? null)
+const replyJson = computed(() => {
+  const data = deviceOutcome.value?.reply?.data
+  return data === undefined || data === null ? null : JSON.stringify(data, null, 2)
+})
+
+async function awaitDeviceOutcome(correlation: string) {
+  const generation = ++pollGeneration
+  awaitingDevice.value = true
+  const deadline = Date.now() + OUTCOME_POLL_LIMIT_MS
+  try {
+    while (generation === pollGeneration && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, OUTCOME_POLL_MS))
+      if (generation !== pollGeneration) return
+      try {
+        const outcome = await adminApi.commandResult(props.deviceId, correlation)
+        deviceOutcome.value = outcome
+        if (outcome.result && outcome.result.status !== 'Published') return
+      } catch {
+        // Transient read failures keep polling until the deadline.
+      }
+    }
+  } finally {
+    if (generation === pollGeneration) awaitingDevice.value = false
+  }
+}
+
+watch(() => props.modelValue, open => {
+  if (!open) {
+    pollGeneration++
+    awaitingDevice.value = false
+  }
+})
 const showDangerConfirm = ref(false)
 const rawParamsJson = ref('{}')
 const paramsJsonError = ref('')
@@ -70,9 +117,14 @@ const isDestructive = computed(() => {
   return name.includes('reboot') || name.includes('reset') || name.includes('wipe') || name.includes('format') || name.includes('revoke')
 })
 
+// The catalog API names the spec §11 permission `requiredPermission`; older snapshots used
+// `featurePermission`. The server re-checks it against the device either way.
+const requiredPermission = computed(() =>
+  currentAction.value?.requiredPermission ?? currentAction.value?.featurePermission ?? '')
+
 const hasPermission = computed(() => {
   if (!currentAction.value) return false
-  return canPermission(props.permissions, currentAction.value.featurePermission)
+  return canPermission(props.permissions, requiredPermission.value)
 })
 
 const isCatalogVerified = computed(() => {
@@ -148,6 +200,8 @@ async function executeCommand() {
   executing.value = true
   executionResult.value = null
   executionError.value = ''
+  deviceOutcome.value = null
+  pollGeneration++
 
   try {
     const payload = {
@@ -165,6 +219,9 @@ async function executeCommand() {
 
     executionResult.value = res
     emit('command-executed', res)
+    if (res.status === 'Published') void awaitDeviceOutcome(res.correlationId)
+    // A reused correlation id may also need a fresh one; a new id is generated per dispatch.
+    correlationId.value = ''
   } catch (err: any) {
     executionError.value = err?.message || 'Command dispatch failed. The server rejected the request.'
   } finally {
@@ -247,7 +304,7 @@ async function executeCommand() {
         <div class="flex items-center justify-between">
           <span style="color: var(--text-secondary, #64748b);">Required Permission:</span>
           <Badge :variant="hasPermission ? 'success' : 'danger'" size="xs">
-            {{ currentAction.featurePermission }}
+            {{ requiredPermission || '—' }}
           </Badge>
         </div>
         <div class="flex items-center justify-between">
@@ -304,7 +361,7 @@ async function executeCommand() {
 
       <!-- Execution Result / Error Display -->
       <div
-        v-if="executionResult"
+        v-if="executionResult && dispatchAccepted"
         class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 space-y-1"
         data-test="command-success-result"
       >
@@ -317,6 +374,47 @@ async function executeCommand() {
           <p>Code: {{ executionResult.code }}</p>
           <p>Correlation: {{ executionResult.correlationId }}</p>
         </div>
+      </div>
+
+      <div
+        v-if="executionResult && !dispatchAccepted"
+        class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1"
+        data-test="command-not-sent-result"
+      >
+        <div class="flex items-center gap-1.5 font-semibold">
+          <ShieldAlert class="w-4 h-4 text-amber-500" />
+          <span>Command Not Sent to Device</span>
+        </div>
+        <div class="font-mono text-[11px] pl-5 space-y-0.5 text-zinc-700 dark:text-zinc-300">
+          <p>Status: {{ executionResult.status }}</p>
+          <p>Code: {{ executionResult.code }}</p>
+          <p v-if="executionResult.detail">Detail: {{ executionResult.detail }}</p>
+        </div>
+      </div>
+
+      <div
+        v-if="awaitingDevice || outcomeStatus"
+        class="p-3 rounded-lg text-xs space-y-1 border"
+        :class="outcomeStatus === 'Executed'
+          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300'
+          : outcomeStatus === 'Failed'
+            ? 'bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-400'
+            : 'bg-sky-500/10 border-sky-500/20 text-sky-800 dark:text-sky-300'"
+        data-test="command-device-outcome"
+      >
+        <p class="font-semibold">
+          {{ awaitingDevice && (!outcomeStatus || outcomeStatus === 'Published') ? 'Waiting for device reply…' : `Device outcome: ${outcomeStatus}` }}
+        </p>
+        <div v-if="deviceOutcome?.result && outcomeStatus !== 'Published'" class="font-mono text-[11px] space-y-0.5 text-zinc-700 dark:text-zinc-300">
+          <p>Code: {{ deviceOutcome.result.code }}</p>
+          <p v-if="deviceOutcome.result.detail">Detail: {{ deviceOutcome.result.detail }}</p>
+          <p v-if="deviceOutcome.reply?.error">Device error: {{ deviceOutcome.reply.error }}</p>
+        </div>
+        <pre
+          v-if="replyJson"
+          class="mt-1 max-h-56 overflow-auto rounded p-2 text-[11px] font-mono bg-white/60 dark:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200"
+          data-test="command-reply-data"
+        >{{ replyJson }}</pre>
       </div>
 
       <div

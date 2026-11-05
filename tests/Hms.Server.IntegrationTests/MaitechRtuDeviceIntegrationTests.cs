@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Hms.Server.Application.Commands;
+using Hms.Server.Application.DeviceLink;
+using Hms.Server.Application.Provisioning;
 using Hms.Server.Domain.Commands;
 using Hms.Server.Domain.Devices;
 using Hms.Server.Infrastructure.Commands;
@@ -21,53 +23,51 @@ public sealed class MaitechRtuDeviceIntegrationTests : IClassFixture<WebApplicat
     }
 
     [Fact]
-    public async Task ProtocolAdapter_MapsMaitechRtuToHardwareIdGateway870c()
+    public async Task ProtocolAdapter_PublishesUnderTheBoundTopicBase()
     {
-        var adapter = new HmsIdfProvisionalProtocolAdapter();
         var deviceId = new DeviceId(MaitechRtuGuid);
-        var userId = new Hms.Server.Domain.Authorization.UserId(Guid.NewGuid());
-        var request = new DeviceCommandRequest(
-            deviceId,
-            userId,
-            "control",
-            "set_output",
-            new Dictionary<string, object?> { ["channel"] = 1, ["value"] = true },
-            "corr-test-870c",
-            DateTimeOffset.UtcNow,
-            false);
+        var bindings = new InMemoryDeviceMqttBindingStore();
+        bindings.Upsert(DeviceMqttBinding.Create(deviceId, "hms_toan_lab", "gateway_870c", 11));
+        var secrets = new RandomProvisioningSecretGenerator();
+        secrets.Import(deviceId, 1, new byte[32]);
+        var adapter = new HmsIdfCommandProtocolAdapter(bindings, secrets, new InMemoryDeviceLinkStateStore());
 
-        var definition = new CommandDefinition("control", "set_output", "device.command", CommandAvailability.Enabled, false, false, 120_000);
-        var plan = new CommandExecutionPlan(request, definition, 1, DateTimeOffset.UtcNow.AddMinutes(1));
+        var prepared = await adapter.PrepareAsync(Plan(deviceId, "system", "get_info"));
 
-        var prepared = await adapter.PrepareAsync(plan);
-
-        Assert.Equal("hms_toan_lab/gateway_870c/cmd", prepared.Topic);
-        Assert.True(prepared.Payload.Length > 0);
+        Assert.True(prepared.CanPublish);
+        Assert.Equal("hms_toan_lab/gateway_870c/cmd/system", prepared.Topic);
+        Assert.Contains("\"key_ver\":11", System.Text.Encoding.UTF8.GetString(prepared.Payload.Span));
     }
 
     [Fact]
-    public async Task ProtocolAdapter_UsesStandardGuid_ForOtherDevices()
+    public async Task ProtocolAdapter_NeverGuessesATopicForAnUnboundDevice()
     {
-        var adapter = new HmsIdfProvisionalProtocolAdapter();
-        var normalGuid = Guid.NewGuid();
-        var deviceId = new DeviceId(normalGuid);
-        var userId = new Hms.Server.Domain.Authorization.UserId(Guid.NewGuid());
+        var deviceId = new DeviceId(Guid.NewGuid());
+        var secrets = new RandomProvisioningSecretGenerator();
+        secrets.Import(deviceId, 1, new byte[32]);
+        var adapter = new HmsIdfCommandProtocolAdapter(
+            new InMemoryDeviceMqttBindingStore(), secrets, new InMemoryDeviceLinkStateStore());
+
+        var prepared = await adapter.PrepareAsync(Plan(deviceId, "system", "ping"));
+
+        Assert.False(prepared.CanPublish);
+        Assert.Null(prepared.Topic);
+        Assert.Equal("DEVICE_MQTT_BINDING_MISSING", prepared.FailureCode);
+    }
+
+    private static CommandExecutionPlan Plan(DeviceId deviceId, string type, string action)
+    {
+        var now = DateTimeOffset.UtcNow;
         var request = new DeviceCommandRequest(
             deviceId,
-            userId,
-            "system",
-            "ping",
-            new Dictionary<string, object?> { ["nonce"] = "test" },
-            "corr-test-normal",
-            DateTimeOffset.UtcNow,
-            false);
-
-        var definition = new CommandDefinition("system", "ping", "device.command", CommandAvailability.Enabled, false, false, 120_000);
-        var plan = new CommandExecutionPlan(request, definition, 1, DateTimeOffset.UtcNow.AddMinutes(1));
-
-        var prepared = await adapter.PrepareAsync(plan);
-
-        Assert.Equal($"hms_toan_lab/{normalGuid:N}/cmd", prepared.Topic);
+            new Hms.Server.Domain.Authorization.UserId(Guid.NewGuid()),
+            type,
+            action,
+            new Dictionary<string, object?>(),
+            Guid.NewGuid().ToString("N"),
+            now);
+        var definition = new CommandDefinition(type, action, "sys.info_view", CommandAvailability.Enabled, false, true, 120_000);
+        return new CommandExecutionPlan(request, definition, 1, now.AddMinutes(2));
     }
 
     [Fact]

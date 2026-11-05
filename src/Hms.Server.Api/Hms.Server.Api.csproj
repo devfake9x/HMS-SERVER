@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Development-only machine settings (broker, lab CA path, device command keys). -->
+    <UserSecretsId>hms-server-api-dev</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

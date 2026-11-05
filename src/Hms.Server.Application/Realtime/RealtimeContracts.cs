@@ -175,7 +175,9 @@ public sealed class BoundedDeviceEventPublisher(int capacity = 256) : IAuthorize
             ? slot.Event!
             : _latest[(slot.DeviceId, slot.CoalescedType)];
 
+    // Latest-state events: a newer one makes the older one irrelevant.
     private static bool IsCoalescible(string eventType) =>
         eventType.Equals("status", StringComparison.OrdinalIgnoreCase) ||
-        eventType.Equals("capabilities", StringComparison.OrdinalIgnoreCase);
+        eventType.Equals("capabilities", StringComparison.OrdinalIgnoreCase) ||
+        eventType.Equals("connectivity", StringComparison.OrdinalIgnoreCase);
 }

@@ -11,12 +11,11 @@ public sealed class RecordingDeviceCommandTransport : IDeviceCommandTransport
         PreparedDeviceCommand prepared,
         CancellationToken cancellationToken = default)
     {
-        if (!prepared.CanPublish && prepared.FailureCode is not null &&
-            prepared.FailureCode != "DEFERRED_MQTT_CONTRACT")
+        if (!prepared.CanPublish)
         {
             return ValueTask.FromResult(new CommandExecutionResult(
                 CommandExecutionStatus.ContractUnavailable,
-                prepared.FailureCode,
+                prepared.FailureCode ?? "CONTRACT_UNAVAILABLE",
                 plan.Request.CorrelationId));
         }
 

@@ -111,13 +111,19 @@ public sealed class CatalogTests
     }
 
     [Fact]
-    public void Pinned_catalog_denies_every_row_until_action_contract()
+    public void Pinned_catalog_opens_only_the_closed_read_actions()
     {
         var catalog = new PinnedCommandCatalog();
+        var enabled = catalog.List().Where(x => x.Availability == CommandAvailability.Enabled).ToArray();
 
-        Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("system", "get_info")!.Availability);
-        Assert.Contains(catalog.List(), x => x.Type == "system" && x.Action == "get_info");
-        Assert.All(catalog.List(), x => Assert.Equal(CommandAvailability.DeniedUntilActionContract, x.Availability));
+        // Every allowlisted pair exists in the spec catalog, so a typo cannot silently open nothing.
+        Assert.Equal(
+            PinnedCommandCatalog.EnabledActions.OrderBy(x => x.Type).ThenBy(x => x.Action),
+            enabled.Select(x => (x.Type, x.Action)).OrderBy(x => x.Type).ThenBy(x => x.Action));
+        Assert.All(enabled, x => Assert.Equal(CommandClass.Read, x.Class));
+        Assert.Equal(CommandAvailability.Enabled, catalog.Find("system", "get_info")!.Availability);
+        Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("system", "reboot")!.Availability);
+        Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("control", "pulse")!.Availability);
     }
 
     [Fact]

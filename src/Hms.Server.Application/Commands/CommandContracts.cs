@@ -50,7 +50,10 @@ public sealed record CommandExecutionResult(
 {
     public bool IsSuccess => Status is CommandExecutionStatus.Validated
         or CommandExecutionStatus.Recorded
-        or CommandExecutionStatus.MqttDeferred;
+        or CommandExecutionStatus.MqttDeferred
+        or CommandExecutionStatus.Published
+        or CommandExecutionStatus.Acknowledged
+        or CommandExecutionStatus.Executed;
 }
 
 public sealed record PreparedDeviceCommand(
@@ -330,6 +333,10 @@ public sealed class InMemoryCommandAuditStore : ICommandAuditStore
                 // A revoke fence is terminal. A late transport completion must
                 // not overwrite the explicit non-retryable outcome.
                 if (StringComparer.Ordinal.Equals(existing.Result?.Code, "DEVICE_REVOKED"))
+                    return ValueTask.CompletedTask;
+                // The device can reply before the sender records "published"; that late
+                // transport status must not overwrite the device's outcome.
+                if (result.Status == CommandExecutionStatus.Published && existing.Result is not null)
                     return ValueTask.CompletedTask;
                 _records[key] = existing with { Result = result };
             }

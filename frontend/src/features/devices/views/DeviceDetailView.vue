@@ -7,6 +7,7 @@ import {
   type DeviceDto,
   type CommandCatalogSnapshot,
   type PermissionSnapshot,
+  type DeviceLinkDto,
 } from '@/core/api/adminApi'
 import { createSessionFence, type SessionLease } from '@/core/auth/sessionFence'
 import { createCatalogVerification, verifyCatalog } from '@/core/commands/catalogVerification'
@@ -80,13 +81,20 @@ const sessionFence = createSessionFence()
 // Realtime & Telemetry state
 const lastHeartbeat = ref<string>('Never')
 const realtimeStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
-const telemetryData = ref({
-  voltage: '3.62 V',
-  temperature: '28.4 °C',
-  rssi: '-78 dBm',
-  firmware: 'v2.4.1-rc3',
-  batteryLevel: 94,
+// Shown only when the device reports them; the heartbeat (spec §10) has no such fields today.
+const telemetryData = ref<{ voltage: string; temperature: string; rssi: string; firmware: string; batteryLevel: number | null }>({
+  voltage: '—',
+  temperature: '—',
+  rssi: '—',
+  firmware: '—',
+  batteryLevel: null,
 })
+
+// How the server reaches this device over MQTT (binding, key state, broker-side liveness).
+const deviceLink = ref<DeviceLinkDto | null>(null)
+const topicBase = computed(() => deviceLink.value?.binding
+  ? `${deviceLink.value.binding.topicPrefix}/${deviceLink.value.binding.mqttDeviceId}`
+  : null)
 
 interface HardwareTelemetry {
   uptimeSeconds: number | null
@@ -279,15 +287,17 @@ async function loadDeviceData(lease: SessionLease = sessionFence.capture()) {
     if (!sessionFence.isCurrent(lease)) return
     csrfToken.value = csrf?.requestToken ?? null
 
-    const [deviceList, perms, cat, tel] = await Promise.all([
+    const [deviceList, perms, cat, tel, link] = await Promise.all([
       adminApi.listDevices('', { signal: lease.signal }),
       adminApi.permissions({ signal: lease.signal }).catch(() => null),
       adminApi.commandCatalog({ signal: lease.signal }).catch(() => null),
       adminApi.deviceTelemetry(deviceId.value, { signal: lease.signal }).catch(() => null),
+      adminApi.deviceLink(deviceId.value, { signal: lease.signal }).catch(() => null),
     ])
 
     if (!sessionFence.isCurrent(lease)) return
 
+    deviceLink.value = link
     permissions.value = perms
     catalog.value = cat
     if (tel) {
@@ -600,7 +610,11 @@ onUnmounted(() => {
                 <Badge variant="success" size="xs">Live Hardware</Badge>
               </div>
               <p class="text-xs text-[var(--text-secondary)] mt-0.5">
-                Streaming via MQTT broker <span class="font-mono text-[var(--text-primary)]">broker.emqx.io:1883</span> (Topic: <span class="font-mono text-amber-500">hms_toan_lab/gateway_870c/status</span>)
+                <template v-if="topicBase">
+                  Heartbeat on MQTT topic <span class="font-mono text-amber-500" data-test="device-link-topic">{{ topicBase }}/status</span>
+                  · server broker link <span class="font-mono text-[var(--text-primary)]">{{ deviceLink?.brokerConnected ? 'connected' : 'offline' }}</span>
+                </template>
+                <template v-else>Not bound to an MQTT topic yet</template>
               </p>
             </div>
           </div>
@@ -798,24 +812,32 @@ onUnmounted(() => {
                 <Radio class="w-3.5 h-3.5 text-sky-500" />
                 <span>MQTT Broker Transport</span>
               </span>
-              <Badge variant="success" size="xs">Connected</Badge>
+              <Badge :variant="deviceLink?.online ? 'success' : 'neutral'" size="xs" data-test="device-link-online">
+                {{ deviceLink?.online ? 'Online' : 'Offline' }}
+              </Badge>
             </div>
             <div class="space-y-1.5 text-xs">
               <div class="flex justify-between">
-                <span class="text-[var(--text-hint)]">Host:</span>
-                <span class="font-mono text-[var(--text-primary)] font-medium">{{ hardwareTelemetry.mqttBroker?.host || 'broker.emqx.io:1883' }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-[var(--text-hint)]">Client ID:</span>
-                <span class="font-mono text-[var(--text-primary)]">{{ hardwareTelemetry.mqttBroker?.clientId || 'hms_gateway_870c' }}</span>
-              </div>
-              <div class="flex justify-between">
                 <span class="text-[var(--text-hint)]">Prefix:</span>
-                <span class="font-mono text-amber-500 font-medium">{{ hardwareTelemetry.mqttBroker?.topicPrefix || 'hms_toan_lab' }}</span>
+                <span class="font-mono text-amber-500 font-medium">{{ deviceLink?.binding?.topicPrefix ?? '—' }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[var(--text-hint)]">Device ID:</span>
+                <span class="font-mono text-[var(--text-primary)]">{{ deviceLink?.binding?.mqttDeviceId ?? '—' }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-[var(--text-hint)]">Cmd Topic:</span>
-                <span class="font-mono text-[11px] text-[var(--text-secondary)]">hms_toan_lab/gateway_870c/cmd</span>
+                <span class="font-mono text-[11px] text-[var(--text-secondary)]">{{ topicBase ? `${topicBase}/cmd/<type>` : '—' }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[var(--text-hint)]">Command key:</span>
+                <span class="font-mono text-[var(--text-primary)]" data-test="device-link-key">
+                  {{ deviceLink ? (deviceLink.commandKeyProvisioned ? `registered (gen ${deviceLink.keyGeneration})` : 'not registered') : '—' }}
+                </span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[var(--text-hint)]">Capabilities:</span>
+                <span class="font-mono text-[var(--text-primary)]">{{ deviceLink?.capabilityCount ? `${deviceLink.capabilityCount} actions` : '—' }}</span>
               </div>
             </div>
           </div>

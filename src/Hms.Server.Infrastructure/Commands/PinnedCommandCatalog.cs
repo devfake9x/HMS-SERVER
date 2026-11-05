@@ -19,7 +19,7 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
     // Spec §3: ttl_ms is 1..86400000.
     private const int MaxTtlMs = 86_400_000;
     // Every confirm token is a template around the device id (spec §7, §11).
-    private const string DeviceIdPlaceholder = "<DEVID>";
+    internal const string DeviceIdPlaceholder = "<DEVID>";
 
     private static readonly JsonSerializerOptions StrictOptions = new()
     {
@@ -40,6 +40,26 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             ["B"] = CommandClass.Physical,
             ["F"] = CommandClass.Flash
         }.ToFrozenDictionary(StringComparer.Ordinal);
+
+    // Actions the server signs today: the read actions the spec snapshot closed as SLICE_PASS
+    // ("API đã đóng trong campaign hiện tại", mqtt-api.md, verified 2026-10-28), plus system.ping
+    // (the spec §1 smoke test) and system.get_operations (job read-back, spec §5). Every other
+    // row stays DeniedUntilActionContract until its contract closes.
+    public static readonly FrozenSet<(string Type, string Action)> EnabledActions =
+        new HashSet<(string Type, string Action)>
+        {
+            ("mqtt", "get_status"),
+            ("mqtt", "get_config"),
+            ("system", "get_info"),
+            ("system", "get_heap"),
+            ("system", "ping"),
+            ("system", "get_operations"),
+            ("status", "services"),
+            ("status", "dump"),
+            ("status", "tags"),
+            ("network", "get_all_status"),
+            ("control", "get_status")
+        }.ToFrozenSet();
 
     private readonly IReadOnlyDictionary<(string Type, string Action), CommandDefinition> _definitions;
 
@@ -167,11 +187,16 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             row.TtlMs is <= 0 or > MaxTtlMs)
             throw new InvalidOperationException(RowInvalid);
 
+        // Only reads are ever opened, whatever the allowlist says: a write needs its own review of
+        // confirm, read-back and retry rules before the server signs it.
+        var availability = commandClass == CommandClass.Read && EnabledActions.Contains((row.Type, row.Action))
+            ? CommandAvailability.Enabled
+            : CommandAvailability.DeniedUntilActionContract;
         return new CommandDefinition(
             row.Type,
             row.Action,
             row.RequiredPerm,
-            CommandAvailability.DeniedUntilActionContract,
+            availability,
             Dangerous: commandClass == CommandClass.Flash,
             Idempotent: true,
             DefaultTtlMs: row.TtlMs,

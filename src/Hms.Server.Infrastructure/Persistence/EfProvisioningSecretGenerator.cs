@@ -56,6 +56,45 @@ public sealed class EfProvisioningSecretGenerator(
         }
     }
 
+    public ProvisioningSecrets? Find(DeviceId deviceId, int generation)
+    {
+        secretRoot.EnsureReady();
+        var existing = db.DeviceKeysets.AsNoTracking()
+            .SingleOrDefault(x => x.DeviceId == deviceId.Value && x.Generation == generation);
+        return existing is null ? null : Unprotect(existing);
+    }
+
+    public ProvisioningSecrets Import(DeviceId deviceId, int generation, byte[] commandKey)
+    {
+        if (generation < 1)
+            throw new InvalidOperationException("KEY_GENERATION_INVALID");
+        if (commandKey is not { Length: 32 })
+            throw new ArgumentException("COMMAND_KEY_INVALID", nameof(commandKey));
+
+        secretRoot.EnsureReady();
+        var credentials = brokerCredentials.CreatePrimary(deviceId, generation);
+        var imported = new ProvisioningSecrets(credentials.Username, credentials.Password, commandKey.ToArray(), generation);
+        db.DeviceKeysets.Add(new DeviceKeysetRecord
+        {
+            DeviceId = deviceId.Value,
+            Generation = generation,
+            ProtectedPayload = _protector.Protect(JsonSerializer.SerializeToUtf8Bytes(imported)),
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        try
+        {
+            db.SaveChanges();
+        }
+        catch (DbUpdateException ex)
+        {
+            // The (device, generation) key is unique: an existing keyset is never replaced.
+            db.ChangeTracker.Clear();
+            throw new InvalidOperationException("KEYSET_EXISTS", ex);
+        }
+
+        return imported;
+    }
+
     private ProvisioningSecrets Create(DeviceId deviceId, int generation)
     {
         var credentials = brokerCredentials.CreatePrimary(deviceId, generation);

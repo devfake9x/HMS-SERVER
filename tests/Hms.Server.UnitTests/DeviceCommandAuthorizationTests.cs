@@ -24,7 +24,7 @@ public sealed class DeviceCommandAuthorizationTests
             _world.Catalog.List().Select(x => x with { Availability = CommandAvailability.Enabled }));
         _handler = new SendDeviceCommandHandler(
             _catalog,
-            new HmsIdfProvisionalProtocolAdapter(),
+            new PublishableTestProtocolAdapter(),
             _transport,
             new InMemoryCommandAuditStore(),
             id => _world.Devices.Find(id),
@@ -219,7 +219,7 @@ public sealed class DeviceCommandAuthorizationTests
             new CommandDefinition("adc", "get_status", "adc.view", CommandAvailability.Enabled, false, true, null)
         ]);
         var handler = new SendDeviceCommandHandler(
-            catalog, new HmsIdfProvisionalProtocolAdapter(), _transport, new InMemoryCommandAuditStore(),
+            catalog, new PublishableTestProtocolAdapter(), _transport, new InMemoryCommandAuditStore(),
             id => _world.Devices.Find(id), _world.Resolver);
         var actor = _world.Member(new UserId(Guid.NewGuid()), _world.Device, "adc.view");
 

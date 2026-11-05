@@ -190,7 +190,8 @@ public sealed class SignalRConnectionBacklog
 
     private static bool IsCoalescible(string eventType) =>
         eventType.Equals("status", StringComparison.OrdinalIgnoreCase) ||
-        eventType.Equals("capabilities", StringComparison.OrdinalIgnoreCase);
+        eventType.Equals("capabilities", StringComparison.OrdinalIgnoreCase) ||
+        eventType.Equals("connectivity", StringComparison.OrdinalIgnoreCase);
 
     private void RequireResynchronization(string connectionId, DeviceId deviceId)
     {

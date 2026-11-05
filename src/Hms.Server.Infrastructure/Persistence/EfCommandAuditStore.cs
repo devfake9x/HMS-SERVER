@@ -113,12 +113,16 @@ public sealed class EfCommandAuditStore(
         // Revocation is a terminal server-side fence. The predicate is part of
         // the database write, so a completion that races with revoke cannot
         // overwrite DEVICE_REVOKED after the revoke transaction commits.
+        // The device can reply before the sender records "published"; that late transport status
+        // only applies while the row is still unfinished, so it never overwrites a device outcome.
+        var publishedOnly = result.Status == CommandExecutionStatus.Published;
         if (db.Database.IsRelational())
         {
             var updated = await db.CommandAudits
                 .Where(x => x.DeviceId == plan.Request.DeviceId.Value &&
                             x.CorrelationId == plan.Request.CorrelationId &&
-                            x.Code != "DEVICE_REVOKED")
+                            x.Code != "DEVICE_REVOKED" &&
+                            (!publishedOnly || x.Status == "IN_FLIGHT"))
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(x => x.Status, result.Status.ToString())
                     .SetProperty(x => x.Code, result.Code), cancellationToken);
@@ -134,7 +138,7 @@ public sealed class EfCommandAuditStore(
                 .SingleAsync(x => x.DeviceId == plan.Request.DeviceId.Value &&
                                   x.CorrelationId == plan.Request.CorrelationId,
                     cancellationToken);
-            if (current.Code == "DEVICE_REVOKED")
+            if (current.Code == "DEVICE_REVOKED" || (publishedOnly && current.Status != "IN_FLIGHT"))
                 return;
 
             current.Status = result.Status.ToString();

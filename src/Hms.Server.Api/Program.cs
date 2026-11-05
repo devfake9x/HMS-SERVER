@@ -32,7 +32,10 @@ builder.Services.AddSingleton<Hms.Server.Api.Hubs.SignalRSubscriptionRegistry>()
 builder.Services.AddHostedService<Hms.Server.Api.Hubs.SignalRDeviceEventDeliveryService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
     Hms.Server.Infrastructure.Authorization.FeaturePermissionAuthorizationHandler>();
+var mqttSection = builder.Configuration.GetSection(Hms.Server.Infrastructure.Mqtt.MqttLinkOptions.SectionName);
+builder.Services.Configure<Hms.Server.Infrastructure.Mqtt.MqttLinkOptions>(mqttSection);
 builder.Services.AddHmsInfrastructure(
+    enableLiveMqtt: mqttSection.GetValue<bool>("Enabled"),
     databaseConnectionString: builder.Configuration.GetConnectionString("Postgres"),
     allowInMemoryDevelopment: builder.Environment.IsDevelopment());
 var app = builder.Build();
@@ -46,7 +49,11 @@ app.UseAntiforgery();
 
 app.MapControllers();
 app.MapHub<Hms.Server.Api.Hubs.DeviceEventsHub>("/hubs/device-events");
-app.MapGet("/health", () => Results.Ok(new { status = "ok", mqtt = "deferred" }));
+app.MapGet("/health", (Hms.Server.Application.DeviceLink.IDeviceLinkTransportStatus link) => Results.Ok(new
+{
+    status = "ok",
+    mqtt = !link.Current.Enabled ? "deferred" : link.Current.Connected ? "connected" : "disconnected"
+}));
 
 if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Development:AutoSeed", true))
 {
@@ -112,6 +119,31 @@ if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Develop
                 Hms.Server.Domain.Devices.DeviceLifecycleState.Active,
                 1);
             devStore.Add(maitechRtu);
+        }
+    }
+
+    // Development: bind lab devices to their topic base, and register a command key already on
+    // the device when one is configured through user secrets or the environment.
+    var mqttSeed = app.Configuration.GetSection(Hms.Server.Infrastructure.Mqtt.MqttLinkOptions.SectionName)
+        .Get<Hms.Server.Infrastructure.Mqtt.MqttLinkOptions>();
+    foreach (var seed in mqttSeed?.Devices ?? [])
+    {
+        var deviceId = new Hms.Server.Domain.Devices.DeviceId(seed.DeviceId);
+        try
+        {
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.ConfigureDeviceMqttBindingHandler>()
+                .Handle(deviceId, seed.TopicPrefix, seed.MqttDeviceId, seed.KeyVersion);
+            if (!string.IsNullOrWhiteSpace(seed.CommandKeyHex))
+                scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.ImportDeviceCommandKeyHandler>()
+                    .Handle(deviceId, seed.CommandKeyHex);
+            app.Logger.LogInformation("Bound device {DeviceId} to MQTT base {Prefix}/{MqttDeviceId} (command key {KeyState})",
+                seed.DeviceId, seed.TopicPrefix, seed.MqttDeviceId,
+                string.IsNullOrWhiteSpace(seed.CommandKeyHex) ? "not configured" : "registered");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            // Codes only: never log the seed values, which may include the key.
+            app.Logger.LogWarning("MQTT seed for device {DeviceId} skipped: {Code}", seed.DeviceId, ex.Message.Split(' ')[0]);
         }
     }
 }

@@ -36,6 +36,15 @@ public sealed class DeviceKeysetRecord
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+public sealed class DeviceMqttBindingRecord
+{
+    public Guid DeviceId { get; set; }
+    public string TopicPrefix { get; set; } = string.Empty;
+    public string MqttDeviceId { get; set; } = string.Empty;
+    public long? KeyVersion { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 public sealed class PolicyVersionRecord
 {
     public int Id { get; set; }

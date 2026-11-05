@@ -197,5 +197,17 @@ public sealed class ProvisioningTests
             Calls++;
             throw new InvalidOperationException("SECRET_GENERATION_SHOULD_NOT_RUN");
         }
+
+        public ProvisioningSecrets? Find(DeviceId deviceId, int generation)
+        {
+            Calls++;
+            throw new InvalidOperationException("SECRET_GENERATION_SHOULD_NOT_RUN");
+        }
+
+        public ProvisioningSecrets Import(DeviceId deviceId, int generation, byte[] commandKey)
+        {
+            Calls++;
+            throw new InvalidOperationException("SECRET_GENERATION_SHOULD_NOT_RUN");
+        }
     }
 }
