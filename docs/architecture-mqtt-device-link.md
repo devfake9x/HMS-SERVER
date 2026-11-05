@@ -91,11 +91,27 @@ SignalR có thêm các event `connectivity`, `capabilities`, `device_event` và 
 ## Lab (quan sát 2026-11-06)
 
 - Gateway `gateway_870c` kết nối Mosquitto TLS `192.168.1.101:443` do tooling HIL của team firmware dựng. CA nằm trong `%TEMP%\hms-idf-mosquitto-*`.
-- Thiết bị đang ở chế độ `signed`, có command key, `key_version` 11. **Không xoay key** khi chưa thống nhất: tooling HIL của team firmware dùng chung key này.
+- Thiết bị ở chế độ `signed`. Ngày 2026-11-06 command key đã được **xoay** sang key do server sinh: trước đó là `key_version` 11, fingerprint `7b266b1a`.
+  - Key được nạp qua `POST /api/security/keys`. Server không ghim `key_ver`.
+  - Tooling HIL của team firmware phải dùng key mới này.
+- Nạp key qua web console của thiết bị: trang "Bảo mật lệnh" dùng `confirm()` của trình duyệt, nên trong trình duyệt tích hợp của app nút Nạp không có tác dụng. Dùng Chrome/Edge, hoặc gọi thẳng HTTP API.
 - Đã kiểm chứng live:
   - Chiều vào (heartbeat, connectivity, capabilities 105 action) đi tới telemetry và UI.
   - Chiều ra qua đúng broker lab với simulator độc lập theo spec (`hms_server_selftest/sim_001`): ký hợp lệ → `Executed` có data; im lặng → `DEVICE_RESPONSE_TIMEOUT`.
-  - Lệnh ký tới gateway thật cần key: `PUT …/link/command-key`.
+  - **Gateway thật, lệnh ký:** cả 11 action đã mở đều trả `Executed` với reply có `res:`-HMAC hợp lệ, mỗi lệnh khoảng 1 giây.
+
+    | Action | Data trả về |
+    |---|---|
+    | `system.ping` | `alive` |
+    | `system.get_info` | fw 1.0.108, IDF v5.5.5, `device_id` `gateway_870c` |
+    | `system.get_heap` | — |
+    | `mqtt.get_status`, `mqtt.get_config` | password được che |
+    | `status.services` | — |
+    | `status.dump` | 2.6 KB |
+    | `status.tags` | 6.7 KB |
+    | `network.get_all_status` | — |
+    | `control.get_status` | 6 kênh DO |
+    | `system.get_operations` | — |
 
 ## Gap của spec (giữ cho user, không gửi firmware nếu chưa được yêu cầu)
 
