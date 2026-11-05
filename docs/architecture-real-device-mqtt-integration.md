@@ -1,5 +1,7 @@
 # Kiến Trúc Tích Hợp Thiết Bị Thật ESP32-S3 (maitech-rtu.local) & MQTT Broker vào HMS-SERVER
 
+> **Đã thay thế (2026-11-06):** server tự giữ phiên MQTT, nhận status/reply và gửi lệnh có ký theo spec. Xem [architecture-mqtt-device-link.md](architecture-mqtt-device-link.md). Bridge Node (`tools/mqtt-broker/hms-telemetry-bridge.js`) và broker `broker.emqx.io` mô tả bên dưới chỉ còn là lịch sử.
+
 ## 1. Bối cảnh & Mục tiêu
 
 * **Thiết bị thật**: Bo mạch phần cứng ESP32-S3 RTU đang hoạt động trên mạng nội bộ LAN tại `http://maitech-rtu.local` (IP: `192.168.1.127`, firmware từ `hms-idf` v1.0.108).
