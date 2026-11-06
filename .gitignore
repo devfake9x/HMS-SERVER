@@ -14,6 +14,8 @@ frontend/.npm-cache/
 **/.tmp-unit-out/
 .tmp-backend-obj/
 tools/screenshots/
+# Full device replies saved by tools/device-read-check.js (may hold device identifiers)
+tools/device-reads/
 test-output-*.txt
 
 # Local HTTP cookie jars (contain session/CSRF values)

@@ -1,0 +1,316 @@
+{
+  "system.get_time": {
+    "epoch": 1793960879,
+    "datetime": "2026-11-06T17:27:59",
+    "ntp_synced": true,
+    "last_sync": 1793960419,
+    "rtc_available": false,
+    "rtc_model": "none",
+    "timezone": "ICT-7",
+    "ntp_servers": [],
+    "ntp_mode": "auto"
+  },
+  "system.get_hostname": {
+    "hostname": "maitech-rtu"
+  },
+  "system.get_device_id": {
+    "device_id": "gateway_lab",
+    "mac": "02:00:00:00:00:01"
+  },
+  "ota.get_status": {
+    "success": true,
+    "data": {
+      "firmware": {
+        "version": "1.0.108",
+        "project": "HMS",
+        "idfVersion": "v5.5.5",
+        "compileDate": "Nov  5 2026",
+        "compileTime": "21:15:18"
+      },
+      "partition": {
+        "running": "recovery",
+        "state": "UNDEFINED"
+      },
+      "ota": {
+        "state": "idle",
+        "progress": 0,
+        "written": 0,
+        "total": 0,
+        "speed": 0,
+        "eta": 0,
+        "error": "",
+        "stagedVersion": "",
+        "stagedPartition": ""
+      },
+      "rollback": {
+        "possible": true,
+        "previousVersion": "1.0.108",
+        "previousPartition": "ota_0"
+      }
+    }
+  },
+  "network.get_priority": {
+    "internet_uplink": "modem",
+    "active_uplink": "4G/Modem",
+    "has_connectivity": true
+  },
+  "network.get_ethernet": {
+    "type": "Ethernet",
+    "connected": true,
+    "active": false,
+    "ip": "192.168.1.127",
+    "gateway": "192.168.1.1",
+    "netmask": "255.255.255.0",
+    "gateway_type": "AUTO"
+  },
+  "network.get_modem": {
+    "type": "4G/Modem",
+    "connected": true,
+    "active": true,
+    "ip": "10.0.0.25",
+    "gateway": "10.0.0.1",
+    "netmask": "255.255.255.255",
+    "gateway_type": "INTERNET"
+  },
+  "network.wifi_sta_status": {
+    "enabled": false,
+    "connected": false
+  },
+  "network.wifi_ap_status": {
+    "enabled": false,
+    "pending_restart": false,
+    "ssid": "LAB-AP",
+    "password_set": true,
+    "autoOffMinutes": 5,
+    "timerRunning": false,
+    "timerRemainingMs": 0
+  },
+  "battery.get_status": {
+    "available": true,
+    "voltage": 7.75749969482422,
+    "soc": 60.7421875,
+    "charge_rate": 3.53600001335144,
+    "is_charging": true,
+    "is_hibernating": false,
+    "alert_flags": 1,
+    "ic_version": 18,
+    "chip_id": 12,
+    "read_errors": 0,
+    "read_count": 6584,
+    "last_update_us": 32926197279
+  },
+  "battery.get_alerts": {
+    "raw_flags": 1,
+    "reset_indicator": true,
+    "voltage_high": false,
+    "voltage_low": false,
+    "voltage_reset": false,
+    "soc_low": false,
+    "soc_change": false
+  },
+  "adc.get_config": {
+    "available": true,
+    "channel_count": 8,
+    "hardware": {
+      "num_devices": 2,
+      "addr0": 72,
+      "addr1": 73,
+      "shunt0": 240,
+      "shunt1": 240,
+      "gain": 0
+    }
+  },
+  "adc.get_channels": [
+    {
+      "ai": 1,
+      "name": "AI-1",
+      "type": "4-20mA",
+      "enabled": true
+    },
+    {
+      "ai": 2,
+      "name": "AI-2",
+      "type": "4-20mA",
+      "enabled": true
+    },
+    {
+      "ai": 3,
+      "name": "AI-3",
+      "type": "4-20mA",
+      "enabled": true
+    },
+    {
+      "ai": 4,
+      "name": "AI-4",
+      "type": "4-20mA",
+      "enabled": true
+    },
+    {
+      "ai": 5,
+      "name": "AI-5",
+      "type": "4-20mA",
+      "enabled": true
+    },
+    {
+      "ai": 6,
+      "name": "AI-6",
+      "type": "4-20mA",
+      "enabled": true
+    },
+    {
+      "ai": 7,
+      "name": "AI-7",
+      "type": "4-20mA",
+      "enabled": true
+    },
+    {
+      "ai": 8,
+      "name": "AI-8",
+      "type": "4-20mA",
+      "enabled": true
+    }
+  ],
+  "adc.get_status": {
+    "available": true,
+    "channels": [
+      {
+        "ai": 1,
+        "name": "AI-1",
+        "enabled": true,
+        "type": "4-20mA",
+        "value": -0.000781273842585528,
+        "unit": "mA",
+        "quality": "WIRE_BREAK",
+        "raw_adc": -1,
+        "raw_voltage": -0.00018750572222052677
+      },
+      {
+        "ai": 2,
+        "name": "AI-2",
+        "enabled": true,
+        "type": "4-20mA",
+        "value": -0.000781273842585528,
+        "unit": "mA",
+        "quality": "WIRE_BREAK",
+        "raw_adc": -1,
+        "raw_voltage": -0.00018750572222052677
+      },
+      {
+        "ai": 3,
+        "name": "AI-3",
+        "enabled": true,
+        "type": "4-20mA",
+        "value": -0.000781273842585528,
+        "unit": "mA",
+        "quality": "WIRE_BREAK",
+        "raw_adc": -1,
+        "raw_voltage": -0.00018750572222052677
+      },
+      {
+        "ai": 4,
+        "name": "AI-4",
+        "enabled": true,
+        "type": "4-20mA",
+        "value": -0.000781273842585528,
+        "unit": "mA",
+        "quality": "WIRE_BREAK",
+        "raw_adc": -1,
+        "raw_voltage": -0.00018750572222052677
+      },
+      {
+        "ai": 5,
+        "name": "AI-5",
+        "enabled": true,
+        "type": "4-20mA",
+        "value": -0.000781273842585528,
+        "unit": "mA",
+        "quality": "WIRE_BREAK",
+        "raw_adc": -1,
+        "raw_voltage": -0.00018750572222052677
+      },
+      {
+        "ai": 6,
+        "name": "AI-6",
+        "enabled": true,
+        "type": "4-20mA",
+        "value": -0.000781273842585528,
+        "unit": "mA",
+        "quality": "WIRE_BREAK",
+        "raw_adc": -1,
+        "raw_voltage": -0.00018750572222052677
+      },
+      {
+        "ai": 7,
+        "name": "AI-7",
+        "enabled": true,
+        "type": "4-20mA",
+        "value": -0.000781273842585528,
+        "unit": "mA",
+        "quality": "WIRE_BREAK",
+        "raw_adc": -1,
+        "raw_voltage": -0.00018750572222052677
+      },
+      {
+        "ai": 8,
+        "name": "AI-8",
+        "enabled": true,
+        "type": "4-20mA",
+        "value": -0.000781273842585528,
+        "unit": "mA",
+        "quality": "WIRE_BREAK",
+        "raw_adc": -1,
+        "raw_voltage": -0.00018750572222052677
+      }
+    ]
+  },
+  "adc.get_values": [
+    {
+      "ai": 1,
+      "value": -0.000781273842585528,
+      "unit": "mA",
+      "quality": "WIRE_BREAK"
+    },
+    {
+      "ai": 2,
+      "value": -0.000781273842585528,
+      "unit": "mA",
+      "quality": "WIRE_BREAK"
+    },
+    {
+      "ai": 3,
+      "value": -0.000781273842585528,
+      "unit": "mA",
+      "quality": "WIRE_BREAK"
+    },
+    {
+      "ai": 4,
+      "value": -0.000781273842585528,
+      "unit": "mA",
+      "quality": "WIRE_BREAK"
+    },
+    {
+      "ai": 5,
+      "value": -0.000781273842585528,
+      "unit": "mA",
+      "quality": "WIRE_BREAK"
+    },
+    {
+      "ai": 6,
+      "value": -0.000781273842585528,
+      "unit": "mA",
+      "quality": "WIRE_BREAK"
+    },
+    {
+      "ai": 7,
+      "value": -0.000781273842585528,
+      "unit": "mA",
+      "quality": "WIRE_BREAK"
+    },
+    {
+      "ai": 8,
+      "value": -0.000781273842585528,
+      "unit": "mA",
+      "quality": "WIRE_BREAK"
+    }
+  ]
+}

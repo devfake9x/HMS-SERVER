@@ -298,6 +298,146 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
     }
 
     [Fact]
+    public async Task Allowed_commands_lists_what_the_caller_may_send_on_this_device()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("allowed-commands-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+        }
+        var path = $"/api/v1/devices/{deviceId}/allowed-commands";
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+        // In scope through the organization, but no device role: holds no firmware permission.
+        using var viewer = _factory.CreateClientForUser(_factory.ScopedUserId,
+            new Claim("org-scope", _factory.ParentOrganizationId.ToString()));
+        using var outsider = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim("org-scope", Guid.NewGuid().ToString()));
+
+        using var adminResponse = await admin.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+        Assert.True(adminResponse.Headers.CacheControl?.NoStore);
+        var adminActions = (await adminResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("actions")
+            .EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("adc.get_values", adminActions);
+        Assert.Contains("network.get_modem", adminActions);
+        Assert.Contains("system.get_info", adminActions);
+        Assert.Contains("control.set_output", adminActions);
+        Assert.DoesNotContain("sms.list", adminActions);
+        Assert.DoesNotContain("config.get", adminActions);
+        Assert.Equal(adminActions.Order(StringComparer.Ordinal), adminActions);
+
+        var viewerActions = (await viewer.GetFromJsonAsync<JsonElement>(path)).GetProperty("actions");
+        Assert.Equal(0, viewerActions.GetArrayLength());
+        Assert.Equal(HttpStatusCode.NotFound, (await outsider.GetAsync(path)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Allowed_commands_follows_the_device_role_and_a_membership_alone_is_enough_scope()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("allowed-by-role-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+        }
+        // A member of this one device, with no organization scope at all.
+        var memberId = Guid.NewGuid();
+        GrantDeviceRole(memberId, deviceId, "adc.view", "sys.time_view");
+        using var member = _factory.CreateClientForUser(memberId);
+
+        var actions = (await member.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/allowed-commands"))
+            .GetProperty("actions").EnumerateArray().Select(x => x.GetString()).ToArray();
+
+        Assert.Equal(["adc.get_channels", "adc.get_config", "adc.get_status", "adc.get_values", "system.get_time"], actions);
+    }
+
+    [Fact]
+    public async Task A_member_who_still_holds_the_permission_reads_their_reply()
+    {
+        Guid deviceId;
+        const string correlationId = "read-recheck-ok";
+        var memberId = Guid.NewGuid();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("reply-ok-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.ICommandResponseStore>().Save(
+                device.Id, correlationId,
+                new Hms.Server.Application.DeviceLink.StoredCommandResponse(new UserId(memberId),
+                    "adc", "get_values", true, null, """[{"ai":1,"value":7.5}]""", DateTimeOffset.UtcNow));
+        }
+        GrantDeviceRole(memberId, deviceId, "adc.view");
+        using var member = _factory.CreateClientForUser(memberId);
+
+        var reply = await member.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/commands/{correlationId}");
+
+        Assert.Equal(7.5, reply.GetProperty("reply").GetProperty("data")[0].GetProperty("value").GetDouble());
+    }
+
+    [Fact]
+    public async Task Allowed_commands_is_not_found_for_a_revoked_device()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("allowed-revoked-device", new OrganizationId(_factory.ChildOrganizationId));
+            device.Revoke();
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+        }
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await admin.GetAsync($"/api/v1/devices/{deviceId}/allowed-commands")).StatusCode);
+    }
+
+    private void GrantDeviceRole(Guid userId, Guid deviceId, params string[] devicePermissions)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var by = new UserId(userId);
+        var role = DeviceRole.Create(new OrganizationId(_factory.ChildOrganizationId), $"role-{Guid.NewGuid():N}", null, devicePermissions);
+        scope.ServiceProvider.GetRequiredService<IDeviceRoleStore>().Add(role, AccessAudit(by, DeviceAccessChanges.RoleCreated));
+        scope.ServiceProvider.GetRequiredService<IDeviceMembershipStore>().Upsert(
+            new DeviceMembership(by, new DeviceId(deviceId), role.Id, by, DateTimeOffset.UtcNow), null,
+            AccessAudit(by, DeviceAccessChanges.MembershipAssigned));
+    }
+
+    private static DeviceAccessAuditEntry AccessAudit(UserId by, string change) =>
+        new(Guid.NewGuid(), by, change, null, null, null, null, null, null, DateTimeOffset.UtcNow);
+
+    [Fact]
+    public async Task Reply_data_needs_the_permission_at_read_time_not_only_at_send_time()
+    {
+        Guid deviceId;
+        const string correlationId = "read-recheck-1";
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("reply-recheck-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+            // The scoped user sent it earlier; they no longer hold adc.view on this device.
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.ICommandResponseStore>().Save(
+                device.Id, correlationId,
+                new Hms.Server.Application.DeviceLink.StoredCommandResponse(new UserId(_factory.ScopedUserId),
+                    "adc", "get_values", true, null, """[{"ai":1,"value":4.2,"unit":"mA","quality":"good"}]""", DateTimeOffset.UtcNow));
+        }
+        var path = $"/api/v1/devices/{deviceId}/commands/{correlationId}";
+        using var sender = _factory.CreateClientForUser(_factory.ScopedUserId,
+            new Claim("org-scope", _factory.ParentOrganizationId.ToString()));
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await sender.GetAsync(path)).StatusCode);
+        var asAdmin = await admin.GetFromJsonAsync<JsonElement>(path);
+        Assert.Equal(4.2, asAdmin.GetProperty("reply").GetProperty("data")[0].GetProperty("value").GetDouble());
+    }
+
+    [Fact]
     public async Task Telemetry_ingestion_is_master_admin_only()
     {
         Guid deviceId;

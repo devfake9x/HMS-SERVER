@@ -30,14 +30,8 @@ public sealed class DeviceLinkController(
     private const string OutputViewPermission = "gpio.do_view";
 
     // The same device-role check the command handler applies, so the UI shows what will pass.
-    private bool Allows(Device device, string permission)
-    {
-        var actor = AccessActorFactory.FromPrincipal(User, organizations, permissions);
-        if (actor is null)
-            return false;
-        var access = accessResolver.Resolve(actor, device);
-        return access is not null && Domain.Authorization.DeviceAccessPolicy.Evaluate(access, device, permission).Allowed;
-    }
+    private Domain.Authorization.DeviceAccess? ResolveAccess(Device device) =>
+        DeviceAccessChecks.Resolve(User, device, organizations, permissions, accessResolver);
 
     /// <summary>Relay output state from the last verified <c>control.get_status</c> reply. Needs
     /// <c>gpio.do_view</c> on the device, like the reply itself.</summary>
@@ -48,7 +42,7 @@ public sealed class DeviceLinkController(
         if (device is null || device.State == DeviceLifecycleState.Revoked ||
             !ScopeAuthorization.CanAccessDevice(User, device, organizations, permissions))
             return NotFound(new { code = "DEVICE_NOT_FOUND" });
-        if (!Allows(device, OutputViewPermission))
+        if (!DeviceAccessChecks.Allows(ResolveAccess(device), device, OutputViewPermission))
             return StatusCode(StatusCodes.Status403Forbidden, new { code = "DEVICE_PERMISSION_REQUIRED" });
 
         var state = outputs.Get(device.Id);
@@ -71,6 +65,7 @@ public sealed class DeviceLinkController(
         var binding = bindings.Find(device.Id);
         var snapshot = linkState.Get(device.Id);
         var heartbeatFresh = snapshot?.LastHeartbeatAt is { } beat && DateTimeOffset.UtcNow - beat <= HeartbeatFreshness;
+        var access = ResolveAccess(device);
         Response.Headers.CacheControl = "no-store";
         return Ok(new DeviceLinkDto(
             binding is null ? null : new DeviceMqttBindingDto(binding.TopicPrefix, binding.MqttDeviceId, binding.KeyVersion),
@@ -84,8 +79,8 @@ public sealed class DeviceLinkController(
             snapshot?.CapabilityCount ?? 0,
             transport.Current.Enabled && transport.Current.Connected,
             binding?.AllowedOutputChannels ?? [],
-            Allows(device, OutputWritePermission),
-            Allows(device, OutputViewPermission)));
+            DeviceAccessChecks.Allows(access, device, OutputWritePermission),
+            DeviceAccessChecks.Allows(access, device, OutputViewPermission)));
     }
 
     /// <summary>Sets the output channels the server may drive (empty = none). Master-admin only:

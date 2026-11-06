@@ -163,6 +163,71 @@ describe('DeviceOutputsPanel', () => {
     expect(send.mock.calls[1][1]).toMatchObject({ action: 'get_status' })
   })
 
+  it('waits before the second read-back when the first is turned away as busy', async () => {
+    vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: sixOff })
+    const send = vi.spyOn(adminApi, 'sendCommand')
+      .mockResolvedValueOnce(published('w6'))
+      .mockResolvedValueOnce({ status: 'ContractUnavailable', code: 'DEVICE_READ_BUSY', correlationId: 'r6' })
+      .mockResolvedValueOnce(published('r7'))
+    vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) => result(id, 'Executed', 'DEVICE_EXECUTED'))
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    await wrapper.find('[data-test="do-1-toggle"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(1100)
+    expect(send).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(500)
+    expect(send).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(2500)
+    await flushPromises()
+
+    expect(send).toHaveBeenCalledTimes(3)
+    expect(wrapper.find('[data-test="do-1-busy"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="do-1-error"]').exists()).toBe(false)
+  })
+
+  it('keeps a write and its read-back on the device it was sent to, and forgets it on a device switch', async () => {
+    vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: sixOff })
+    const send = vi.spyOn(adminApi, 'sendCommand').mockImplementation(async (_d, body) => published(body.action))
+    vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) => result(id, 'Executed', 'DEVICE_EXECUTED'))
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    await wrapper.find('[data-test="do-1-toggle"]').trigger('click')
+    await flushPromises()
+    await wrapper.setProps({ deviceId: 'dev-2' })
+    await vi.advanceTimersByTimeAsync(5000)
+    await flushPromises()
+
+    expect(send.mock.calls.every(c => c[0] === 'dev-1')).toBe(true)
+    expect(wrapper.find('[data-test="do-1-busy"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="do-1-error"]').exists()).toBe(false)
+  })
+
+  it('says why a manual status read failed', async () => {
+    vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'not_read' })
+    vi.spyOn(adminApi, 'sendCommand').mockResolvedValue({ status: 'ContractUnavailable', code: 'CATALOG_STALE', correlationId: 'r8' })
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    await wrapper.find('[data-test="do-read-status"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="do-read-error"]').text()).toContain('tải lại trang')
+  })
+
+  it('tells the operator to reload when the server catalog changed under the page', async () => {
+    vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: sixOff })
+    vi.spyOn(adminApi, 'sendCommand').mockResolvedValue({ status: 'ContractUnavailable', code: 'CATALOG_STALE', correlationId: 'w5' })
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    await wrapper.find('[data-test="do-1-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="do-1-error"]').text()).toContain('tải lại trang')
+  })
+
   it('unlocks at once on a client error, which never reaches the broker', async () => {
     vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: sixOff })
     const send = vi.spyOn(adminApi, 'sendCommand').mockRejectedValue(new Error('Request failed (403)'))

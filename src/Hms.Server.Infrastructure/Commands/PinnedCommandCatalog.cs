@@ -41,10 +41,12 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             ["F"] = CommandClass.Flash
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    // Actions the server signs today: the read actions the spec snapshot closed as SLICE_PASS
-    // ("API đã đóng trong campaign hiện tại", mqtt-api.md, verified 2026-10-28), plus system.ping
-    // (the spec §1 smoke test) and system.get_operations (job read-back, spec §5). Every other
-    // row stays DeniedUntilActionContract until its contract closes.
+    // Read actions the server signs. The first group is what the pinned spec snapshot closed as
+    // SLICE_PASS ("API đã đóng trong campaign hiện tại", verified 2026-10-28), plus system.ping (the
+    // spec §1 smoke test) and system.get_operations (job read-back, spec §5). The monitoring group
+    // is opened ahead of the firmware campaign by owner decision (2026-11-06): read-only rows of the
+    // pinned manifest whose replies were checked against §6 on the lab gateway. Sensitive reads
+    // (sms.*, config.get, ota.remote_config_get) and every other row stay DeniedUntilActionContract.
     public static readonly FrozenSet<(string Type, string Action)> EnabledActions =
         new HashSet<(string Type, string Action)>
         {
@@ -58,7 +60,23 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             ("status", "dump"),
             ("status", "tags"),
             ("network", "get_all_status"),
-            ("control", "get_status")
+            ("control", "get_status"),
+            // Monitoring: device and time, network, power and ADC.
+            ("system", "get_time"),
+            ("system", "get_hostname"),
+            ("system", "get_device_id"),
+            ("ota", "get_status"),
+            ("network", "get_priority"),
+            ("network", "get_ethernet"),
+            ("network", "get_modem"),
+            ("network", "wifi_sta_status"),
+            ("network", "wifi_ap_status"),
+            ("battery", "get_status"),
+            ("battery", "get_alerts"),
+            ("adc", "get_config"),
+            ("adc", "get_channels"),
+            ("adc", "get_status"),
+            ("adc", "get_values")
         }.ToFrozenSet();
 
     // Relay outputs (class B). pulse is SLICE_PASS in the spec; set_output is opened ahead of the

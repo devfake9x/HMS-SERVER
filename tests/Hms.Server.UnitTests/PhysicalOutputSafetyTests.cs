@@ -118,14 +118,15 @@ public sealed class PhysicalOutputSafetyTests
 
         Assert.Equal(CommandExecutionStatus.Recorded, result.Status);
         var (plan, prepared) = Assert.Single(setup.Transport.Records);
-        Assert.True(plan.ExpiresAt - plan.Request.RequestedAt <= TimeSpan.FromMilliseconds(SendDeviceCommandHandler.PhysicalCommandTtlMs));
+        Assert.True(plan.ExpiresAt - plan.Request.RequestedAt <= TimeSpan.FromMilliseconds(SendDeviceCommandHandler.MaxPhysicalCommandTtlMs));
         using var json = JsonDocument.Parse(Body(prepared.Payload.ToArray()));
-        Assert.True(json.RootElement.GetProperty("ttl_ms").GetInt64() <= SendDeviceCommandHandler.PhysicalCommandTtlMs);
-        Assert.True(SendDeviceCommandHandler.PhysicalCommandTtlMs < new MqttLinkOptions().ResponseTimeoutSeconds * 1000);
+        Assert.True(json.RootElement.GetProperty("ttl_ms").GetInt64() <= SendDeviceCommandHandler.MaxPhysicalCommandTtlMs);
+        Assert.True(SendDeviceCommandHandler.MaxPhysicalCommandTtlMs < new MqttLinkOptions().ResponseTimeoutSeconds * 1000);
     }
 
     [Theory]
-    [InlineData(10, 60_000, "MQTT_TIMING_INVALID")]   // reply timeout must outlast the 10 s physical TTL
+    [InlineData(10, 60_000, "MQTT_TIMING_INVALID")]   // reply timeout must outlast every command's TTL
+    [InlineData(20, 60_000, "MQTT_TIMING_INVALID")]   // 20 s is the TTL of reads; equal is not enough
     [InlineData(0, 60_000, "MQTT_TIMING_INVALID")]
     [InlineData(30, 0, "MQTT_MAX_PULSE_INVALID")]
     [InlineData(30, 3_600_001, "MQTT_MAX_PULSE_INVALID")]
@@ -143,7 +144,9 @@ public sealed class PhysicalOutputSafetyTests
     public void Mqtt_options_accept_the_defaults()
     {
         new MqttLinkOptions { Enabled = true, Host = "broker.lab" }.Validate();
-        new MqttLinkOptions { Enabled = true, Host = "broker.lab", ResponseTimeoutSeconds = 11, MaxPulseMs = 3_600_000 }.Validate();
+        new MqttLinkOptions { Enabled = true, Host = "broker.lab", ResponseTimeoutSeconds = 21, MaxPulseMs = 3_600_000 }.Validate();
+        new MqttLinkOptions { Enabled = true, Host = "broker.lab", MaxPendingReadsPerDevice = 1 }.Validate();
+        new MqttLinkOptions { Enabled = true, Host = "broker.lab", MaxPendingReadsPerDevice = 16 }.Validate();
     }
 
     [Fact]

@@ -207,6 +207,8 @@ namespace Hms.Server.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Status");
+
                     b.HasIndex("DeviceId", "CorrelationId")
                         .IsUnique();
 

@@ -30,6 +30,11 @@ public sealed class MqttLinkOptions
     /// limit to its HTTP configuration (§6.4), so this is a server safety policy.</summary>
     public int MaxPulseMs { get; set; } = Application.DeviceLink.OutputCommandPolicy.DefaultMaxPulseMs;
 
+    /// <summary>Read commands a device may have waiting for a reply at once. The device has one
+    /// 16-slot queue and one rate bucket for every client (spec §2/§3) and drops what does not fit
+    /// without a reply, so reads are capped to leave room for relay commands, which are not.</summary>
+    public int MaxPendingReadsPerDevice { get; set; } = 4;
+
     /// <summary>Development seed: devices to bind (and, from a secret store only, their command
     /// key) at startup. Production binds devices through the API.</summary>
     public List<MqttDeviceSeedOptions> Devices { get; set; } = [];
@@ -44,11 +49,13 @@ public sealed class MqttLinkOptions
             throw new InvalidOperationException("MQTT_CLIENT_ID_INVALID");
         if (ResponseTimeoutSeconds is < 1 or > 600 || KeepAliveSeconds is < 5 or > 3600 || ReconnectDelaySeconds is < 1 or > 300)
             throw new InvalidOperationException("MQTT_TIMING_INVALID");
-        // A physical command must expire on the device before the server gives up on its reply.
-        if (ResponseTimeoutSeconds * 1000L <= Application.Commands.SendDeviceCommandHandler.PhysicalCommandTtlMs)
+        // A command must expire on the device before the server gives up on its reply.
+        if (ResponseTimeoutSeconds * 1000L <= Application.Commands.SendDeviceCommandHandler.MaxCommandTtlMs)
             throw new InvalidOperationException("MQTT_TIMING_INVALID");
         if (MaxPulseMs is < 1 or > 3_600_000)
             throw new InvalidOperationException("MQTT_MAX_PULSE_INVALID");
+        if (MaxPendingReadsPerDevice is < 1 or > 16)
+            throw new InvalidOperationException("MQTT_READ_LIMIT_INVALID");
     }
 }
 

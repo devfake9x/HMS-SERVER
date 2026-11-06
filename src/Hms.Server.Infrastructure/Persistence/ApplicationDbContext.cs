@@ -159,6 +159,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(x => x.Detail).HasMaxLength(CommandAuditRecord.MaxDetailLength);
             entity.Property(x => x.PayloadSummary).HasMaxLength(CommandAuditRecord.MaxPayloadSummaryLength);
             entity.HasIndex(x => new { x.DeviceId, x.CorrelationId }).IsUnique();
+            // Every read is audited, so the startup sweep for unfinished rows must not scan them all.
+            entity.HasIndex(x => x.Status);
         });
 
         modelBuilder.Entity<PermissionGrantRecord>(entity =>

@@ -16,6 +16,7 @@ import {
 } from '@/core/commands/useDeviceCommand'
 import Button from '@/shared/ui/primitives/Button.vue'
 import Badge from '@/shared/ui/primitives/Badge.vue'
+import { formatReadTime } from '@/core/time/readAge'
 import { Layers, RefreshCw, AlertTriangle } from '@lucide/vue'
 
 /**
@@ -38,10 +39,13 @@ const DEFAULT_PULSE_MS = 1000
 const MAX_PULSE_MS = 60_000
 // Time after a pulse's end before the second read, so the read sees the relay released.
 const PULSE_SETTLE_MS = 1000
+// Pause before the second read-back attempt, e.g. after the device lane was busy.
+const READ_BACK_RETRY_MS = 1500
 
 const outputs = ref<DeviceOutputsDto | null>(null)
 const loadState = ref<'loading' | 'ready' | 'not_read' | 'forbidden' | 'error'>('loading')
 const readingAll = ref(false)
+const readError = ref<string | null>(null)
 const channelBusy = reactive<Record<number, string>>({})
 const channelError = reactive<Record<number, string>>({})
 const pulseMs = reactive<Record<number, number>>({})
@@ -75,14 +79,7 @@ const now = ref(Date.now())
 const clock = setInterval(() => { now.value = Date.now() }, 15_000)
 onUnmounted(() => clearInterval(clock))
 
-const readAtText = computed(() => {
-  if (!outputs.value) return null
-  const readAt = new Date(outputs.value.readAt)
-  const seconds = Math.max(0, Math.round((now.value - readAt.getTime()) / 1000))
-  const age = seconds < 60 ? 'vừa xong' : seconds < 3600
-    ? `${Math.floor(seconds / 60)} phút trước` : `${Math.floor(seconds / 3600)} giờ trước`
-  return `${readAt.toLocaleTimeString()} (${age})`
-})
+const readAtText = computed(() => outputs.value ? formatReadTime(outputs.value.readAt, now.value) : null)
 
 const STALE_REASONS: Record<string, string> = {
   device_offline: 'thiết bị mất kết nối',
@@ -122,23 +119,45 @@ function body(action: string, payload: Record<string, unknown>): DeviceCommandBo
   }
 }
 
-async function send(command: DeviceCommandBody, onDispatched?: () => void): Promise<DeviceCommandOutcome> {
-  return runDeviceCommand(props.deviceId, command, {
+// Always to the device a write was made on, even if the page has moved on since.
+async function send(command: DeviceCommandBody, device: string, onDispatched?: () => void): Promise<DeviceCommandOutcome> {
+  return runDeviceCommand(device, command, {
     csrfToken: props.csrfToken ?? undefined,
     onDispatched: sent => { if (mayHaveReachedDevice(sent)) onDispatched?.() },
   })
 }
 
-/** One get_status; the server projects the verified reply, then the state is fetched. */
-async function readBack(): Promise<boolean> {
+const DEVICE_CHANGED = 'DEVICE_CHANGED'
+
+/** One get_status; the server projects the verified reply, then the state is fetched. Null when
+ *  the state was read back, otherwise why not. */
+async function readBack(device: string): Promise<string | null> {
   try {
-    const outcome = await send(body('get_status', {}))
+    const outcome = await send(body('get_status', {}), device)
+    if (props.deviceId !== device) return DEVICE_CHANGED
     if (outcome.phase === 'done' && outcome.final?.result?.status === 'Executed')
-      return await load()
-  } catch {
-    // Reported by the caller as "not read back".
+      return (await load()) ? null : 'OUTPUTS_NOT_LOADED'
+    if (outcome.phase === 'not_sent') return outcome.dispatch.code
+    if (outcome.phase === 'timeout') return 'CLIENT_TIMEOUT'
+    return outcome.final?.result?.code ?? 'UNKNOWN'
+  } catch (error) {
+    const status = httpStatusOf(error)
+    return status !== null ? `HTTP_${status}` : 'NETWORK_ERROR'
   }
-  return false
+}
+
+/** Two attempts, with a pause between them: a busy device lane frees up in a moment. */
+async function readBackTwice(device: string): Promise<string | null> {
+  const first = await readBack(device)
+  if (first === null || first === DEVICE_CHANGED) return first
+  await new Promise(resolve => setTimeout(resolve, READ_BACK_RETRY_MS))
+  return props.deviceId === device ? readBack(device) : DEVICE_CHANGED
+}
+
+function readFailureText(code: string): string {
+  return code === 'CATALOG_STALE'
+    ? 'Catalog lệnh trên server đã đổi, hãy tải lại trang'
+    : `Chưa đọc lại được trạng thái (${code}), hãy bấm Đọc trạng thái`
 }
 
 function describe(outcome: DeviceCommandOutcome): string | null {
@@ -153,14 +172,21 @@ function describe(outcome: DeviceCommandOutcome): string | null {
  *  anything else (device outcome, timeout, server error, lost connection) keeps it locked and
  *  reads the state back (two attempts) first. Returns whether the write may have reached the device. */
 async function operate(channel: number, command: DeviceCommandBody): Promise<boolean> {
+  const device = props.deviceId
   channelBusy[channel] = 'Đang gửi…'
   delete channelError[channel]
   let problem: string | null
   try {
-    const outcome = await send(command, () => { channelBusy[channel] = 'Chờ thiết bị…' })
+    const outcome = await send(command, device, () => {
+      if (props.deviceId === device) channelBusy[channel] = 'Chờ thiết bị…'
+    })
+    // The page moved to another device: its channels were reset; nothing here applies to them.
+    if (props.deviceId !== device) return false
     if (outcome.phase === 'not_sent') {
       const sent = outcome.dispatch
-      problem = sent.detail ? `${sent.code}: ${sent.detail}` : sent.code
+      problem = sent.code === 'CATALOG_STALE'
+        ? 'Catalog lệnh trên server đã đổi, hãy tải lại trang'
+        : sent.detail ? `${sent.code}: ${sent.detail}` : sent.code
       if (certainlyNotSent(sent)) {
         channelError[channel] = problem
         delete channelBusy[channel]
@@ -170,6 +196,7 @@ async function operate(channel: number, command: DeviceCommandBody): Promise<boo
       problem = describe(outcome)
     }
   } catch (error) {
+    if (props.deviceId !== device) return false
     const status = httpStatusOf(error)
     if (status !== null && status < 500) {
       // The request was refused at the API boundary, before any command was built.
@@ -185,9 +212,10 @@ async function operate(channel: number, command: DeviceCommandBody): Promise<boo
 
   if (problem) channelError[channel] = problem
   channelBusy[channel] = 'Đang đọc lại…'
-  const confirmed = (await readBack()) || (await readBack())
-  if (!confirmed)
-    channelError[channel] = `${problem ? `${problem}. ` : ''}Chưa đọc lại được trạng thái, hãy bấm Đọc trạng thái`
+  const failure = await readBackTwice(device)
+  if (failure === DEVICE_CHANGED) return false
+  if (failure !== null)
+    channelError[channel] = `${problem ? `${problem}. ` : ''}${readFailureText(failure)}`
   delete channelBusy[channel]
   return true
 }
@@ -203,18 +231,22 @@ async function pulse(channel: number) {
     channelError[channel] = `Thời gian xung phải là số nguyên từ 1 đến ${MAX_PULSE_MS} ms`
     return
   }
+  const device = props.deviceId
   if (!(await operate(channel, body('pulse', { channel, duration_ms: duration })))) return
   // The first read lands inside the pulse; read again once the relay has dropped.
   channelBusy[channel] = 'Chờ hết xung…'
   await new Promise(resolve => setTimeout(resolve, duration + PULSE_SETTLE_MS))
-  await readBack()
+  if (props.deviceId !== device) return
+  await readBack(device)
   delete channelBusy[channel]
 }
 
 async function readAll() {
   readingAll.value = true
+  readError.value = null
   try {
-    await readBack()
+    const failure = await readBack(props.deviceId)
+    if (failure !== null && failure !== DEVICE_CHANGED) readError.value = readFailureText(failure)
   } finally {
     readingAll.value = false
   }
@@ -226,7 +258,14 @@ function stateLabel(on: boolean): string {
 
 onMounted(load)
 watch(() => props.refreshKey, load)
-watch(() => props.deviceId, load)
+// Another device: nothing of the previous one (locks, errors, state) may show under it.
+watch(() => props.deviceId, () => {
+  for (const key of Object.keys(channelBusy)) delete channelBusy[Number(key)]
+  for (const key of Object.keys(channelError)) delete channelError[Number(key)]
+  readError.value = null
+  outputs.value = null
+  void load()
+})
 </script>
 
 <template>
@@ -258,6 +297,7 @@ watch(() => props.deviceId, load)
       Chưa đọc trạng thái relay từ thiết bị.
     </p>
     <p v-else-if="loadState === 'error'" class="text-[11px] text-rose-500">Không tải được trạng thái DO.</p>
+    <p v-if="readError" class="text-[11px] text-rose-500" data-test="do-read-error">{{ readError }}</p>
 
     <template v-if="outputs">
       <p class="text-[10px] text-[var(--text-hint)]">Đọc lúc {{ readAtText }}</p>

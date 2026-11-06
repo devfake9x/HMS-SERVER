@@ -150,7 +150,7 @@ public sealed class DeviceOutputStateTests
 
         Assert.Equal(DeviceResponseOutcome.Completed, outcome);
         Assert.NotNull(link.Responses.Find(link.Device.Id, plan.Request.CorrelationId));
-        Assert.Contains(link.Events.Snapshot(), x => x.EventType == DeviceCommandResponseCorrelator.CommandResultEvent);
+        Assert.Equal(CommandExecutionStatus.Executed, link.Audit.Find(link.Device.Id, plan.Request.CorrelationId)!.Status);
         Assert.Null(link.Outputs.Get(link.Device.Id));
     }
 
@@ -165,6 +165,26 @@ public sealed class DeviceOutputStateTests
         await events.PublishAsync(new AuthorizedDeviceEvent(deviceId, 0, 0, "status", new Dictionary<string, object?>()));
 
         Assert.Equal(["outputs", "status"], events.Snapshot().Select(x => x.EventType));
+    }
+
+    [Fact]
+    public async Task Read_results_stay_off_the_realtime_channel_but_write_results_do_not()
+    {
+        var link = new Link();
+        await link.Correlator.HandleAsync(link.Device.Id, link.SignedReply(await link.PublishedAsync(GetStatus), SixChannels), DateTimeOffset.UtcNow);
+        await link.PublishedAsync(GetStatus);
+        await link.Correlator.SweepExpiredAsync(DateTimeOffset.UtcNow.AddMinutes(5));
+
+        // Every viewer shares the realtime backlog; the reader polls its own result instead.
+        Assert.DoesNotContain(link.Events.Snapshot(), x => x.EventType == DeviceCommandResponseCorrelator.CommandResultEvent);
+
+        var write = await link.PublishedAsync(SetOutput);
+        await link.Correlator.HandleAsync(link.Device.Id,
+            link.SignedReply(write, """{"success":true,"data":{"channel":1,"state":true}}"""), DateTimeOffset.UtcNow);
+
+        var pushed = Assert.Single(link.Events.Snapshot(), x => x.EventType == DeviceCommandResponseCorrelator.CommandResultEvent);
+        // The event reaches every viewer: outcome only, never the reply data.
+        Assert.False(pushed.Payload.ContainsKey("data"));
     }
 
     [Fact]

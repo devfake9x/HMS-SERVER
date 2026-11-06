@@ -20,6 +20,10 @@ import Button from '@/shared/ui/primitives/Button.vue'
 import DeviceCommandModal from '../components/DeviceCommandModal.vue'
 import DevicePermissionsTab from '../components/DevicePermissionsTab.vue'
 import DeviceOutputsPanel from '../components/DeviceOutputsPanel.vue'
+import DeviceInfoTimeCard from '../components/reads/DeviceInfoTimeCard.vue'
+import DeviceNetworkCard from '../components/reads/DeviceNetworkCard.vue'
+import DevicePowerAdcCard from '../components/reads/DevicePowerAdcCard.vue'
+import type { ReadCardContext } from '../components/reads/readCard'
 import { catalogIsCurrent } from '@/core/auth/permissions'
 import {
   HardDrive,
@@ -83,16 +87,20 @@ const sessionFence = createSessionFence()
 const lastHeartbeat = ref<string>('Never')
 const realtimeStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
 // Shown only when the device reports them; the heartbeat (spec §10) has no such fields today.
-const telemetryData = ref<{ voltage: string; temperature: string; rssi: string; firmware: string; batteryLevel: number | null }>({
+type TelemetryData = { voltage: string; temperature: string; rssi: string; firmware: string; batteryLevel: number | null }
+const emptyTelemetryData = (): TelemetryData => ({
   voltage: '—',
   temperature: '—',
   rssi: '—',
   firmware: '—',
   batteryLevel: null,
 })
+const telemetryData = ref<TelemetryData>(emptyTelemetryData())
 
 // How the server reaches this device over MQTT (binding, key state, broker-side liveness).
 const deviceLink = ref<DeviceLinkDto | null>(null)
+// Catalog actions the caller may send on this device; null until loaded, which sends nothing.
+const allowedCommands = ref<string[] | null>(null)
 const topicBase = computed(() => deviceLink.value?.binding
   ? `${deviceLink.value.binding.topicPrefix}/${deviceLink.value.binding.mqttDeviceId}`
   : null)
@@ -122,7 +130,7 @@ interface HardwareTelemetry {
   hostname: string | null
 }
 
-const hardwareTelemetry = ref<HardwareTelemetry>({
+const emptyHardwareTelemetry = (): HardwareTelemetry => ({
   uptimeSeconds: null,
   freeHeap: null,
   minFreeHeap: null,
@@ -146,6 +154,7 @@ const hardwareTelemetry = ref<HardwareTelemetry>({
   mqttBroker: null,
   hostname: null
 })
+const hardwareTelemetry = ref<HardwareTelemetry>(emptyHardwareTelemetry())
 
 function formatUptime(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return 'N/A'
@@ -265,12 +274,15 @@ const operationsHub = useDeviceOperationsHub({
   },
   onEvent: (event) => {
     if (event.deviceId === deviceId.value) {
-      if (event.eventType === 'outputs') {
-        // Carries no relay data by design: the panel re-reads the access-checked state, and the
-        // link's online/broker flags that decide whether that reading still counts.
+      if (event.eventType === 'outputs' || event.eventType === 'connectivity') {
+        // Neither carries relay data: the panel re-reads the access-checked state, and the
+        // link's online/broker flags that decide whether any reading still counts.
         refreshOutputs()
         return
       }
+      // Only a heartbeat proves the device is alive and carries telemetry. Command results,
+      // device events and capabilities do not, and must not make an offline device look live.
+      if (event.eventType !== 'status') return
       lastHeartbeat.value = new Date().toLocaleTimeString()
       if (event.payload && typeof event.payload === 'object') {
         applyTelemetryPayload(event.payload as Record<string, any>)
@@ -297,6 +309,31 @@ watch(operationsHub.connectionState, (state, previous) => {
   if (state === 'connected' && previous === 'reconnecting') refreshOutputs()
 })
 
+const readCardContext = computed<ReadCardContext>(() => ({
+  deviceId: deviceId.value,
+  csrfToken: csrfToken.value,
+  catalog: catalog.value,
+  catalogVerified: outputsCatalogVerified.value,
+  allowedCommands: allowedCommands.value,
+  link: deviceLink.value,
+}))
+
+// The router keeps this page when only the device id changes (/devices/:id): drop everything
+// of the previous device and load the new one, so nothing of device A shows under device B.
+watch(deviceId, (next, previous) => {
+  if (!next || next === previous) return
+  if (previous) void operationsHub.leaveDevice(previous).catch(() => undefined)
+  device.value = null
+  deviceLink.value = null
+  allowedCommands.value = null
+  hardwareTelemetry.value = emptyHardwareTelemetry()
+  telemetryData.value = emptyTelemetryData()
+  commandHistory.value = []
+  lastHeartbeat.value = 'Never'
+  void loadDeviceData(sessionFence.rotate())
+  void joinRealtime()
+})
+
 async function loadDeviceData(lease: SessionLease = sessionFence.capture()) {
   loading.value = true
   try {
@@ -304,17 +341,19 @@ async function loadDeviceData(lease: SessionLease = sessionFence.capture()) {
     if (!sessionFence.isCurrent(lease)) return
     csrfToken.value = csrf?.requestToken ?? null
 
-    const [deviceList, perms, cat, tel, link] = await Promise.all([
+    const [deviceList, perms, cat, tel, link, allowed] = await Promise.all([
       adminApi.listDevices('', { signal: lease.signal }),
       adminApi.permissions({ signal: lease.signal }).catch(() => null),
       adminApi.commandCatalog({ signal: lease.signal }).catch(() => null),
       adminApi.deviceTelemetry(deviceId.value, { signal: lease.signal }).catch(() => null),
       adminApi.deviceLink(deviceId.value, { signal: lease.signal }).catch(() => null),
+      adminApi.allowedCommands(deviceId.value, { signal: lease.signal }).catch(() => null),
     ])
 
     if (!sessionFence.isCurrent(lease)) return
 
     deviceLink.value = link
+    allowedCommands.value = allowed?.actions ?? null
     permissions.value = perms
     catalog.value = cat
     if (tel) {
@@ -335,9 +374,6 @@ async function loadDeviceData(lease: SessionLease = sessionFence.capture()) {
     const found = deviceList.find((d) => d.id === deviceId.value)
     if (found) {
       device.value = found
-      if (!tel?.data) {
-        lastHeartbeat.value = '2 moments ago'
-      }
     }
   } catch (err) {
     console.error('Failed to load device details:', err)
@@ -746,7 +782,7 @@ onUnmounted(() => {
             <span class="text-xs font-medium">Last Heartbeat</span>
             <Clock class="w-4 h-4 text-[var(--text-hint)]" />
           </div>
-          <p class="mt-2 text-xl font-bold font-mono text-[var(--text-heading)]">
+          <p class="mt-2 text-xl font-bold font-mono text-[var(--text-heading)]" data-test="last-heartbeat">
             {{ lastHeartbeat }}
           </p>
           <p class="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">Stream connected</p>
@@ -908,6 +944,13 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- On-demand reads from the device: only what the caller may send on this device -->
+      <div v-if="deviceLink?.binding" class="grid grid-cols-1 lg:grid-cols-3 gap-3" data-test="read-cards">
+        <DeviceInfoTimeCard v-bind="readCardContext" />
+        <DeviceNetworkCard v-bind="readCardContext" />
+        <DevicePowerAdcCard v-bind="readCardContext" />
       </div>
     </div>
 

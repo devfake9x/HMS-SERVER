@@ -193,7 +193,7 @@ public sealed class DeviceCommandAuthorizationTests
     }
 
     [Fact]
-    public async Task Catalog_ttl_60000_rows_plan_sixty_second_expiry()
+    public async Task Catalog_ttl_60000_rows_are_capped_to_the_command_ttl_limit()
     {
         var actor = _world.MasterAdmin(new UserId(Guid.NewGuid()));
         var rows = _catalog.List().Where(x => x.DefaultTtlMs == 60_000).ToArray();
@@ -208,8 +208,9 @@ public sealed class DeviceCommandAuthorizationTests
 
         Assert.Equal(24, rows.Length);
         Assert.Equal(24, _transport.Records.Count);
+        // Every command now expires on the device before the server stops waiting for its reply.
         Assert.All(_transport.Records, x =>
-            Assert.Equal(TimeSpan.FromSeconds(60), x.Plan.ExpiresAt - x.Plan.Request.RequestedAt));
+            Assert.Equal(TimeSpan.FromMilliseconds(SendDeviceCommandHandler.MaxCommandTtlMs), x.Plan.ExpiresAt - x.Plan.Request.RequestedAt));
     }
 
     [Fact]
@@ -227,7 +228,9 @@ public sealed class DeviceCommandAuthorizationTests
 
         Assert.Equal("COMMAND_RECORDED", result.Code);
         var plan = Assert.Single(_transport.Records).Plan;
-        Assert.Equal(TimeSpan.FromMilliseconds(CommandDefinition.DispatcherDefaultTtlMs), plan.ExpiresAt - plan.Request.RequestedAt);
+        Assert.Equal(
+            TimeSpan.FromMilliseconds(Math.Min(CommandDefinition.DispatcherDefaultTtlMs, SendDeviceCommandHandler.MaxCommandTtlMs)),
+            plan.ExpiresAt - plan.Request.RequestedAt);
     }
 
     [Fact]

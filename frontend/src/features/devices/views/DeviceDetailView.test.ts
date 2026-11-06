@@ -5,16 +5,22 @@ import DeviceDetailView from './DeviceDetailView.vue'
 import { adminApi } from '@/core/api/adminApi'
 
 const hubHandlers = vi.hoisted(() => new Map<string, (payload: unknown) => void>())
+// Reactive so a test can move the page to another device, as the router does for /devices/:id.
+const mockRoute = vi.hoisted(() => ({ value: null as null | { params: { id: string; tab?: string } } }))
 
 const mockRouter = {
   push: vi.fn(),
   replace: vi.fn().mockResolvedValue(undefined),
 }
 
-vi.mock('vue-router', () => ({
-  useRouter: () => mockRouter,
-  useRoute: () => ({ params: { id: 'dev-101' } }),
-}))
+vi.mock('vue-router', async () => {
+  const { reactive } = await import('vue')
+  mockRoute.value = reactive({ params: { id: 'dev-101' } })
+  return {
+    useRouter: () => mockRouter,
+    useRoute: () => mockRoute.value,
+  }
+})
 
 vi.mock('@/core/api/adminApi', () => ({
   adminApi: {
@@ -90,6 +96,7 @@ vi.mock('@/core/api/adminApi', () => ({
     }),
     sendCommand: vi.fn(),
     commandResult: vi.fn(),
+    allowedCommands: vi.fn().mockResolvedValue({ actions: ['system.get_time', 'adc.get_values'] }),
   },
   getCsrf: vi.fn().mockResolvedValue({ requestToken: 'test-csrf' }),
 }))
@@ -174,6 +181,58 @@ describe('DeviceDetailView', () => {
     expect(outputs.mock.calls.length).toBe(before + 1)
     // The online and broker flags that decide whether the reading still counts are refreshed too.
     expect(links.mock.calls.length).toBe(linksBefore + 1)
+  })
+
+  it('offers the three read cards for a bound device, gated by what the caller may send', async () => {
+    const wrapper = mount(DeviceDetailView)
+    await flushPromises()
+
+    expect(vi.mocked(adminApi.allowedCommands)).toHaveBeenCalledWith('dev-101', expect.anything())
+    const cards = wrapper.find('[data-test="read-cards"]')
+    expect(cards.exists()).toBe(true)
+    expect(cards.findAll('[data-test="read-card"]')).toHaveLength(3)
+  })
+
+  it('shows "Never" rather than an invented heartbeat when the device has sent no telemetry', async () => {
+    vi.mocked(adminApi.deviceTelemetry).mockRejectedValueOnce(new Error('Request failed (404)'))
+    const wrapper = mount(DeviceDetailView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="last-heartbeat"]').text()).toBe('Never')
+  })
+
+  it('moves "Last Heartbeat" only on heartbeats, not on other device events', async () => {
+    const wrapper = mount(DeviceDetailView)
+    await flushPromises()
+    const heartbeat = () => wrapper.find('[data-test="last-heartbeat"]').text()
+    const before = heartbeat()
+
+    hubHandlers.get('DeviceEvent')?.({
+      deviceId: 'dev-101', authorizationEpoch: 6, policyVersion: 1, eventType: 'command_result',
+      payload: { correlationId: 'c', status: 'Failed', code: 'DEVICE_RESPONSE_TIMEOUT' },
+    })
+    await flushPromises()
+    expect(heartbeat()).toBe(before)
+
+    hubHandlers.get('DeviceEvent')?.({
+      deviceId: 'dev-101', authorizationEpoch: 7, policyVersion: 1, eventType: 'status',
+      payload: { uptime_seconds: 5 },
+    })
+    await flushPromises()
+    expect(heartbeat()).not.toBe(before)
+  })
+
+  it('reloads everything when the route moves to another device', async () => {
+    mount(DeviceDetailView)
+    await flushPromises()
+
+    mockRoute.value!.params.id = 'dev-102'
+    await flushPromises()
+
+    expect(vi.mocked(adminApi.deviceLink)).toHaveBeenLastCalledWith('dev-102', expect.anything())
+    expect(vi.mocked(adminApi.allowedCommands)).toHaveBeenLastCalledWith('dev-102', expect.anything())
+    mockRoute.value!.params.id = 'dev-101'
+    await flushPromises()
   })
 
   it('switches between tabs when navigation is clicked', async () => {

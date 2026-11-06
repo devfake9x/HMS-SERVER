@@ -249,6 +249,10 @@ export const adminApi = {
     request<CommandResultDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/commands/${encodeURIComponent(correlationId)}`, { cache: 'no-store' }, options),
   deviceLink: (deviceId: string, options?: AdminApiOptions) =>
     request<DeviceLinkDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/link`, { cache: 'no-store' }, options),
+  /** Open catalog actions ("type.action") the caller may send on this device; the server still
+   *  checks every command it receives. */
+  allowedCommands: (deviceId: string, options?: AdminApiOptions) =>
+    request<{ actions: string[] }>(`/api/v1/devices/${encodeURIComponent(deviceId)}/allowed-commands`, { cache: 'no-store' }, options),
   deviceOutputs: async (deviceId: string, options?: AdminApiOptions): Promise<DeviceOutputsResult> => {
     try {
       return { kind: 'ok', state: await request<DeviceOutputsDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/outputs`, { cache: 'no-store' }, options) }

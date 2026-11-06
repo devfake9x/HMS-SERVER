@@ -33,6 +33,12 @@ public sealed class MqttDeviceCommandTransport(
 
     public const string PublishUnconfirmed = CommandTransportOutcome.PublishUnconfirmed;
 
+    /// <summary>The device already has its share of reads waiting; nothing was published.</summary>
+    public const string ReadBusy = "DEVICE_READ_BUSY";
+
+    private static bool IsRelayReadBack(CommandExecutionPlan plan) =>
+        plan.Request.Type == "control" && plan.Request.Action == "get_status";
+
     public async ValueTask<CommandExecutionResult> SendAsync(
         CommandExecutionPlan plan,
         PreparedDeviceCommand prepared,
@@ -44,9 +50,25 @@ public sealed class MqttDeviceCommandTransport(
         if (!link.IsConnected)
             return new(CommandExecutionStatus.Failed, "MQTT_NOT_CONNECTED", correlationId);
 
-        // Registered before the publish: the reply can arrive before PublishAsync returns.
+        // Registered before the publish: the reply can arrive before PublishAsync returns. Reads
+        // are capped per device so they cannot fill the queue a relay command needs.
         var now = DateTimeOffset.UtcNow;
-        pending.Register(new PendingDeviceCommand(plan, now, now.AddSeconds(options.Value.ResponseTimeoutSeconds)));
+        var entry = new PendingDeviceCommand(plan, now, now.AddSeconds(options.Value.ResponseTimeoutSeconds));
+        if (plan.Definition.Class == Domain.Commands.CommandClass.Read)
+        {
+            // Each sender gets half the slots, so one user cannot hold them all. The relay
+            // read-back (control.get_status) has one slot beyond the cap: after a relay write the
+            // operator must learn the real state even while other reads fill the queue.
+            var reserved = IsRelayReadBack(plan) ? 1 : 0;
+            var perDevice = options.Value.MaxPendingReadsPerDevice;
+            if (!pending.TryRegisterRead(entry, perDevice + reserved, Math.Max(1, perDevice / 2) + reserved))
+                return new(CommandExecutionStatus.ContractUnavailable, ReadBusy, correlationId,
+                    "The device already has the maximum number of reads waiting for a reply; retry shortly.");
+        }
+        else
+        {
+            pending.Register(entry);
+        }
 
         string? failure;
         try

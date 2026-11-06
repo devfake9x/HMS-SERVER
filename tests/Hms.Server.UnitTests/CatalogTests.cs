@@ -111,6 +111,31 @@ public sealed class CatalogTests
     }
 
     [Fact]
+    public void Monitoring_reads_are_open_and_sensitive_or_unreleased_reads_stay_closed()
+    {
+        var catalog = new PinnedCommandCatalog();
+        string[] monitoring =
+        [
+            "system.get_time", "system.get_hostname", "system.get_device_id", "ota.get_status",
+            "network.get_priority", "network.get_ethernet", "network.get_modem", "network.wifi_sta_status",
+            "network.wifi_ap_status", "battery.get_status", "battery.get_alerts", "adc.get_config",
+            "adc.get_channels", "adc.get_status", "adc.get_values"
+        ];
+        string[] closed =
+        [
+            "sms.list", "sms.get_status", "config.get", "ota.remote_config_get", "broker.list_pipelines",
+            "network.wifi_ap_clients", "network.wifi_scan_results", "network.wifi_known_list",
+            "modbus.get_rtu_status", "modbus.get_rtu_config", "modbus.check_rtu_config"
+        ];
+        bool Open(string pair) =>
+            catalog.Find(pair.Split('.')[0], pair.Split('.')[1])!.Availability == CommandAvailability.Enabled;
+
+        Assert.All(monitoring, x => Assert.True(Open(x), x));
+        Assert.All(closed, x => Assert.False(Open(x), x));
+        Assert.Equal(11 + monitoring.Length, PinnedCommandCatalog.EnabledActions.Count);
+    }
+
+    [Fact]
     public void Pinned_catalog_opens_only_the_closed_reads_and_the_two_relay_outputs()
     {
         var catalog = new PinnedCommandCatalog();

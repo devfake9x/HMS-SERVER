@@ -169,8 +169,8 @@ public sealed class DeviceLinkTests
         Assert.Equal(CommandExecutionStatus.Executed, link.Audit.Find(link.Device.Id, plan.Request.CorrelationId)!.Status);
         Assert.Null(link.Pending.Find(link.Device.Id, plan.Request.CorrelationId));
         Assert.Contains("esp32s3", link.Responses.Find(link.Device.Id, plan.Request.CorrelationId)!.DataJson);
-        var pushed = Assert.Single(link.Events.Snapshot(), x => x.EventType == DeviceCommandResponseCorrelator.CommandResultEvent);
-        Assert.False(pushed.Payload.ContainsKey("data"));
+        // A read's result is polled by its sender; it is not broadcast to every viewer.
+        Assert.DoesNotContain(link.Events.Snapshot(), x => x.EventType == DeviceCommandResponseCorrelator.CommandResultEvent);
     }
 
     [Fact]
@@ -202,11 +202,10 @@ public sealed class DeviceLinkTests
 
         await link.Correlator.HandleAsync(link.Device.Id, link.SignedReply(plan, fields), DateTimeOffset.UtcNow);
 
-        var pushed = Assert.Single(link.Events.Snapshot(), x => x.EventType == DeviceCommandResponseCorrelator.CommandResultEvent);
-        Assert.Equal(status.ToString(), pushed.Payload["status"]);
-        Assert.Equal(code, pushed.Payload["code"]);
-        Assert.Equal(detail, pushed.Payload["detail"]);
-        Assert.Equal(status, link.Audit.Find(link.Device.Id, plan.Request.CorrelationId)!.Status);
+        var recorded = link.Audit.Find(link.Device.Id, plan.Request.CorrelationId)!;
+        Assert.Equal(status, recorded.Status);
+        Assert.Equal(code, recorded.Code);
+        Assert.Equal(detail, recorded.Detail);
     }
 
     [Fact]

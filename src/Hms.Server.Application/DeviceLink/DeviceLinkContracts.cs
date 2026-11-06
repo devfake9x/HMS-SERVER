@@ -260,6 +260,12 @@ public sealed record PendingDeviceCommand(
 public interface IPendingDeviceCommandRegistry
 {
     void Register(PendingDeviceCommand pending);
+
+    /// <summary>Registers a read command unless its device already has <paramref name="maxPerDevice"/>
+    /// reads, or its sender <paramref name="maxPerUser"/> reads, that can still run on the device.
+    /// The count and the insert are one atomic step.</summary>
+    bool TryRegisterRead(PendingDeviceCommand pending, int maxPerDevice, int maxPerUser);
+
     PendingDeviceCommand? Find(DeviceId deviceId, string correlationId);
     bool Remove(DeviceId deviceId, string correlationId);
     IReadOnlyList<PendingDeviceCommand> TakeExpired(DateTimeOffset now);
@@ -268,9 +274,31 @@ public interface IPendingDeviceCommandRegistry
 public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommandRegistry
 {
     private readonly ConcurrentDictionary<(DeviceId DeviceId, string CorrelationId), PendingDeviceCommand> _pending = new();
+    private readonly object _readGate = new();
 
     public void Register(PendingDeviceCommand pending) =>
         _pending[(pending.Plan.Request.DeviceId, pending.Plan.Request.CorrelationId)] = pending;
+
+    // A read the device has not answered by its expiry is dropped by the device (spec §3 TTL), so
+    // it stops holding a queue slot then; the grace covers clock skew and transit.
+    private static readonly TimeSpan ReadSlotGrace = TimeSpan.FromSeconds(2);
+
+    public bool TryRegisterRead(PendingDeviceCommand pending, int maxPerDevice, int maxPerUser)
+    {
+        var deviceId = pending.Plan.Request.DeviceId;
+        var userId = pending.Plan.Request.UserId;
+        lock (_readGate)
+        {
+            var live = _pending.Values.Where(x =>
+                x.Plan.Request.DeviceId == deviceId &&
+                x.Plan.Definition.Class == Domain.Commands.CommandClass.Read &&
+                x.Plan.ExpiresAt + ReadSlotGrace > pending.PublishedAt).ToArray();
+            if (live.Length >= maxPerDevice || live.Count(x => x.Plan.Request.UserId == userId) >= maxPerUser)
+                return false;
+            Register(pending);
+            return true;
+        }
+    }
 
     public PendingDeviceCommand? Find(DeviceId deviceId, string correlationId) =>
         _pending.GetValueOrDefault((deviceId, correlationId));

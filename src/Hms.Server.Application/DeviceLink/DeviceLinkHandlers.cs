@@ -91,7 +91,7 @@ public sealed class DeviceCommandResponseCorrelator(
             }
         }
 
-        await audit.RecordAsync(plan, result, cancellationToken);
+        // Reply data first: a poll that sees the final status must also find the data.
         responses.Save(deviceId, id, new StoredCommandResponse(
             plan.Request.UserId,
             plan.Request.Type,
@@ -100,6 +100,7 @@ public sealed class DeviceCommandResponseCorrelator(
             response.Error,
             response.Data?.GetRawText(),
             receivedAt));
+        await audit.RecordAsync(plan, result, cancellationToken);
         await PublishResultAsync(plan, result, cancellationToken);
 
         return DeviceResponseOutcome.Completed;
@@ -166,6 +167,11 @@ public sealed class DeviceCommandResponseCorrelator(
         CommandExecutionResult result,
         CancellationToken cancellationToken)
     {
+        // Reads change nothing other viewers need to hear about, and every viewer shares a small
+        // realtime backlog that also carries relay changes; the reader polls its own result.
+        if (plan.Definition.Class == Domain.Commands.CommandClass.Read)
+            return;
+
         // The realtime group reaches every viewer of the device, so the event carries the outcome
         // only; the reply data stays behind the issuing user's read-back endpoint.
         var payload = new Dictionary<string, object?>

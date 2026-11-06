@@ -14,9 +14,14 @@ public sealed class SendDeviceCommandHandler(
     IDeviceAccessResolver accessResolver,
     Microsoft.Extensions.Logging.ILogger<SendDeviceCommandHandler>? logger = null)
 {
-    /// <summary>Upper bound on the TTL of a physical command; it must stay below the server's
-    /// reply timeout (30 s by default).</summary>
-    public const int PhysicalCommandTtlMs = 10_000;
+    /// <summary>Upper bound on the TTL of every command; it must stay below the server's reply
+    /// timeout (30 s by default). It is not shorter because a device clock a few seconds ahead
+    /// would then reject every command, including the reads used to diagnose it.</summary>
+    public const int MaxCommandTtlMs = 20_000;
+
+    /// <summary>Tighter bound for commands that move physical equipment: a late relay write is
+    /// worse than a refused one.</summary>
+    public const int MaxPhysicalCommandTtlMs = 10_000;
 
     public async ValueTask<CommandExecutionResult> HandleAsync(
         DeviceCommandRequest request,
@@ -112,12 +117,12 @@ public sealed class SendDeviceCommandHandler(
             return cachedResult;
 
         var ttl = TimeSpan.FromMilliseconds(definition.DefaultTtlMs ?? CommandDefinition.DispatcherDefaultTtlMs);
-        // A physical command must expire on the device before the server stops waiting for its
-        // reply; otherwise it can still fire after the operator was told it timed out (spec §3 TTL
-        // is checked when the command leaves the device queue).
-        if (definition.Class == Domain.Commands.CommandClass.Physical &&
-            ttl > TimeSpan.FromMilliseconds(PhysicalCommandTtlMs))
-            ttl = TimeSpan.FromMilliseconds(PhysicalCommandTtlMs);
+        // A command must expire on the device before the server stops waiting for its reply;
+        // otherwise it can still run (and hold a slot of the device's small queue) after the
+        // operator was told it timed out. Spec §3: TTL is checked when it leaves the queue.
+        var maxTtl = definition.Class == Domain.Commands.CommandClass.Physical ? MaxPhysicalCommandTtlMs : MaxCommandTtlMs;
+        if (ttl > TimeSpan.FromMilliseconds(maxTtl))
+            ttl = TimeSpan.FromMilliseconds(maxTtl);
         if (ttl > TimeSpan.FromHours(24))
         {
             return await RecordAsync(request, null, Failure(request, CommandExecutionStatus.ContractUnavailable, "TTL_EXCEEDS_FIRMWARE_LIMIT"), cancellationToken);
