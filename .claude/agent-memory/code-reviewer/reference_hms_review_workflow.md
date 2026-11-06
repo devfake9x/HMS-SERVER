@@ -1,11 +1,14 @@
 ---
 name: hms-review-workflow
-description: How to scope, build and probe an HMS-SERVER phase review when the repo has no git history; scratch copy, exact fix-round diffs, reusing the tester's mutation harness, EF DI probes, what never to run in the repo
+description: How to scope, build and probe an HMS-SERVER phase review (git in worktrees, mtime without git, concurrent edits mid-review); scratch copy, exact fix-round diffs, reusing the tester's mutation harness, EF DI probes, what never to run in the repo
 metadata:
   type: reference
 ---
 
-HMS-SERVER has no git repository, so a phase's change set cannot be diffed. List it by mtime against the previous phase's PM sync report: `find src tests -type f -newer plans/<plan>/reports/pm-*-phase-NN-sync.md -not -path '*/bin/*' -not -path '*/obj/*'`. For phase 3 of plan 261005-0556 this matched the controller's file list exactly.
+Older HMS-SERVER checkouts had no git; the `.claude/worktrees/*` worktrees (from 2026-11) do, so use `git diff` + `git status --porcelain` there. Without git, list the change set by mtime against the previous phase's PM sync report: `find src tests -type f -newer plans/<plan>/reports/pm-*-phase-NN-sync.md -not -path '*/bin/*' -not -path '*/obj/*'`.
+
+- Other sessions may edit the tree DURING a review (2026-11-06: ConfigCommandPolicy and its tests changed mid-review; a mid-edit scratch build had 3 failing tests). Before the final gate run, list files by `-newermt <review start>`, wait until quiet, re-snapshot, and say in the report which files moved.
+- Gate runs without touching the repo: tar src/tests/slnx to scratch, `dotnet build --no-incremental` (warnings) and `dotnet test --no-build` there; frontend `npx vitest run` / `npx vue-tsc --noEmit` in the repo are permitted read-only checks.
 
 - Fix-round reviews: the tester's mutation copy from the previous cycle (e.g. `scratchpad/phase03-mut/`) was byte-identical to the repo before the fixes, so `diff -u --strip-trailing-cr <copy>/<file> <file>` gives the exact fix diff. Check the copy's results.txt INTEGRITY lines first.
 - Scratch copy: Git Bash has no rsync; use `tar --exclude='*/bin' --exclude='*/obj' -cf - Hms.Server.slnx src tests | (cd <scratch> && tar -xf -)`. A full build takes about 5 s and the full test run about 10 s, so a 30-mutant campaign takes about 6 minutes.
