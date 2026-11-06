@@ -1,0 +1,1 @@
+- [Spec re-pin hazards](project_spec-repin-hazards.md) — run parseSpecManifest on the new HMS-IDF commit first; §11 stated counts may lag table; rows may be uncommitted firmware

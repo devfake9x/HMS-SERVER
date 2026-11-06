@@ -4,7 +4,8 @@ status: in-progress
 blockedBy: [261005-0556-device-permissions-what-where]
 # 2026-11-06: phase-02 replaced by 261106-0100-mqtt-device-link (spec envelope);
 # control.* part of phase-03 replaced by 261106-0735-do-relay-control (gateway has 6 DO, not 4).
-supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control]
+# read activation of phase-01 (15 monitoring reads) replaced by 261106-1040-monitoring-read-actions; catalog pin unchanged.
+supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control, phase-01-catalog-activation#reads]
 version: "1.0.0"
 author: "Antigravity Autonomous Pair-Programmer"
 created: "2026-10-01"

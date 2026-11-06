@@ -134,6 +134,8 @@ flowchart TD
 
 > **Đã thay thế (2026-10-05):** bảng dưới được chép từ code firmware và có chỗ khác đặc tả. Nguồn có hiệu lực cho class, permission, TTL, dry run và confirm là §11 của đặc tả MQTT `HMS-IDF/engineering-docs/api/mqtt-api.md`; server không đọc code firmware (plan `261005-0556-device-permissions-what-where`, design contract Q14). Bảng giữ lại làm lịch sử.
 
+> **Trạng thái mở (2026-11-06):** bảng không có cột trạng thái. 15 action đọc giám sát đã mở, gồm `system.get_time`, `system.get_hostname`, `system.get_device_id`, `ota.get_status`, `network.get_priority`, `network.get_ethernet`, `network.get_modem`, `network.wifi_sta_status`, `network.wifi_ap_status` (`network`), `battery.get_status`, `battery.get_alerts` (`battery`) và `adc.get_config`, `adc.get_channels`, `adc.get_status`, `adc.get_values` (`adc`). Các read còn lại (`network.wifi_ap_clients`, `network.wifi_scan_results`, `sms.*`, `config.get`, `ota.remote_config_get`, `broker.*`, Modbus, tags) vẫn đóng. Chi tiết: [architecture-mqtt-device-link.md](./architecture-mqtt-device-link.md#lệnh-đọc-giám-sát).
+
 Dưới đây là đặc tả chi tiết 100% của 94 actions trích xuất trực tiếp từ bảng manifest `cmd_descriptor.c` và các file handler trong `HMS-IDF`:
 
 ### 3.1 Subsystem `system` (14 Actions)
@@ -278,7 +280,7 @@ Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/archi
    - Chuyển đổi `plan.Request.RequestedAt.ToUnixTimeMilliseconds()` sang **`plan.Request.RequestedAt.ToUnixTimeSeconds()`** để hoàn toàn tương thích với firmware ESP32.
 2. **Quyền theo action từ đặc tả MQTT (catalog v2)** — *xong ở phase 1 của `261005-0556`*:
    - `scripts/generate-command-catalog.mjs` (Node, chỉ dùng module có sẵn) đọc §11 của `HMS-IDF/engineering-docs/api/mqtt-api.md` @ `83e93d77e` qua `git show` rồi sinh `src/Hms.Server.Infrastructure/Commands/command-catalog.json`: 94 action, mỗi action 9 trường, 6 config domain, kèm hash SHA-256. `--check` không ghi file và thoát mã 1 khi file này lệch với §11. Server chỉ dùng đặc tả, không đọc code firmware.
-   - `PinnedCommandCatalog` kiểm tra metadata, từng dòng và hash ngay khi khởi tạo; sai thì dừng với `COMMAND_CATALOG_METADATA_INVALID`, `COMMAND_CATALOG_ROW_INVALID` hoặc `COMMAND_CATALOG_HASH_MISMATCH`. Mọi action vẫn là `DeniedUntilActionContract`.
+   - `PinnedCommandCatalog` kiểm tra metadata, từng dòng và hash ngay khi khởi tạo; sai thì dừng với `COMMAND_CATALOG_METADATA_INVALID`, `COMMAND_CATALOG_ROW_INVALID` hoặc `COMMAND_CATALOG_HASH_MISMATCH`. Action nào mở (`Enabled`) và action nào còn `DeniedUntilActionContract` xem [architecture-mqtt-device-link.md](./architecture-mqtt-device-link.md).
    - Từ vựng quyền `DevicePermissionVocabulary.All` có 50 mã: 46 mã từ §11 của đặc tả và 4 mã server (`device.view`, `device.edit_basics`, `device.edit_product`, `device.record_measurements`).
 3. **Kích hoạt Toàn Bộ 94 Command Definitions** — *tạm dừng (cần MQTT; phase 01 của `261001-0030`)*:
    - Thay đổi `CommandAvailability.DeniedUntilActionContract` thành `CommandAvailability.Enabled` cho các actions đã hoàn thiện schema.
