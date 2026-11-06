@@ -157,10 +157,12 @@ Dưới đây là đặc tả chi tiết 100% của 94 actions trích xuất tr�
 ### 3.2 Subsystem `control` (4 Actions - Digital Output Relay)
 | Action | Class | Required Permission | Confirm Template | Default TTL | Tham Số Đầu Vào (`data`) | Phản Hồi (`data`) |
 |---|---|---|---|---|---|---|
-| `set_output` | B | `gpio.do_write` | — | 0 | `{"channel": 1, "value": true}` | Đóng/ngắt relay kênh 1..4 (hỗ trợ bool hoặc 0/1) |
-| `pulse` | B | `gpio.do_write` | — | 0 | `{"channel": 1, "duration_ms": 500}` | Kích xung relay trong thời gian chỉ định |
-| `get_status` | R | `gpio.do_view` | — | 0 | None | Mảng 4 kênh relay `{ channel, state, mode, pulseCount }` |
-| `set_all` | B | `gpio.do_write` | — | 0 | `{"values": [true, false, true, false]}` | Điều khiển đồng loạt cả 4 ngõ ra |
+| `set_output` | B | `gpio.do_write` | — | 0 | `{"channel": 1, "value": true}` | Đóng/ngắt một relay. Firmware nhận cả 0/1, nhưng server chỉ nhận bool và chỉ kênh trong allowlist của thiết bị |
+| `pulse` | B | `gpio.do_write` | — | 0 | `{"channel": 1, "duration_ms": 500}` | Kích xung; kênh phải ở mode `pulse` (kênh `toggle` → `ESP_ERR_INVALID_ARG`). Server giới hạn `duration_ms` ≤ `Mqtt:MaxPulseMs` |
+| `get_status` | R | `gpio.do_view` | — | 0 | None | Mảng kênh `{ channel, state, mode, totalCommands?, pulseCount?, pulseActive? }`; số kênh theo thiết bị (gateway lab có 6) |
+| `set_all` | B | `gpio.do_write` | — | 0 | `{"values": [true, false, ...]}` | Vẫn đóng trên server (không atomic) |
+
+Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/architecture-mqtt-device-link.md`, mục DO relay control.
 
 ### 3.3 Subsystem `config` (3 Actions - Đa Miền 6 Phân Vùng)
 | Action | Class | Quyền Phân Giải Theo Domain | Tham Số Đầu Vào (`data`) | Ghi Chú Miền Cấu Hình |

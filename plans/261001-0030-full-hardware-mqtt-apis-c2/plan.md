@@ -2,6 +2,9 @@
 title: "Tích Hợp Toàn Diện 94 MQTT Actions & Bảng Điều Khiển C2 Phần Cứng Thực Tế (HMS-SERVER & HMS-IDF)"
 status: in-progress
 blockedBy: [261005-0556-device-permissions-what-where]
+# 2026-11-06: phase-02 replaced by 261106-0100-mqtt-device-link (spec envelope);
+# control.* part of phase-03 replaced by 261106-0735-do-relay-control (gateway has 6 DO, not 4).
+supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control]
 version: "1.0.0"
 author: "Antigravity Autonomous Pair-Programmer"
 created: "2026-10-01"

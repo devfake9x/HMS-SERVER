@@ -1,5 +1,5 @@
 ---
-status: done (signed round trip with the real gateway waits for its command key)
+status: done (signed round trip verified on the real gateway 2026-11-06 after key rotation)
 created: 2026-11-06
 contract: HMS-IDF/engineering-docs/api/mqtt-api.md (snapshot 2026-10-28) + http-api.md /api/security/keys
 supersedes: plans/261001-0030-full-hardware-mqtt-apis-c2/phase-02-live-mqtt-transport.md (its envelope is not the spec's)
