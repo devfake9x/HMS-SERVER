@@ -134,7 +134,13 @@ flowchart TD
 
 > **Đã thay thế (2026-10-05):** bảng dưới được chép từ code firmware và có chỗ khác đặc tả. Nguồn có hiệu lực cho class, permission, TTL, dry run và confirm là §11 của đặc tả MQTT `HMS-IDF/engineering-docs/api/mqtt-api.md`; server không đọc code firmware (plan `261005-0556-device-permissions-what-where`, design contract Q14). Bảng giữ lại làm lịch sử.
 
-> **Trạng thái mở (2026-11-06):** bảng không có cột trạng thái. 15 action đọc giám sát đã mở, gồm `system.get_time`, `system.get_hostname`, `system.get_device_id`, `ota.get_status`, `network.get_priority`, `network.get_ethernet`, `network.get_modem`, `network.wifi_sta_status`, `network.wifi_ap_status` (`network`), `battery.get_status`, `battery.get_alerts` (`battery`) và `adc.get_config`, `adc.get_channels`, `adc.get_status`, `adc.get_values` (`adc`). Các read còn lại (`network.wifi_ap_clients`, `network.wifi_scan_results`, `sms.*`, `config.get`, `ota.remote_config_get`, `broker.*`, Modbus, tags) vẫn đóng. Chi tiết: [architecture-mqtt-device-link.md](./architecture-mqtt-device-link.md#lệnh-đọc-giám-sát).
+> **Trạng thái mở (2026-11-06):** các bảng bên dưới giữ nguyên cấu trúc; trạng thái được ghi ở đây và đánh dấu **(mở)** / **(đóng)** trong từng bảng. Tổng **33 action mở**: 26 đọc, 2 relay, 5 ghi cấu hình.
+>
+> - **Đọc (26):** 11 action đọc gốc và 15 action đọc giám sát, gồm `system.get_time`, `system.get_hostname`, `system.get_device_id`, `ota.get_status`, `network.get_priority`, `network.get_ethernet`, `network.get_modem`, `network.wifi_sta_status`, `network.wifi_ap_status` (`network`), `battery.get_status`, `battery.get_alerts` (`battery`) và `adc.get_config`, `adc.get_channels`, `adc.get_status`, `adc.get_values` (`adc`). Các read còn lại (ví dụ `network.wifi_ap_clients`, `network.wifi_scan_results`, `sms.*`, `config.get`, `ota.remote_config_get`, `broker.*`, Modbus, tags) vẫn đóng.
+> - **Relay (class B):** `control.set_output`, `control.pulse` mở có điều kiện. `control.set_all` vẫn đóng.
+> - **Ghi cấu hình (W/C):** `system.set_hostname`, `system.set_timezone`, `system.sync_ntp` (`system`) và `adc.set_channel`, `adc.toggle_channel` (`adc`) mở. **`system.set_time` và `system.set_ntp_servers` vẫn đóng**: chúng đặt đồng hồ thiết bị, và đồng hồ sai làm thiết bị từ chối các lệnh sau. Các lệnh W/C/D/F còn lại vẫn đóng.
+>
+> Chi tiết: [architecture-mqtt-device-link.md](./architecture-mqtt-device-link.md#lệnh-đọc-giám-sát) (đọc giám sát) và [Cấu hình từ xa](./architecture-mqtt-device-link.md#cấu-hình-từ-xa--hệ-thống--adc) (5 ghi cấu hình).
 
 Dưới đây là đặc tả chi tiết 100% của 94 actions trích xuất trực tiếp từ bảng manifest `cmd_descriptor.c` và các file handler trong `HMS-IDF`:
 
@@ -147,24 +153,24 @@ Dưới đây là đặc tả chi tiết 100% của 94 actions trích xuất tr�
 | `get_device_id` | R | `sys.info_view` | — | 0 | None | `{ device_id: "gateway_870c" }` |
 | `get_operations`| R | `sys.info_view` | — | 0 | `{"operation_id": "123"}` | Tra cứu tác vụ bất đồng bộ `{ state, terminal, resultSuccess, resultCode }` |
 | `get_hostname` | R | `sys.hostname_view` | — | 0 | None | `{ hostname: "maitech-rtu" }` |
-| `set_hostname` | W | `sys.hostname_edit` | — | 0 | `{"hostname": "new-name"}` | Cập nhật tên mDNS của RTU |
+| `set_hostname` (**mở**) | W | `sys.hostname_edit` | — | 0 | `{"hostname": "new-name"}` | Cập nhật tên mDNS của RTU. Server chỉ nhận 1..63 ký tự `[A-Za-z0-9-]`, không bắt đầu hoặc kết thúc bằng `-` |
 | `get_time` | R | `sys.time_view` | — | 0 | None | `{ epoch: 1714900000, formatted: "..." }` |
-| `set_time` | C | `sys.time_edit` | — | 0 | `{"epoch": 1714900000}` | Cài đặt giờ RTC phần cứng |
-| `sync_ntp` | C | `sys.time_edit` | — | 0 | None | Kích hoạt đồng bộ NTP tức thì |
-| `set_timezone` | W | `sys.time_edit` | — | 0 | `{"timezone": "Asia/Ho_Chi_Minh"}` | Cài đặt chuỗi múi giờ POSIX |
-| `set_ntp_servers`| C | `sys.time_edit` | — | 0 | `{"servers": ["pool.ntp.org"]}` | Đặt danh sách tối đa 3 máy chủ NTP |
+| `set_time` (**đóng**) | C | `sys.time_edit` | — | 0 | `{"epoch": 1714900000}` | Cài đặt giờ RTC phần cứng |
+| `sync_ntp` (**mở**) | C | `sys.time_edit` | — | 0 | None | Kích hoạt đồng bộ NTP tức thì |
+| `set_timezone` (**mở**) | W | `sys.time_edit` | — | 0 | `{"timezone": "ICT-7"}` | Cài đặt múi giờ POSIX. Server chỉ nhận `ICT-7` và `UTC0` |
+| `set_ntp_servers` (**đóng**) | C | `sys.time_edit` | — | 0 | `{"servers": ["pool.ntp.org"]}` | Đặt danh sách tối đa 3 máy chủ NTP |
 | `reboot` | F | `sys.reboot` | `REBOOT-<DEVID>` | 60000ms | `{"delay_ms": 2000}` | Khởi động lại thiết bị an toàn |
 | `factory_reset`| F | `sys.factory_reset` | `FACTORY-RESET-<DEVID>` | 60000ms | `{"confirmed": true, "level": 1}` | Khôi phục cấu hình xuất xưởng (level 1..3) |
 
 ### 3.2 Subsystem `control` (4 Actions - Digital Output Relay)
 | Action | Class | Required Permission | Confirm Template | Default TTL | Tham Số Đầu Vào (`data`) | Phản Hồi (`data`) |
 |---|---|---|---|---|---|---|
-| `set_output` | B | `gpio.do_write` | — | 0 | `{"channel": 1, "value": true}` | Đóng/ngắt một relay. Firmware nhận cả 0/1, nhưng server chỉ nhận bool và chỉ kênh trong allowlist của thiết bị |
-| `pulse` | B | `gpio.do_write` | — | 0 | `{"channel": 1, "duration_ms": 500}` | Kích xung; kênh phải ở mode `pulse` (kênh `toggle` → `ESP_ERR_INVALID_ARG`). Server giới hạn `duration_ms` ≤ `Mqtt:MaxPulseMs` |
+| `set_output` (**mở**) | B | `gpio.do_write` | — | 0 | `{"channel": 1, "value": true}` | Đóng/ngắt một relay. Firmware nhận cả 0/1, nhưng server chỉ nhận bool và chỉ kênh trong allowlist của thiết bị |
+| `pulse` (**mở**) | B | `gpio.do_write` | — | 0 | `{"channel": 1, "duration_ms": 500}` | Kích xung; kênh phải ở mode `pulse` (kênh `toggle` → `ESP_ERR_INVALID_ARG`). Server giới hạn `duration_ms` ≤ `Mqtt:MaxPulseMs` |
 | `get_status` | R | `gpio.do_view` | — | 0 | None | Mảng kênh `{ channel, state, mode, totalCommands?, pulseCount?, pulseActive? }`; số kênh theo thiết bị (gateway lab có 6) |
 | `set_all` | B | `gpio.do_write` | — | 0 | `{"values": [true, false, ...]}` | Vẫn đóng trên server (không atomic) |
 
-Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/architecture-mqtt-device-link.md`, mục DO relay control.
+Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/architecture-mqtt-device-link.md`, mục DO relay control. Server chạy 5 lệnh ghi cấu hình thế nào (luật payload, lane ghi, đọc lại, job): xem mục [Cấu hình từ xa](./architecture-mqtt-device-link.md#cấu-hình-từ-xa--hệ-thống--adc).
 
 ### 3.3 Subsystem `config` (3 Actions - Đa Miền 6 Phân Vùng)
 | Action | Class | Quyền Phân Giải Theo Domain | Tham Số Đầu Vào (`data`) | Ghi Chú Miền Cấu Hình |
@@ -180,8 +186,8 @@ Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/archi
 | `get_channels` | R | `adc.view` | None | Danh sách 16 kênh đo lường tương tự |
 | `get_status` | R | `adc.view` | None | Trạng thái chip ADC, tần số lấy mẫu |
 | `get_values` | R | `adc.view` | None | Giá trị đọc thời gian thực (mV, mA, raw) |
-| `set_channel` | W | `adc.config_edit` | `{"ai": 1, "gain": 1, ...}` | Cấu hình tham số cho 1 kênh AI |
-| `toggle_channel`| C | `adc.enable` | `{"ai": 1, "enabled": true}` | Bật / tắt quét dữ liệu trên kênh AI |
+| `set_channel` (**mở**) | W | `adc.config_edit` | `{"ai": 1, "name": "AI-1", "type": "4-20mA", "enabled": true}`; `name` bắt buộc, `type` và `enabled` tuỳ chọn | Đổi tên kênh AI. Server chỉ nhận các key này, không nhận `gain` |
+| `toggle_channel` (**mở**) | C | `adc.enable` | `{"ai": 1, "enabled": true}` | Bật / tắt quét dữ liệu trên kênh AI |
 
 ### 3.5 Subsystem `battery` (4 Actions)
 | Action | Class | Required Permission | Tham Số Đầu Vào (`data`) | Ý Nghĩa |

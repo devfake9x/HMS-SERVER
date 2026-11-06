@@ -1,7 +1,7 @@
 # LỘ TRÌNH DỰ ÁN HMS-SERVER (PROJECT ROADMAP)
 
 > **Dự án**: HMS-SERVER (Enterprise SCADA & Industrial IoT Management Platform)  
-> **Cập nhật gần nhất**: 2026-09-30  
+> **Cập nhật gần nhất**: 2026-11-06  
 > **Trạng thái tổng thể**: **MILESTONE 3 & 3.1 COMPLETED — PRODUCTION READY**  
 
 ---
@@ -13,7 +13,7 @@
 | **Milestone 1** | **Core Control-Plane & Management APIs**: Quản lý Thiết bị, Tổ chức, Phân quyền 3 lớp, License, C2 Command catalog. | **HOÀN THÀNH** | `plans/260924-2044-hms-server-management/` |
 | **Milestone 2** | **Security Hardening & Zero-Drift**: Bảo vệ CSRF/Antiforgery, Session Fence, Catalog Hash verification, SignalR Epochs. | **HOÀN THÀNH** | `docs/security-audit-report.md` |
 | **Milestone 3** | **Frontend Datacake Parity & FSD Synchronization**: Đồng bộ 100% giao diện theo chuẩn `concrete-stress-monitoring` (FSD, Zinc Dark, Rail Sidebar). | **HOÀN THÀNH** | `plans/260930-1915-hms-frontend-ui-parity/` |
-| **Milestone 4** | **Full Hardware MQTT APIs Integration & Dynamic C2 Console**: Tích hợp toàn diện 94 MQTT Actions của ESP32 RTU (HMS-IDF) lên Web qua Dynamic Schema Form. | **THIẾT KẾ HOÀN TẤT** | `docs/architecture-device-mqtt-api-catalog.md` |
+| **Milestone 4** | **Full Hardware MQTT APIs Integration & Dynamic C2 Console**: Tích hợp toàn diện 94 MQTT Actions của ESP32 RTU (HMS-IDF) lên Web qua Dynamic Schema Form. | **ĐANG TRIỂN KHAI** (xem mục 5) | `docs/architecture-device-mqtt-api-catalog.md` |
 
 ---
 
@@ -67,7 +67,7 @@ Phase 1 (Nền móng FSD & AppShell) ──> Phase 2 (UI Nguyên tử) ──> P
    - *Đặc tả Kiến trúc*: [architecture-device-mqtt-api-catalog.md](file:///d:/WORKSPACE/PROJECT/HMS-SERVER/docs/architecture-device-mqtt-api-catalog.md)  
    - *Kế hoạch Triển khai (6 Phases)*: [plans/261001-0030-full-hardware-mqtt-apis-c2/plan.md](file:///d:/WORKSPACE/PROJECT/HMS-SERVER/plans/261001-0030-full-hardware-mqtt-apis-c2/plan.md) ([Báo cáo tương tác: plan.html](file:///d:/WORKSPACE/PROJECT/HMS-SERVER/plans/261001-0030-full-hardware-mqtt-apis-c2/plan.html))  
    - *Trọng tâm*: Tích hợp toàn diện 94 MQTT Actions của ESP32 RTU (HMS-IDF) qua Dynamic Schema Form, chuẩn hóa timestamp seconds, hỗ trợ token xác nhận Class F/D, và kiểm thử HIL trên bo mạch thực tế.  
-   - *Trạng thái*: 🟢 **KẾ HOẠCH TDD ĐÃ PHÊ DUYỆT (ARENA DEBATE 35/35 CONFIRMED - READY FOR COOK)**.
+   - *Trạng thái*: **ĐANG TRIỂN KHAI**. Một phần đã kiểm live trên gateway thật, xem mục 5.
 
 ---
 
@@ -96,3 +96,20 @@ Phase 03 (Core: DO Relay, ADC, System)                            Phase 04 (Adva
 - **Orange Button Consistency**: Giữ vững mã màu cam thương hiệu (`#f97316` / `#ea580c`) trên các nút nhấn thao tác.
 - **Zero Type Errors**: `vue-tsc --noEmit` đạt 0 lỗi, `dotnet build` đạt 0 lỗi.
 - **Zero Regression**: Toàn bộ ranh giới CSRF, session fence, mã băm catalog và SignalR bounds được bảo tồn 100%.
+
+---
+
+## 5. Tiến Độ MQTT Device (cập nhật 2026-11-06)
+
+Milestone 4 đang triển khai theo từng nhóm lệnh. Mỗi nhóm có plan riêng và đã kiểm trên gateway thật `gateway_870c` (firmware 1.0.108) trừ khi ghi khác.
+
+| Nhóm | Trạng thái | Plan / tài liệu |
+|---|---|---|
+| Kênh MQTT: ký, reply, timeout, audit | Đã triển khai; 11 action đọc đã kiểm live | `docs/architecture-mqtt-device-link.md` |
+| Điều khiển relay DO (`control.set_output`, `control.pulse`) | Đã triển khai; kiểm live trên DO1 | `plans/261106-0735-do-relay-control/` |
+| Lệnh đọc giám sát (15 action, 3 thẻ) | Đã triển khai; 15/15 `Executed` live | `plans/261106-1040-monitoring-read-actions/` |
+| Cấu hình Hệ thống & ADC (5 lệnh ghi) | Đã triển khai; 5/5 `Executed` live, đã đặt lại giá trị gốc | `plans/261106-2033-remote-config-system-adc/` |
+| Còn đóng | Modbus, tags, lệnh ghi mạng/Wi-Fi/MQTT, reboot/OTA, `set_time`, `set_ntp_servers`; chờ team firmware | `docs/architecture-device-mqtt-api-catalog.md` |
+
+- Tổng 33 action đang mở trong catalog ghim: 26 đọc, 2 relay, 5 ghi cấu hình.
+- Việc chờ: team firmware trả lời các spec gap của nhóm cấu hình, liệt kê trong `docs/architecture-mqtt-device-link.md`, mục "Cấu hình từ xa".

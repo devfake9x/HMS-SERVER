@@ -5,7 +5,9 @@ blockedBy: [261005-0556-device-permissions-what-where]
 # 2026-11-06: phase-02 replaced by 261106-0100-mqtt-device-link (spec envelope);
 # control.* part of phase-03 replaced by 261106-0735-do-relay-control (gateway has 6 DO, not 4).
 # read activation of phase-01 (15 monitoring reads) replaced by 261106-1040-monitoring-read-actions; catalog pin unchanged.
-supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control, phase-01-catalog-activation#reads]
+# system/ADC write activation (set_hostname, set_timezone, sync_ntp, adc.set_channel, adc.toggle_channel)
+# replaced by 261106-2033-remote-config-system-adc; set_ntp_servers and set_time stay closed (device clock).
+supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control, phase-01-catalog-activation#reads, phase-01-catalog-activation#system-adc-writes, phase-03-control-telemetry-subsystems#adc-toggle]
 version: "1.0.0"
 author: "Antigravity Autonomous Pair-Programmer"
 created: "2026-10-01"

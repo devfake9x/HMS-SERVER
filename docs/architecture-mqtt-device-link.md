@@ -58,11 +58,12 @@ MQTT chỉ nằm trong Infrastructure, theo ADR modular monolith 260927. Service
   - Chữ ký sai thì command vẫn giữ trạng thái pending.
 - **Timeout** (R4): sau 30 giây không có reply thì `Failed/DEVICE_RESPONSE_TIMEOUT`, nghĩa là *không rõ outcome*: phải đọc lại trạng thái trước khi gửi lại với id mới.
 - **Audit**: `Published` đến muộn không bao giờ ghi đè outcome của thiết bị.
-- **Action mở** (`PinnedCommandCatalog.EnabledActions` và `PhysicalOutputActions`): 28 action.
+- **Action mở** (`PinnedCommandCatalog.EnabledActions`, `PhysicalOutputActions`, `ConfigWriteActions`): 33 action.
   - 11 action đọc gốc: 9 action read `SLICE_PASS` của snapshot spec, cộng `system.ping` và `system.get_operations`.
   - 15 action đọc giám sát (xem [Lệnh đọc giám sát](#lệnh-đọc-giám-sát)).
   - `control.set_output` và `control.pulse` mở có điều kiện (xem [DO relay control](#do-relay-control)).
-  - Mọi action ghi khác, gồm `control.set_all` (không atomic), vẫn ở `DENIED_UNTIL_ACTION_CONTRACT`. Modbus, tags, `sms.*`, `config.get`, `ota.remote_config_get` cũng vẫn đóng.
+  - 5 action ghi cấu hình: `system.set_hostname`, `system.set_timezone`, `system.sync_ntp`, `adc.set_channel`, `adc.toggle_channel` (xem [Cấu hình từ xa](#cấu-hình-từ-xa--hệ-thống--adc)).
+  - Mọi action khác ngoài các danh sách trên vẫn ở `DENIED_UNTIL_ACTION_CONTRACT`, gồm `system.set_time` và `system.set_ntp_servers` (đồng hồ thiết bị), `system.reboot`, `system.factory_reset`, `config.set`, `control.set_all` (không atomic), mọi `network.*`, `mqtt.*`, `broker.*`, `ota.*` chưa mở, Modbus, tags, `sms.*`, `config.get`, `ota.remote_config_get`.
 - **Inbound**: không bao giờ đổi lifecycle thiết bị. Broker lab cho phép anonymous, nên identity trên broker không phải bằng chứng.
 
 ## API
@@ -170,7 +171,7 @@ Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan:
 
 ### Audit
 
-- Cột `command_audits.IssuedBy` (người gửi), `Detail` (varchar 1024, lý do từ thiết bị), `PayloadSummary` (JSON payload, varchar 512, chỉ với class physical/destructive/flash).
+- Cột `command_audits.IssuedBy` (người gửi), `Detail` (varchar 1024, lý do từ thiết bị), `PayloadSummary` (JSON payload, tối đa 512 ký tự). `PayloadSummary` chỉ được lưu cho class B (physical), D, F và 5 action ghi cấu hình; các action W/C khác để `null`.
 - Khi khởi động, `FailUnfinished("OUTCOME_UNKNOWN_AFTER_RESTART")` (`Program.cs`) đổi mọi row `Published` và `IN_FLIGHT` thành `Failed` với code `OUTCOME_UNKNOWN_AFTER_RESTART`.
 - Kết quả transport muộn (`Published`, `MQTT_PUBLISH_UNCONFIRMED`) không ghi đè outcome mà thiết bị đã báo (`CommandTransportOutcome.IsTransportOnly`).
 
@@ -239,10 +240,10 @@ Simulator (`hms_server_selftest/sim_001`):
 
 - **Broker lab cho anonymous:** lệnh đã ký có thể bị bắt và replay. Sau khi thiết bị reboot, dedup mất; khi đồng hồ thiết bị chưa sync, không có kiểm tra tuổi lệnh. Cách khắc phục thật là ACL và xác thực trên broker (xem mục Gap, dòng về danh tính/ACL).
 - **Store DO in-memory:** sau restart phải đọc lại. Hành vi restart chỉ kiểm bằng test.
-- **Client gửi `RequestedAt` lệch tới +60 s** (`SendDeviceCommandHandler`, chưa sửa): lệnh đã ký có thể còn hiệu lực tới khoảng +80 s (+60 s và TTL 20 s), vượt timeout 30 s. UI không gửi trường này; script API thì có thể.
+- **Client gửi `RequestedAt` lệch tới +60 s** (`SendDeviceCommandHandler`): với lệnh đọc, lệnh đã ký có thể còn hiệu lực tới khoảng +80 s (+60 s và TTL tối đa 20 s), vượt timeout 30 s. Lệnh ghi cấu hình đã dùng giờ server (xem [Cấu hình từ xa](#cấu-hình-từ-xa--hệ-thống--adc)), nên không còn rủi ro này. UI không gửi trường này; script API thì có thể.
 - **Dev seed áp lại allowlist mỗi lần khởi động** (`Program.cs`, chưa sửa): khởi động lại sẽ mở lại kênh đã bị đóng qua API. Chỉ dev, nhưng dev đang điều khiển relay lab thật.
 - **Read-back bị `DEVICE_READ_BUSY`:** UI đã chờ 1.5 s rồi thử lại một lần. Nhưng server vẫn chỉ ghi audit row cho lần từ chối này, không có log riêng; log có cấu trúc chỉ có cho lệnh bị từ chối trước khi có audit.
-- **`PayloadSummary` lưu nguyên payload:** hiện các action class D/F đang đóng nên chưa lộ gì. Trước khi mở OTA hoặc action có token, phải thêm redaction theo action.
+- **`PayloadSummary` lưu nguyên payload** cho class B/D/F và 5 action ghi cấu hình. Payload của relay và cấu hình không chứa bí mật. Trước khi mở OTA, action có token, hoặc action ghi có bí mật, phải thêm redaction theo action.
 
 ## Lệnh đọc giám sát
 
@@ -353,6 +354,168 @@ Kết quả khác:
 - **Audit không có retention:** mỗi lần đọc, kể cả lần bị từ chối vì bận, thêm một dòng `command_audits`. Chưa có chính sách xoá. Index `IX_command_audits_Status` phục vụ sweep khi khởi động.
 - **Dung sai đồng hồ:** relay (10 s) bị từ chối khi đồng hồ lệch quá dung sai. Đọc có dung sai xấp xỉ 19 s.
 - **Global lock:** `TryRegisterRead` quét mọi pending command dưới một khoá. Ổn ở quy mô lab, cần bộ đếm theo thiết bị khi fleet lớn.
+
+## Cấu hình từ xa — Hệ thống & ADC
+
+Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06) trên `gateway_870c`, firmware 1.0.108. Plan: `plans/261106-2033-remote-config-system-adc/`. Kết quả đầy đủ: `plans/261106-2033-remote-config-system-adc/reports/live-verification.md`.
+
+Mở 5 lệnh ghi cấu hình. Người dùng ghi qua form trên hai thẻ của trang thiết bị (xem [UI](#ui-thẻ-trên-trang-thiết-bị)). Hai lệnh đặt đồng hồ thiết bị vẫn đóng.
+
+### Action mở
+
+| Action | Class | Payload (đúng các key này, không thừa) | Quyền firmware | Đọc lại |
+|---|---|---|---|---|
+| `system.set_hostname` | W | `{hostname}`: 1..63 ký tự ASCII `[A-Za-z0-9-]`, không bắt đầu hoặc kết thúc bằng `-` | `sys.hostname_edit` | `system.get_hostname` |
+| `system.set_timezone` | W | `{timezone}`: `ICT-7` hoặc `UTC0` (`ConfigCommandPolicy.SupportedTimezones`) | `sys.time_edit` | `system.get_time` |
+| `system.sync_ntp` | C | `{}` | `sys.time_edit` | `system.get_time` |
+| `adc.set_channel` | W | `{ai, name}` bắt buộc; `type`, `enabled` tuỳ chọn | `adc.config_edit` | `adc.get_channels` |
+| `adc.toggle_channel` | C | `{ai, enabled}` | `adc.enable` | `adc.get_channels` |
+
+Luật payload, kiểm trước khi ký (`ConfigCommandPolicy.Check`):
+
+- `ai`: số nguyên 1..16. `1.0` và `"1"` bị từ chối.
+- `enabled`: JSON `true` hoặc `false`. `0` và `1` bị từ chối.
+- `name` (`adc.set_channel`):
+  - không rỗng, không toàn khoảng trắng, tối đa 32 byte UTF-8;
+  - không chứa ký tự điều khiển, ký tự định dạng, ký tự vùng riêng (private use), ký tự chưa gán, dấu xuống dòng hoặc dấu đoạn;
+  - không chứa ký tự vô hình (ví dụ U+3164, U+2800, U+FE0F) và không có surrogate lẻ.
+- `type` (`adc.set_channel`): tối đa 32 byte, khớp `[A-Za-z0-9_.-]+` (ví dụ `4-20mA`). Spec không liệt kê giá trị hợp lệ. UI không cho sửa `type`, chỉ gửi lại giá trị vừa đọc.
+- Sai luật: `COMMAND_PAYLOAD_INVALID`, không đọc key, không publish.
+- Action W/C không có luật riêng: `CONFIG_ACTION_UNSUPPORTED` (fail closed).
+
+### Quyền và role
+
+- Quyền lấy từ catalog (`required_perm`). Không mã nào thuộc `DevicePermissionCodes.HighRisk`, nên admin không phải master-admin vẫn gán được chúng.
+- Từ chối quyền trả HTTP 200 với `Failed` / `DEVICE_PERMISSION_REQUIRED`, không phải 403.
+- `GET /api/v1/devices/{id}/allowed-commands` liệt kê 5 action này cho người có quyền tương ứng.
+- Mã `sys.time_edit` cũng là quyền của `system.set_time` và `system.set_ntp_servers`. Hai lệnh đó đóng nhờ catalog, không nhờ quyền.
+- Role đang giữ `sys.hostname_edit`, `sys.time_edit`, `adc.config_edit` hoặc `adc.enable` ghi được ngay khi mở, không cần cấp lại. Danh sách role và truy vấn chỉ đọc: `plans/261106-2033-remote-config-system-adc/reports/affected-roles.md`. Môi trường dev dùng DB in-memory và không có role.
+
+### Lane ghi
+
+Lane ghi áp dụng cho mọi class trừ R và B (tức W, C, D, F). Lane đọc và lane relay không đổi.
+
+| Quy tắc | Giá trị | Mã khi từ chối |
+|---|---|---|
+| Lệnh ghi đang chờ trên mỗi thiết bị | 1 | `DEVICE_WRITE_BUSY` |
+| Lệnh ghi xếp hàng trên mỗi thiết bị trong 60 s gần nhất | 10 (`MqttDeviceCommandTransport.MaxWritesPerMinute`) | `DEVICE_WRITE_RATE_LIMITED` |
+| Reply `Acknowledged` (job còn chạy) của lệnh ghi | giữ lane thêm 60 s (`DeviceCommandResponseCorrelator.RunningJobWriteHold`) | `DEVICE_WRITE_BUSY` |
+
+- **Mốc giữ slot:**
+  - lệnh ghi giữ slot tới khi có reply, hoặc tới sweep tại `Deadline` (`ResponseTimeoutSeconds`, mặc định 30 s);
+  - sau sweep, lane giữ thêm tới `ExpiresAt + 2 s`, nên mốc thực tế là max(`Deadline`, `ExpiresAt + 2 s`);
+  - reply tới trước sweep giải phóng slot ngay.
+- Token tốc độ được tính khi lệnh xếp hàng, trước khi publish. Lệnh không rời được server (publish lỗi) vẫn chiếm một token.
+- Lane chỉ nằm trong bộ nhớ (`InMemoryPendingDeviceCommandRegistry`), giả định một instance server.
+- Lệnh bị từ chối bởi lane không được publish. Trả HTTP 200 với `ContractUnavailable` và mã lane, giống `DEVICE_READ_BUSY`.
+
+### Giờ server cho lệnh ghi
+
+- Lệnh W/C dùng giờ server làm `RequestedAt`, bỏ giá trị client gửi. TTL vẫn bị kẹp ở 20 s (`MaxCommandTtlMs`).
+- Idempotency fingerprint không gồm `RequestedAt`, nên retry không đổi kết quả.
+
+### Audit
+
+- `PayloadSummary` lưu JSON payload (tối đa 512 ký tự) cho 5 action trên. Payload không có bí mật.
+- Các action W/C khác giữ `null` cho tới khi có che theo từng action.
+- Reply `Acknowledged` được ghi như vậy và không tự đóng: server không theo dõi job.
+
+### Đọc lại và theo dõi job
+
+Quy tắc dùng chung với DO panel (`mayHaveRun` trong `useDeviceCommand.ts`, `useDeviceWrite.ts`):
+
+| Kết quả | Hành vi |
+|---|---|
+| `ContractUnavailable`, `TransportNotConfigured`, `MQTT_NOT_CONNECTED`, `MQTT_RESPONSE_SUBSCRIPTION_MISSING`, `MQTT_COMMAND_TOPIC_INVALID`, hoặc HTTP 4xx | Chưa gửi: hiện lỗi, không đọc lại |
+| Mọi kết quả khác (`Executed`, `DEVICE_REJECTED`, `Acknowledged`, timeout, HTTP 5xx, mất kết nối, ...) | Đọc lại trạng thái, **không gửi lại** |
+
+- Lệnh ghi chỉ gửi một lần. Không có đường tự động gửi lại: `adminApi.request` không retry, `runDeviceWrite` gửi một lần.
+- Reply `Acknowledged` (`DEVICE_ACCEPTED` có `operation_id`): theo dõi bằng `system.get_operations` (`sys.info_view`, cần một slot đọc):
+  - UI poll mỗi 1.5 s, tối đa 60 s (`JOB_WINDOW_MS`); thiết bị bận thì thử lại sau 2 s;
+  - tool `tools/device-config-check.js` poll tối đa 60 s (`JOB_LIMIT_MS`).
+- Đọc lại dùng đúng các read của thẻ, và so **cả bản ghi**, không chỉ trường vừa sửa. `adc.set_channel` so với `{...trước, name}`.
+- Tool: chờ 7 s giữa hai lệnh ghi. Khi lane từ chối trước khi publish (`DEVICE_WRITE_BUSY`, `DEVICE_WRITE_RATE_LIMITED`), tool chờ rồi gửi lại đúng lệnh đó trong tối đa 90 s. Lệnh chưa rời server nên việc này không phải gửi lại mù.
+- **Cảnh báo đồng hồ:** sau thao tác có kiểm đồng hồ (`checkClock`), UI so `epoch` của `system.get_time` với đồng hồ trình duyệt. Lệch hơn 30 s thì cảnh báo; không chặn ghi.
+
+### UI (thẻ trên trang thiết bị)
+
+- **Thẻ "Thiết bị & thời gian"** (`DeviceInfoTimeCard.vue`, `DeviceTimeConfig.vue`): sửa hostname, chọn múi giờ (danh sách `TIMEZONES` là bản sao của server), nút đồng bộ NTP. Danh sách NTP server chỉ hiển thị.
+- **Thẻ "Nguồn & ADC"** (`DevicePowerAdcCard.vue`, `AdcChannelTable.vue`): sửa tên kênh AI và bật/tắt kênh. Không sửa `type`.
+- Mỗi thao tác: hộp xác nhận hiện giá trị cũ → mới (`ConfigWriteConfirm.vue`), rồi kết quả (`ConfigWriteResult.vue`): "Đã ghi và xác nhận" với giá trị đọc lại, hoặc báo lỗi.
+- Nút sửa chỉ bật khi (`configGate.ts`):
+  - người gọi được gửi lệnh ghi, các read xác nhận và `system.get_operations`;
+  - catalog đã xác minh và tin cậy; link online và broker kết nối;
+  - lần đọc nguồn trong 60 s, và sau mọi `command_result` cấu hình mà trang nhận được từ người khác;
+  - thẻ không đang ghi.
+- Lúc xác nhận, UI kiểm lại (`staleReason`): nếu lần đọc nguồn đã bị thay, quá 60 s, hoặc đã có thay đổi cấu hình sau lần đọc thì **không gửi**, báo lỗi. Đồng hồ hiển thị của thẻ tick mỗi 15 s, nên nút có thể còn bật tới khoảng 75 s; riêng bước xác nhận luôn tính đúng 60 s.
+- Trong lúc ghi, mọi nút đọc và ghi của thẻ bị khoá.
+- `command_result` của lệnh cấu hình do người khác gửi đánh dấu dữ liệu thẻ là cũ (`configChangedAt`). Khi realtime kết nối lại, UI đánh dấu cả hai thẻ là cũ, vì event đã mất.
+- Modal C2 ẩn 5 action này (`DeviceCommandModal.vue`, `PANEL_ONLY_ACTIONS`): thẻ là đường ghi duy nhất.
+
+### Lệnh vẫn đóng
+
+| Lệnh | Lý do |
+|---|---|
+| `system.set_time` | Đặt đồng hồ thiết bị. Giờ sai làm mọi lệnh sau bị `expired` hoặc `future_timestamp`. |
+| `system.set_ntp_servers` | Trỏ NTP tới server sai giờ có cùng hậu quả. Nếu đồng hồ lùi về trước 2020, thiết bị bỏ kiểm tra tuổi lệnh và lệnh cũ có thể bị phát lại (spec §2, §3). Đóng sau red-team. `system.sync_ntp` vẫn mở vì chỉ đồng bộ với server đã cấu hình. |
+| `system.reboot`, `system.factory_reset`, `ota.remote_start`, `ota.apply` | Class F, chưa mở. |
+| `config.set`, `network.*` ghi, Wi-Fi, `mqtt.set_config`, `mqtt.reconnect`, `broker.*`, Modbus | Có thể làm mất đường mạng hoặc MQTT. Spec chưa có commit-confirm hay rollback. |
+| `control.set_all` | Không atomic. |
+
+### Kiểm chứng live
+
+Chạy trên `hms_toan_lab/gateway_870c` sau khi user báo team firmware. Kịch bản: đọc gốc → ghi → đọc lại → đặt lại → đọc lại.
+
+| Action | Ghi | Kết quả | Đọc lại | Đặt lại |
+|---|---|---|---|---|
+| `system.set_hostname` | `<gốc>-t` | `Executed` | khớp | `Executed`, về `<gốc>` |
+| `system.set_timezone` | `UTC0` | `Executed` | `UTC0` | `Executed`, về `ICT-7` |
+| `adc.set_channel` (AI-1, đổi tên) | tên mới, kèm `type`/`enabled` vừa đọc | `Executed` | tên đổi, `type`/`enabled` giữ nguyên | `Executed`, về tên gốc |
+| `adc.toggle_channel` (AI-1) | `enabled: false` | `Executed` | `false` | `Executed`, về `true` |
+| `system.sync_ntp` | — | `Executed` | `ntp_synced: true`, lệch 0 s | — |
+
+- Trạng thái cuối (hostname, múi giờ, `ntp_mode`, tên/type/enabled của AI-1) trùng giá trị gốc.
+- Sniffer trên `cmd/#` suốt phiên: 48 lệnh, 48 reply (không có `success:false`), 11 lệnh ghi (9 từ tool, 2 từ đổi tên trên UI), mọi lệnh có `ttl_ms` 20000.
+- Cả 5 lệnh ghi trả reply trực tiếp. Firmware 1.0.108 không trả `accepted, still running` cho lệnh cấu hình nào, nên đường job chỉ kiểm bằng simulator.
+- Đổi hostname không làm rớt MQTT session khi `client_id` đã được đặt.
+
+Simulator (`tools/mqtt-broker/spec-device-simulator.js`) có các chế độ `SIM_ADC_JOB=1` (job còn chạy), `SIM_HOSTNAME_DEFERRED=1`, `SIM_ADC_DROP_FIELDS=1` (thiết bị xoá `type`/`enabled` khi không gửi) và `SIM_CLOCK_SKEW_S=<n>`.
+
+### Công cụ kiểm live
+
+```powershell
+$env:HMS_ADMIN_EMAIL    = "<email tài khoản HMS>"
+$env:HMS_ADMIN_PASSWORD = "<mật khẩu>"
+node tools/device-config-check.js --device <deviceId> --plan
+node tools/device-config-check.js --device <deviceId> --confirm-live
+node tools/device-config-check.js --device <deviceId> --confirm-live --restore <file-gốc.json>
+```
+
+- `--plan` chỉ in kịch bản. Chạy thật bắt buộc `--confirm-live`.
+- Tool lưu giá trị gốc trước mọi lệnh ghi. Với mỗi trường: ghi giá trị thử, đọc lại; nếu đang ở giá trị thử thì ghi lại giá trị gốc rồi đọc lại.
+- Nếu đọc lại khớp cả hai giá trị, hoặc giá trị gốc không quay về, tool **dừng** và in lệnh `--restore`. Tool không tự thử lại trong trường hợp này. `--restore` đọc lại file gốc và ghi lại các trường còn lệch.
+- Báo cáo ghi vào `tools/device-reads/` (gitignored). Báo cáo chứa hostname và thông tin định danh: không commit, không dán vào tài liệu.
+
+### Spec gap (đưa user chuyển cho team firmware, không tự gửi)
+
+- Định dạng TZ: server chỉ chấp nhận `ICT-7` và `UTC0`, các giá trị đã thấy hoạt động.
+- `adc.set_channel`: giá trị `type` hợp lệ; giới hạn độ dài `name`; khi không gửi `type`/`enabled` thì thiết bị giữ hay xoá giá trị cũ. Server luôn gửi lại hai trường này nên câu hỏi này chưa ảnh hưởng.
+- `system.get_time` trả thêm `ntp_servers`, `ntp_mode`, không có trong §6.1.
+- `system.set_hostname`: đổi hostname có ảnh hưởng MQTT `client_id` hay session không; `applied_immediately: false` nghĩa là gì. Trường hợp `client_id` rỗng chưa kiểm.
+- NTP: chưa có cách giới hạn NTP server hợp lệ. Đây là điều kiện để mở `system.set_ntp_servers`.
+- Rollback: chưa có commit-confirm hay rollback cho lệnh đổi mạng và MQTT.
+- Job: firmware 1.0.108 chưa trả reply `accepted, still running` cho lệnh cấu hình nào.
+
+### Rủi ro còn lại
+
+- **Lane chỉ trong bộ nhớ:** restart server làm mất lane. Lệnh đang chờ được đánh dấu `OUTCOME_UNKNOWN_AFTER_RESTART`. Giả định một instance.
+- **Reply job trễ:** reply đến sau sweep bị bỏ và mất `operation_id`. Audit ghi `DEVICE_RESPONSE_TIMEOUT`; UI vẫn đọc lại.
+- **Audit `Acknowledged`:** không tự đóng, vì server không theo dõi job.
+- **`ResponseTimeoutSeconds` tuỳ chỉnh được** (phải lớn hơn 20 s): tăng thì giữ slot lâu hơn. UI theo dõi job cố định 60 s.
+- **Role cũ ghi được ngay** khi mở các mã quyền này. Danh sách role: `reports/affected-roles.md`. Chạy truy vấn chỉ đọc trên mọi môi trường có Postgres trước khi triển khai.
+- **`sys.time_edit` dùng chung** với `set_time` và `set_ntp_servers`. Hai lệnh đó đóng nhờ catalog, không nhờ quyền.
+- **Lane giả định đồng hồ thiết bị lệch ≤ 2 s so với server.** Spec cho `ts` lệch tới +60 s. Thiết bị có đồng hồ chậm có thể chạy lệnh cũ sau khi lane đã mở lại. Hiếm: cần hàng đợi đầy và đồng hồ lệch.
+- **`command_result` gửi tới mọi người xem thiết bị:** event chỉ có `operation_id` và mã lỗi thiết bị, không có payload.
 
 ## Gap của spec (giữ cho user, không gửi firmware nếu chưa được yêu cầu)
 
