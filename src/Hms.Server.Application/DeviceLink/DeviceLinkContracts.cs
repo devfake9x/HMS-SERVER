@@ -11,12 +11,31 @@ namespace Hms.Server.Application.DeviceLink;
 /// <c>B = TopicPrefix/MqttDeviceId</c> (MQTT spec §1, §2); the prefix is per deployment and is
 /// never assumed. <see cref="KeyVersion"/> pins the device's command key version when known.
 /// </summary>
+/// <remarks><see cref="AllowedOutputChannels"/> lists the output channels the server may drive;
+/// null or empty allows none, so physical control is closed until someone sets it.</remarks>
 public sealed record DeviceMqttBinding(
     DeviceId DeviceId,
     string TopicPrefix,
     string MqttDeviceId,
-    uint? KeyVersion = null)
+    uint? KeyVersion = null,
+    IReadOnlyList<int>? AllowedOutputChannels = null)
 {
+    public const int MaxOutputChannels = 32;
+
+    /// <summary>Highest channel number accepted; keeps the stored list within its column.</summary>
+    public const int MaxOutputChannelNumber = 255;
+
+    /// <summary>Validates a channel allowlist: positive, no duplicates, bounded. Empty is valid
+    /// and means "none".</summary>
+    public static IReadOnlyList<int> ValidateOutputChannels(IEnumerable<int>? channels)
+    {
+        var list = (channels ?? []).ToArray();
+        if (list.Length > MaxOutputChannels || list.Any(c => c is < 1 or > MaxOutputChannelNumber) ||
+            list.Distinct().Count() != list.Length)
+            throw new ArgumentException("OUTPUT_CHANNELS_INVALID", nameof(channels));
+        return list.Order().ToArray();
+    }
+
     public string TopicBase => $"{TopicPrefix}/{MqttDeviceId}";
 
     public static DeviceMqttBinding Create(DeviceId deviceId, string topicPrefix, string mqttDeviceId, uint? keyVersion)
@@ -43,9 +62,15 @@ public interface IDeviceMqttBindingStore
     DeviceMqttBinding? Find(DeviceId deviceId);
     IReadOnlyList<DeviceMqttBinding> List();
 
-    /// <summary>Adds or replaces a device's binding. Throws <c>MQTT_TOPIC_BASE_IN_USE</c> when
-    /// another device already owns the same topic base.</summary>
+    /// <summary>Adds or replaces a device's topic binding. Throws <c>MQTT_TOPIC_BASE_IN_USE</c> when
+    /// another device already owns the same topic base. The output-channel allowlist is taken from
+    /// <paramref name="binding"/> only for a new row; an existing row keeps its own, which changes
+    /// only through <see cref="SetAllowedOutputChannels"/>, so a re-bind never writes back a list
+    /// read before an administrator changed it.</summary>
     void Upsert(DeviceMqttBinding binding);
+
+    /// <summary>Writes only the allowlist (null or empty = none). False when the device has no binding.</summary>
+    bool SetAllowedOutputChannels(DeviceId deviceId, IReadOnlyList<int>? channels);
 }
 
 public sealed class InMemoryDeviceMqttBindingStore : IDeviceMqttBindingStore
@@ -70,7 +95,20 @@ public sealed class InMemoryDeviceMqttBindingStore : IDeviceMqttBindingStore
             if (_items.Values.Any(x => x.DeviceId != binding.DeviceId &&
                                        StringComparer.Ordinal.Equals(x.TopicBase, binding.TopicBase)))
                 throw new InvalidOperationException("MQTT_TOPIC_BASE_IN_USE");
-            _items[binding.DeviceId] = binding;
+            _items[binding.DeviceId] = _items.TryGetValue(binding.DeviceId, out var existing)
+                ? binding with { AllowedOutputChannels = existing.AllowedOutputChannels }
+                : binding;
+        }
+    }
+
+    public bool SetAllowedOutputChannels(DeviceId deviceId, IReadOnlyList<int>? channels)
+    {
+        lock (_gate)
+        {
+            if (!_items.TryGetValue(deviceId, out var existing))
+                return false;
+            _items[deviceId] = existing with { AllowedOutputChannels = channels };
+            return true;
         }
     }
 }

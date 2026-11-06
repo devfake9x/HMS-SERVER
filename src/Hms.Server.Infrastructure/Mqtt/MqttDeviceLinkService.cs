@@ -19,7 +19,7 @@ namespace Hms.Server.Infrastructure.Mqtt;
 /// topics of every bound device, hands inbound messages to the application layer and publishes
 /// commands. It holds no command or action logic (ADR 260927 modular monolith).
 /// </summary>
-public sealed class MqttDeviceLinkService : BackgroundService, IDeviceLinkTransportStatus
+public sealed class MqttDeviceLinkService : BackgroundService, IDeviceLinkTransportStatus, IMqttCommandPublisher
 {
     private sealed record InboundMessage(DeviceId DeviceId, DeviceInboundKind Kind, byte[] Payload, DateTimeOffset ReceivedAt);
 
@@ -103,7 +103,6 @@ public sealed class MqttDeviceLinkService : BackgroundService, IDeviceLinkTransp
                 if (!_client.IsConnected)
                     await ConnectAsync(stoppingToken);
                 await RefreshSubscriptionsAsync(stoppingToken);
-                await SweepTimeoutsAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -113,6 +112,21 @@ public sealed class MqttDeviceLinkService : BackgroundService, IDeviceLinkTransp
             {
                 _lastError = ex.Message;
                 _logger.LogWarning("MQTT link to {Host}:{Port}: {Error}", _options.Host, _options.Port, ex.Message);
+            }
+
+            // Separate from the connection work: commands published before a broker outage must
+            // still reach outcome-unknown while the broker is down.
+            try
+            {
+                await SweepTimeoutsAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Sweeping timed-out device commands failed");
             }
 
             try

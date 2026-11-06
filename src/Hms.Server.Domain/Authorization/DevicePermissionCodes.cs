@@ -22,7 +22,9 @@ public static class DevicePermissionCodes
         new[]
         {
             "sys.reboot", "sys.factory_reset", "sys.ota", "mqtt.config_edit", "eth.edit", "net.priority_edit",
-            "wifi.sta_edit", "wifi.sta_connect"
+            "wifi.sta_edit", "wifi.sta_connect",
+            // Drives relay outputs wired to physical equipment.
+            "gpio.do_write"
         }.ToFrozenSet(StringComparer.Ordinal);
 
     public static bool IsHighRisk(string? code) => code is not null && HighRisk.Contains(code);

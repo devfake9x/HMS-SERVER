@@ -19,6 +19,8 @@ import Badge from '@/shared/ui/primitives/Badge.vue'
 import Button from '@/shared/ui/primitives/Button.vue'
 import DeviceCommandModal from '../components/DeviceCommandModal.vue'
 import DevicePermissionsTab from '../components/DevicePermissionsTab.vue'
+import DeviceOutputsPanel from '../components/DeviceOutputsPanel.vue'
+import { catalogIsCurrent } from '@/core/auth/permissions'
 import {
   HardDrive,
   Activity,
@@ -37,7 +39,6 @@ import {
   Tag,
   Server,
   Wifi,
-  Layers,
   CheckCircle2,
   AlertTriangle,
 } from '@lucide/vue'
@@ -116,7 +117,6 @@ interface HardwareTelemetry {
   modemIp: string | null
   services: Array<{ name: string; tier?: string; state?: string; health?: string }>
   healthConditions: Array<{ domain: string; status: string; message?: string }>
-  digitalOutputs: Array<{ channel: number; gpioPin?: number; state: boolean; mode?: string }>
   digitalInputs: Array<{ channel: number; gpioPin?: number; state: boolean }>
   mqttBroker: { host?: string; port?: number; clientId?: string; topicPrefix?: string; connected?: boolean } | null
   hostname: string | null
@@ -142,7 +142,6 @@ const hardwareTelemetry = ref<HardwareTelemetry>({
   modemIp: null,
   services: [],
   healthConditions: [],
-  digitalOutputs: [],
   digitalInputs: [],
   mqttBroker: null,
   hostname: null
@@ -207,15 +206,8 @@ function applyTelemetryPayload(p: Record<string, any>) {
   if (p.health?.conditions && Array.isArray(p.health.conditions)) {
     hardwareTelemetry.value.healthConditions = p.health.conditions
   }
-  const doList = p.digital_outputs ?? p.digitalOutputs
-  if (Array.isArray(doList) && doList.length > 0) {
-    hardwareTelemetry.value.digitalOutputs = doList.map((ch: any) => ({
-      channel: Number(ch.channel),
-      gpioPin: ch.gpioPin !== undefined ? Number(ch.gpioPin) : undefined,
-      state: Boolean(ch.state === true || ch.state === 1 || String(ch.state).toLowerCase() === 'true'),
-      mode: ch.mode ? String(ch.mode) : undefined
-    }))
-  }
+  // Relay (DO) state is deliberately not taken from telemetry: only the server's verified
+  // control.get_status read is shown, in DeviceOutputsPanel.
   const diList = p.digital_inputs ?? p.digitalInputs
   if (Array.isArray(diList) && diList.length > 0) {
     hardwareTelemetry.value.digitalInputs = diList.map((di: any) => ({
@@ -252,6 +244,12 @@ const licenseUploading = ref(false)
 const licenseMessage = ref('')
 const licenseFileInput = ref<HTMLInputElement | null>(null)
 
+// Relay outputs: bumped on each server `outputs` event so the panel re-reads its state.
+const outputsRefreshKey = ref(0)
+const outputsCatalogVerified = computed(() =>
+  catalogFresh.value && !!catalog.value &&
+  catalogIsCurrent(catalogProof.value, { version: catalog.value.catalogVersion, hash: catalog.value.catalogHash }))
+
 // Command modal state
 const showCommandModal = ref(false)
 const commandHistory = ref<Array<{ timestamp: string; action: string; correlationId: string; status: string }>>([])
@@ -267,6 +265,12 @@ const operationsHub = useDeviceOperationsHub({
   },
   onEvent: (event) => {
     if (event.deviceId === deviceId.value) {
+      if (event.eventType === 'outputs') {
+        // Carries no relay data by design: the panel re-reads the access-checked state, and the
+        // link's online/broker flags that decide whether that reading still counts.
+        refreshOutputs()
+        return
+      }
       lastHeartbeat.value = new Date().toLocaleTimeString()
       if (event.payload && typeof event.payload === 'object') {
         applyTelemetryPayload(event.payload as Record<string, any>)
@@ -278,6 +282,19 @@ const operationsHub = useDeviceOperationsHub({
       device.value.state = 'Revoked'
     }
   },
+})
+
+function refreshOutputs() {
+  outputsRefreshKey.value++
+  const lease = sessionFence.capture()
+  void adminApi.deviceLink(deviceId.value, { signal: lease.signal })
+    .then(link => { if (sessionFence.isCurrent(lease)) deviceLink.value = link })
+    .catch(() => undefined)
+}
+
+// Events sent while the hub was reconnecting are lost; re-read instead of trusting the last state.
+watch(operationsHub.connectionState, (state, previous) => {
+  if (state === 'connected' && previous === 'reconnecting') refreshOutputs()
 })
 
 async function loadDeviceData(lease: SessionLease = sessionFence.capture()) {
@@ -774,7 +791,7 @@ onUnmounted(() => {
 
       <!-- MaiTech RTU Operating Configurations & Hardware Subsystems Card -->
       <div
-        v-if="device?.name?.includes('MAITECH') || hardwareTelemetry.uptimeSeconds !== null"
+        v-if="device?.name?.includes('MAITECH') || hardwareTelemetry.uptimeSeconds !== null || deviceLink?.binding"
         class="p-5 bg-[var(--surface-card)] border border-[var(--border-default)] rounded-lg shadow-[var(--shadow-control)] space-y-4"
         data-test="rtu-operating-config-card"
       >
@@ -842,40 +859,15 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Column 2: Digital Outputs (DO1 - DO6 Relays) -->
-          <div class="p-3.5 rounded-lg bg-[var(--surface-overlay)] border border-[var(--border-subtle)] space-y-2">
-            <div class="flex items-center justify-between text-xs font-semibold text-[var(--text-heading)] border-b border-[var(--border-subtle)] pb-1.5">
-              <span class="flex items-center gap-1.5">
-                <Layers class="w-3.5 h-3.5 text-purple-500" />
-                <span>Relay Digital Outputs (DO)</span>
-              </span>
-              <Badge variant="neutral" size="xs">6 Kênh</Badge>
-            </div>
-            <div class="grid grid-cols-3 gap-1.5 text-center">
-              <div
-                v-for="ch in (hardwareTelemetry.digitalOutputs.length > 0 ? hardwareTelemetry.digitalOutputs : [
-                  { channel: 1, gpioPin: 21, state: false, mode: 'toggle' },
-                  { channel: 2, gpioPin: 35, state: false, mode: 'toggle' },
-                  { channel: 3, gpioPin: 37, state: false, mode: 'toggle' },
-                  { channel: 4, gpioPin: 40, state: false, mode: 'toggle' },
-                  { channel: 5, gpioPin: 38, state: false, mode: 'toggle' },
-                  { channel: 6, gpioPin: 41, state: false, mode: 'toggle' }
-                ])"
-                :key="ch.channel"
-                class="p-1.5 rounded border border-[var(--border-subtle)] bg-[var(--surface-card)] flex flex-col items-center"
-              >
-                <span class="text-[11px] font-mono font-medium text-[var(--text-primary)]">DO{{ ch.channel }}</span>
-                <span class="text-[9px] text-[var(--text-hint)]">P{{ ch.gpioPin }}</span>
-                <span
-                  class="mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded font-mono"
-                  :class="ch.state ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-neutral-500/10 text-[var(--text-hint)]'"
-                  :data-test="`do-${ch.channel}-state`"
-                >
-                  {{ ch.state ? 'ON' : 'OFF' }}
-                </span>
-              </div>
-            </div>
-          </div>
+          <!-- Column 2: Relay outputs (DO) — the only UI path that drives them -->
+          <DeviceOutputsPanel
+            :device-id="deviceId"
+            :csrf-token="csrfToken"
+            :link="deviceLink"
+            :catalog="catalog"
+            :catalog-verified="outputsCatalogVerified"
+            :refresh-key="outputsRefreshKey"
+          />
 
           <!-- Column 3: Digital Inputs (DI1 - DI4 Sensors) -->
           <div class="p-3.5 rounded-lg bg-[var(--surface-overlay)] border border-[var(--border-subtle)] space-y-2">
@@ -884,22 +876,26 @@ onUnmounted(() => {
                 <Cpu class="w-3.5 h-3.5 text-emerald-500" />
                 <span>Digital Inputs (DI)</span>
               </span>
-              <Badge variant="neutral" size="xs">4 Kênh</Badge>
+              <Badge v-if="hardwareTelemetry.digitalInputs.length > 0" variant="neutral" size="xs">
+                {{ hardwareTelemetry.digitalInputs.length }} kênh
+              </Badge>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-center">
+            <p
+              v-if="hardwareTelemetry.digitalInputs.length === 0"
+              class="text-[11px] text-[var(--text-hint)]"
+              data-test="di-unavailable"
+            >
+              DI không đọc được qua MQTT (spec C12).
+            </p>
+            <div v-else class="grid grid-cols-2 gap-2 text-center">
               <div
-                v-for="di in (hardwareTelemetry.digitalInputs.length > 0 ? hardwareTelemetry.digitalInputs : [
-                  { channel: 1, gpioPin: 1, state: false },
-                  { channel: 2, gpioPin: 2, state: false },
-                  { channel: 3, gpioPin: 3, state: false },
-                  { channel: 4, gpioPin: 4, state: false }
-                ])"
+                v-for="di in hardwareTelemetry.digitalInputs"
                 :key="di.channel"
                 class="p-1.5 rounded border border-[var(--border-subtle)] bg-[var(--surface-card)] flex items-center justify-between px-2"
               >
                 <div class="text-left">
                   <span class="text-[11px] font-mono font-medium text-[var(--text-primary)]">DI{{ di.channel }}</span>
-                  <span class="text-[9px] text-[var(--text-hint)] block">GPIO {{ di.gpioPin }}</span>
+                  <span v-if="di.gpioPin !== undefined" class="text-[9px] text-[var(--text-hint)] block">GPIO {{ di.gpioPin }}</span>
                 </div>
                 <span
                   class="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono"

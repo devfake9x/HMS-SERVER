@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { adminApi, type CommandCatalogSnapshot, type CommandExecutionResult, type CommandResultDto } from '@/core/api/adminApi'
+import { type CommandCatalogSnapshot } from '@/core/api/adminApi'
 import { canRenderCommand, findCatalogAction, type CatalogAction } from '@/core/commands/commandAvailability'
+import { useDeviceCommand } from '@/core/commands/useDeviceCommand'
 import { can as canPermission, type PermissionSnapshot } from '@/core/auth/permissions'
 import Modal from '@/shared/ui/feedback/Modal.vue'
 import DangerConfirmDialog from '@/shared/ui/feedback/DangerConfirmDialog.vue'
@@ -29,17 +30,16 @@ const emit = defineEmits<{
 const selectedType = ref<string | null>(null)
 const selectedAction = ref<string | null>(null)
 const correlationId = ref('')
-const executing = ref(false)
-const executionResult = ref<CommandExecutionResult | null>(null)
 const executionError = ref('')
-// The device answers on MQTT after the API call returns "Published"; the outcome is read back.
-const deviceOutcome = ref<CommandResultDto | null>(null)
-const awaitingDevice = ref(false)
-let pollGeneration = 0
 
-const OUTCOME_POLL_MS = 1000
-// The server times a command out after 30 s without a reply (spec R4); poll a little longer.
-const OUTCOME_POLL_LIMIT_MS = 40_000
+// The device answers on MQTT after the API call returns "Published"; the composable reads the
+// outcome back until the device replies or the server records a timeout.
+const command = useDeviceCommand(() => props.deviceId, () => props.csrfToken)
+const executing = computed(() => command.phase.value === 'sending')
+const executionResult = computed(() => command.dispatch.value)
+const awaitingDevice = computed(() => command.phase.value === 'waiting')
+const deviceOutcome = computed(() => command.outcome.value?.final ?? null)
+const clientTimedOut = computed(() => command.phase.value === 'timeout')
 
 const dispatchAccepted = computed(() => {
   const status = executionResult.value?.status
@@ -52,38 +52,22 @@ const replyJson = computed(() => {
   return data === undefined || data === null ? null : JSON.stringify(data, null, 2)
 })
 
-async function awaitDeviceOutcome(correlation: string) {
-  const generation = ++pollGeneration
-  awaitingDevice.value = true
-  const deadline = Date.now() + OUTCOME_POLL_LIMIT_MS
-  try {
-    while (generation === pollGeneration && Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, OUTCOME_POLL_MS))
-      if (generation !== pollGeneration) return
-      try {
-        const outcome = await adminApi.commandResult(props.deviceId, correlation)
-        deviceOutcome.value = outcome
-        if (outcome.result && outcome.result.status !== 'Published') return
-      } catch {
-        // Transient read failures keep polling until the deadline.
-      }
-    }
-  } finally {
-    if (generation === pollGeneration) awaitingDevice.value = false
-  }
-}
-
 watch(() => props.modelValue, open => {
-  if (!open) {
-    pollGeneration++
-    awaitingDevice.value = false
-  }
+  if (!open) command.cancel()
+})
+watch(() => command.dispatch.value, sent => {
+  if (sent) emit('command-executed', sent)
 })
 const showDangerConfirm = ref(false)
 const rawParamsJson = ref('{}')
 const paramsJsonError = ref('')
 
-const catalogActions = computed<CatalogAction[]>(() => props.catalog?.actions ?? [])
+// Relay outputs are driven only from the DO panel, which locks the channel and reads the state
+// back after every command; this generic dialog does neither.
+const PANEL_ONLY_ACTIONS = new Set(['control.set_output', 'control.pulse', 'control.set_all'])
+
+const catalogActions = computed<CatalogAction[]>(() =>
+  (props.catalog?.actions ?? []).filter(a => !PANEL_ONLY_ACTIONS.has(`${a.type}.${a.action}`)))
 
 const availableTypes = computed(() => {
   const types = new Set<string>()
@@ -146,11 +130,7 @@ watch([selectedType, selectedAction], () => {
     rawParamsJson.value = '{}'
     return
   }
-  if (t === 'control' && a === 'set_output') {
-    rawParamsJson.value = JSON.stringify({ channel: 1, value: 1 }, null, 2)
-  } else if (t === 'control' && a === 'pulse') {
-    rawParamsJson.value = JSON.stringify({ channel: 1, duration_ms: 1000 }, null, 2)
-  } else if (t === 'system' && a === 'reboot') {
+  if (t === 'system' && a === 'reboot') {
     rawParamsJson.value = JSON.stringify({ confirm_token: `REBOOT-${props.deviceId}` }, null, 2)
   } else if (t === 'system' && a === 'factory_reset') {
     rawParamsJson.value = JSON.stringify({ confirm_token: `FACTORY-RESET-${props.deviceId}` }, null, 2)
@@ -197,35 +177,22 @@ function handleTrigger() {
 
 async function executeCommand() {
   showDangerConfirm.value = false
-  executing.value = true
-  executionResult.value = null
   executionError.value = ''
-  deviceOutcome.value = null
-  pollGeneration++
-
+  const id = correlationId.value || undefined
+  // A new id per dispatch: reusing one returns the earlier result instead of sending again.
+  correlationId.value = ''
   try {
-    const payload = {
+    await command.run({
       type: selectedType.value || '',
       action: selectedAction.value || '',
       payload: parsedParams.value,
-      correlationId: correlationId.value || `c2-${Date.now().toString(36)}`,
+      correlationId: id,
       catalogVersion: props.catalog?.catalogVersion ?? '',
       catalogHash: props.catalog?.catalogHash ?? '',
-    }
-
-    const res = await adminApi.sendCommand(props.deviceId, payload, {
-      csrfToken: props.csrfToken ?? undefined,
     })
-
-    executionResult.value = res
-    emit('command-executed', res)
-    if (res.status === 'Published') void awaitDeviceOutcome(res.correlationId)
-    // A reused correlation id may also need a fresh one; a new id is generated per dispatch.
-    correlationId.value = ''
   } catch (err: any) {
+    command.cancel()
     executionError.value = err?.message || 'Command dispatch failed. The server rejected the request.'
-  } finally {
-    executing.value = false
   }
 }
 </script>
@@ -298,6 +265,13 @@ async function executeCommand() {
           />
         </div>
       </div>
+      <p
+        v-if="selectedType === 'control'"
+        class="text-[11px] text-[var(--text-hint)]"
+        data-test="do-panel-only-note"
+      >
+        Điều khiển DO trên panel DO (tab Telemetry): panel khoá kênh và đọc lại trạng thái sau mỗi lệnh.
+      </p>
 
       <!-- Action Details & Permissions Check -->
       <div v-if="currentAction" class="p-3 rounded-md space-y-2 text-xs" style="background-color: var(--surface-subtle, #f8fafc); border: 1px solid var(--border-default, #e2e8f0);">
@@ -393,7 +367,7 @@ async function executeCommand() {
       </div>
 
       <div
-        v-if="awaitingDevice || outcomeStatus"
+        v-if="awaitingDevice || outcomeStatus || clientTimedOut"
         class="p-3 rounded-lg text-xs space-y-1 border"
         :class="outcomeStatus === 'Executed'
           ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300'
@@ -403,7 +377,9 @@ async function executeCommand() {
         data-test="command-device-outcome"
       >
         <p class="font-semibold">
-          {{ awaitingDevice && (!outcomeStatus || outcomeStatus === 'Published') ? 'Waiting for device reply…' : `Device outcome: ${outcomeStatus}` }}
+          {{ clientTimedOut
+            ? 'No device outcome yet. It may still run: read device state before retrying.'
+            : awaitingDevice && (!outcomeStatus || outcomeStatus === 'Published') ? 'Waiting for device reply…' : `Device outcome: ${outcomeStatus}` }}
         </p>
         <div v-if="deviceOutcome?.result && outcomeStatus !== 'Published'" class="font-mono text-[11px] space-y-0.5 text-zinc-700 dark:text-zinc-300">
           <p>Code: {{ deviceOutcome.result.code }}</p>

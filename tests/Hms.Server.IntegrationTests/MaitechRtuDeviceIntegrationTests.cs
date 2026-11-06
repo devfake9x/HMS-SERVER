@@ -55,6 +55,30 @@ public sealed class MaitechRtuDeviceIntegrationTests : IClassFixture<WebApplicat
         Assert.Equal("DEVICE_MQTT_BINDING_MISSING", prepared.FailureCode);
     }
 
+    [Fact]
+    public async Task TelemetryIngestion_WithoutCsrf_IsRejected()
+    {
+        var client = _factory.CreateClient();
+        var csrf = await (await client.GetAsync("/api/v1/auth/csrf")).Content.ReadFromJsonAsync<JsonElement>();
+        var login = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+        {
+            Content = JsonContent.Create(new { email = "admin@hms.local", password = "AdminPassword123!", rememberMe = false })
+        };
+        login.Headers.Add("X-CSRF-TOKEN", csrf.GetProperty("requestToken").GetString());
+        await client.SendAsync(login);
+
+        var response = await client.PostAsJsonAsync($"/api/v1/devices/{MaitechRtuGuid}/telemetry",
+            new Dictionary<string, object?> { ["digital_outputs"] = new[] { new { channel = 1, state = true } } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static async Task UseSessionCsrfAsync(HttpClient client)
+    {
+        var csrf = await (await client.GetAsync("/api/v1/auth/csrf")).Content.ReadFromJsonAsync<JsonElement>();
+        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", csrf.GetProperty("requestToken").GetString());
+    }
+
     private static CommandExecutionPlan Plan(DeviceId deviceId, string type, string action)
     {
         var now = DateTimeOffset.UtcNow;
@@ -93,6 +117,8 @@ public sealed class MaitechRtuDeviceIntegrationTests : IClassFixture<WebApplicat
         loginReq.Headers.Add("X-CSRF-TOKEN", token);
         var loginRes = await client.SendAsync(loginReq);
         Assert.True(loginRes.StatusCode == HttpStatusCode.NoContent || loginRes.StatusCode == HttpStatusCode.OK);
+        // Manual ingest is CSRF-checked: send the token issued to the signed-in session.
+        await UseSessionCsrfAsync(client);
 
         // 2. Query device list to find MAITECH-RTU-870C
         var devRes = await client.GetAsync("/api/v1/devices");
@@ -139,7 +165,7 @@ public sealed class MaitechRtuDeviceIntegrationTests : IClassFixture<WebApplicat
     }
 
     [Fact]
-    public async Task TelemetryIngestion_PreservesDigitalOutputs_WhenPartialMqttStatusIngested()
+    public async Task TelemetryIngestion_KeepsOtherFieldsAcrossPartialUpdates_ButNeverRelayStates()
     {
         var client = _factory.CreateClient();
 
@@ -161,6 +187,8 @@ public sealed class MaitechRtuDeviceIntegrationTests : IClassFixture<WebApplicat
         loginReq.Headers.Add("X-CSRF-TOKEN", token);
         var loginRes = await client.SendAsync(loginReq);
         Assert.True(loginRes.StatusCode == HttpStatusCode.NoContent || loginRes.StatusCode == HttpStatusCode.OK);
+        // Manual ingest is CSRF-checked: send the token issued to the signed-in session.
+        await UseSessionCsrfAsync(client);
 
         // 2. Post full hardware state with DO1 = ON (true)
         var fullHardwarePayload = new Dictionary<string, object?>
@@ -188,20 +216,16 @@ public sealed class MaitechRtuDeviceIntegrationTests : IClassFixture<WebApplicat
         var post2 = await client.PostAsJsonAsync($"/api/v1/devices/{MaitechRtuGuid}/telemetry", partialMqttPayload);
         Assert.Equal(HttpStatusCode.OK, post2.StatusCode);
 
-        // 4. Retrieve telemetry and ensure DO1 state = true is preserved
+        // 4. Retrieve telemetry: fields missing from the partial packet are kept...
         var getRes = await client.GetAsync($"/api/v1/devices/{MaitechRtuGuid}/telemetry");
         Assert.Equal(HttpStatusCode.OK, getRes.StatusCode);
         var served = await getRes.Content.ReadFromJsonAsync<JsonElement>();
         var data = served.GetProperty("data");
-
-        // Verify uptime was updated
         Assert.Equal(445003, data.GetProperty("uptime_seconds").GetInt32());
+        Assert.Equal("maitech-rtu", data.GetProperty("hostname").GetString());
 
-        // Verify digital_outputs was NOT lost and DO1 is still true (ON)
-        Assert.True(data.TryGetProperty("digital_outputs", out var doProp), "digital_outputs must be preserved across partial updates");
-        var channels = doProp.EnumerateArray().ToArray();
-        Assert.True(channels.Length >= 2);
-        var ch1 = channels.First(c => c.GetProperty("channel").GetInt32() == 1);
-        Assert.True(ch1.GetProperty("state").GetBoolean(), "DO1 state must remain true (ON)");
+        // ...but relay states are never stored as telemetry: they are read from the device
+        // (control.get_status) and served behind gpio.do_view.
+        Assert.False(data.TryGetProperty("digital_outputs", out _));
     }
 }

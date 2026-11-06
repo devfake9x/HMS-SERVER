@@ -94,6 +94,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasKey(x => x.DeviceId);
             entity.Property(x => x.TopicPrefix).HasMaxLength(64).IsRequired();
             entity.Property(x => x.MqttDeviceId).HasMaxLength(63).IsRequired();
+            entity.Property(x => x.AllowedOutputChannels).HasMaxLength(200);
             // One device per topic base: two devices on one base would share replies.
             entity.HasIndex(x => new { x.TopicPrefix, x.MqttDeviceId }).IsUnique();
             entity.HasOne<DeviceRecord>()
@@ -155,6 +156,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(x => x.Type).HasMaxLength(64).IsRequired();
             entity.Property(x => x.Action).HasMaxLength(128).IsRequired();
             entity.Property(x => x.RequestFingerprint).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Detail).HasMaxLength(CommandAuditRecord.MaxDetailLength);
+            entity.Property(x => x.PayloadSummary).HasMaxLength(CommandAuditRecord.MaxPayloadSummaryLength);
             entity.HasIndex(x => new { x.DeviceId, x.CorrelationId }).IsUnique();
         });
 

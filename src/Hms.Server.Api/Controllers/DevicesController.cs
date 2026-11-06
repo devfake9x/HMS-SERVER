@@ -93,7 +93,10 @@ public sealed class DevicesController(
         return Ok(telemetry);
     }
 
+    // Manual/test ingest only: devices report over MQTT. Anything posted here is shown to every
+    // viewer as device state, so it is restricted to master-admins and CSRF-checked.
     [HttpPost("{deviceId:guid}/telemetry")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> IngestTelemetry(
         Guid deviceId,
         [FromBody] Dictionary<string, object?> data,
@@ -104,7 +107,7 @@ public sealed class DevicesController(
             return NotFound(new { code = "DEVICE_NOT_FOUND" });
         if (device.State == DeviceLifecycleState.Revoked)
             return Forbid();
-        if (!User.IsInRole("master-admin") && !ScopeAuthorization.CanAccessDevice(User, device, organizations, permissions))
+        if (!User.IsInRole(RoleAuthorizationPolicy.MasterAdminRole))
             return Forbid();
 
         if (device.State == DeviceLifecycleState.Provisioning)

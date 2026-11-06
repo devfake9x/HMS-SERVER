@@ -11,8 +11,13 @@ public sealed class SendDeviceCommandHandler(
     IDeviceCommandTransport transport,
     ICommandAuditStore auditStore,
     Func<DeviceId, Device?> deviceResolver,
-    IDeviceAccessResolver accessResolver)
+    IDeviceAccessResolver accessResolver,
+    Microsoft.Extensions.Logging.ILogger<SendDeviceCommandHandler>? logger = null)
 {
+    /// <summary>Upper bound on the TTL of a physical command; it must stay below the server's
+    /// reply timeout (30 s by default).</summary>
+    public const int PhysicalCommandTtlMs = 10_000;
+
     public async ValueTask<CommandExecutionResult> HandleAsync(
         DeviceCommandRequest request,
         AccessActor actor,
@@ -107,6 +112,12 @@ public sealed class SendDeviceCommandHandler(
             return cachedResult;
 
         var ttl = TimeSpan.FromMilliseconds(definition.DefaultTtlMs ?? CommandDefinition.DispatcherDefaultTtlMs);
+        // A physical command must expire on the device before the server stops waiting for its
+        // reply; otherwise it can still fire after the operator was told it timed out (spec §3 TTL
+        // is checked when the command leaves the device queue).
+        if (definition.Class == Domain.Commands.CommandClass.Physical &&
+            ttl > TimeSpan.FromMilliseconds(PhysicalCommandTtlMs))
+            ttl = TimeSpan.FromMilliseconds(PhysicalCommandTtlMs);
         if (ttl > TimeSpan.FromHours(24))
         {
             return await RecordAsync(request, null, Failure(request, CommandExecutionStatus.ContractUnavailable, "TTL_EXCEEDS_FIRMWARE_LIMIT"), cancellationToken);
@@ -161,6 +172,13 @@ public sealed class SendDeviceCommandHandler(
         if (plan is not null)
         {
             await auditStore.RecordAsync(plan, result, cancellationToken);
+        }
+        else if (!result.IsSuccess && logger is not null)
+        {
+            // Refused before a reservation exists, so no audit row: keep a structured trace.
+            Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(logger,
+                "Command {Type}.{Action} for device {DeviceId} by user {UserId} refused before audit: {Code}",
+                request.Type, request.Action, request.DeviceId.Value, request.UserId.Value, result.Code);
         }
 
         return result;

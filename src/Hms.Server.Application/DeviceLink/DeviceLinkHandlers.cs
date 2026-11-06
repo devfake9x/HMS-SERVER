@@ -32,7 +32,8 @@ public sealed class DeviceCommandResponseCorrelator(
     IAuthorizedEventPublisher events,
     IAuthorizationEpochStore epochs,
     IPermissionStore permissions,
-    ILogger<DeviceCommandResponseCorrelator> logger)
+    ILogger<DeviceCommandResponseCorrelator> logger,
+    DeviceReplyProjection? projection = null)
 {
     public const string CommandResultEvent = "command_result";
 
@@ -75,6 +76,21 @@ public sealed class DeviceCommandResponseCorrelator(
             return DeviceResponseOutcome.Ignored;
 
         var result = ToResult(response, plan);
+
+        // First, and guarded: whether the outputs may have changed must not depend on the audit
+        // write below succeeding, and an unreadable reply must not stop the steps below.
+        if (projection is not null)
+        {
+            try
+            {
+                await projection.ApplyAsync(plan, response, result, receivedAt, cancellationToken);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or JsonException)
+            {
+                logger.LogWarning("Reply {CorrelationId} from device {DeviceId} not projected: {Error}", id, deviceId.Value, ex.Message);
+            }
+        }
+
         await audit.RecordAsync(plan, result, cancellationToken);
         responses.Save(deviceId, id, new StoredCommandResponse(
             plan.Request.UserId,
@@ -85,6 +101,7 @@ public sealed class DeviceCommandResponseCorrelator(
             response.Data?.GetRawText(),
             receivedAt));
         await PublishResultAsync(plan, result, cancellationToken);
+
         return DeviceResponseOutcome.Completed;
     }
 
@@ -93,15 +110,26 @@ public sealed class DeviceCommandResponseCorrelator(
         var expired = pending.TakeExpired(now);
         foreach (var command in expired)
         {
-            // No reply does not mean the command did not run (spec R4).
-            var result = new CommandExecutionResult(
-                CommandExecutionStatus.Failed,
-                "DEVICE_RESPONSE_TIMEOUT",
-                command.Plan.Request.CorrelationId,
-                "No device reply before the deadline; outcome unknown. Read device state before retrying with a new correlation id.",
-                command.Plan.KeyGeneration);
-            await audit.RecordAsync(command.Plan, result, cancellationToken);
-            await PublishResultAsync(command.Plan, result, cancellationToken);
+            // Taken from the registry already: a failure here must not drop the other commands.
+            try
+            {
+                // No reply does not mean the command did not run (spec R4).
+                if (projection is not null && command.Plan.Definition.Class == Domain.Commands.CommandClass.Physical)
+                    await projection.MarkStaleAsync(command.Plan.Request.DeviceId, OutputStaleReasons.OutputCommandOutcomeUnknown, cancellationToken);
+                var result = new CommandExecutionResult(
+                    CommandExecutionStatus.Failed,
+                    "DEVICE_RESPONSE_TIMEOUT",
+                    command.Plan.Request.CorrelationId,
+                    "No device reply before the deadline; outcome unknown. Read device state before retrying with a new correlation id.",
+                    command.Plan.KeyGeneration);
+                await audit.RecordAsync(command.Plan, result, cancellationToken);
+                await PublishResultAsync(command.Plan, result, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Timeout of command {CorrelationId} on device {DeviceId} not recorded",
+                    command.Plan.Request.CorrelationId, command.Plan.Request.DeviceId.Value);
+            }
         }
 
         return expired.Count;
@@ -177,7 +205,8 @@ public sealed class DeviceInboundMessageHandler(
     IAuthorizationEpochStore epochs,
     IPermissionStore permissions,
     DeviceCommandResponseCorrelator correlator,
-    ILogger<DeviceInboundMessageHandler> logger)
+    ILogger<DeviceInboundMessageHandler> logger,
+    DeviceReplyProjection? projection = null)
 {
     public async ValueTask HandleAsync(
         DeviceId deviceId,
@@ -199,8 +228,14 @@ public sealed class DeviceInboundMessageHandler(
                     logger.LogWarning("Device {DeviceId} heartbeat is not a JSON object", deviceId.Value);
                     return;
                 }
+                TelemetryRelayStates.Remove(status);
+                // Uptime going backwards means the device rebooted: outputs may have reset.
+                var previousUptime = telemetry.GetLatest(deviceId)?.UptimeSeconds;
                 linkState.RecordHeartbeat(deviceId, receivedAt);
                 telemetry.Record(deviceId, status);
+                if (projection is not null && previousUptime is { } before &&
+                    telemetry.GetLatest(deviceId)?.UptimeSeconds is { } after && after < before)
+                    await projection.MarkStaleAsync(deviceId, OutputStaleReasons.DeviceRebooted, cancellationToken);
                 await PublishAsync(deviceId, "status", status, cancellationToken);
                 break;
 
@@ -209,6 +244,8 @@ public sealed class DeviceInboundMessageHandler(
                 if (connectivity?.GetValueOrDefault("state") is not string state)
                     return;
                 linkState.RecordConnectivity(deviceId, state, receivedAt);
+                if (projection is not null && state == "offline")
+                    await projection.MarkStaleAsync(deviceId, OutputStaleReasons.DeviceOffline, cancellationToken);
                 await PublishAsync(deviceId, "connectivity", new Dictionary<string, object?>
                 {
                     ["state"] = state,
@@ -265,7 +302,10 @@ public sealed class DeviceInboundMessageHandler(
 }
 
 /// <summary>Binds a device to its topic base on the broker.</summary>
-public sealed class ConfigureDeviceMqttBindingHandler(IDeviceStore devices, IDeviceMqttBindingStore bindings)
+public sealed class ConfigureDeviceMqttBindingHandler(
+    IDeviceStore devices,
+    IDeviceMqttBindingStore bindings,
+    IDeviceOutputStateStore? outputs = null)
 {
     public DeviceMqttBinding Handle(DeviceId deviceId, string topicPrefix, string mqttDeviceId, uint? keyVersion)
     {
@@ -273,8 +313,36 @@ public sealed class ConfigureDeviceMqttBindingHandler(IDeviceStore devices, IDev
         if (device.State == DeviceLifecycleState.Revoked)
             throw new InvalidOperationException("DEVICE_REVOKED");
         var binding = DeviceMqttBinding.Create(device.Id, topicPrefix, mqttDeviceId, keyVersion);
+        var previous = bindings.Find(device.Id);
         bindings.Upsert(binding);
-        return binding;
+
+        // The allowlist has its own, master-admin endpoint, and a re-bind of the same topic base
+        // keeps it. A new topic base is another physical device: the channels a master-admin
+        // approved and the relay state read from the old one do not carry over.
+        if (previous is not null && !StringComparer.Ordinal.Equals(previous.TopicBase, binding.TopicBase))
+        {
+            bindings.SetAllowedOutputChannels(device.Id, null);
+            outputs?.Clear(device.Id);
+            return binding;
+        }
+
+        return binding with { AllowedOutputChannels = previous?.AllowedOutputChannels };
+    }
+}
+
+public sealed record OutputChannelsChange(IReadOnlyList<int>? Before, IReadOnlyList<int> After);
+
+/// <summary>Sets which output channels the server may drive on a device (empty = none). Callers
+/// restrict this to master-admins: it is the interlock between a command and a real relay.</summary>
+public sealed class SetDeviceOutputChannelsHandler(IDeviceMqttBindingStore bindings)
+{
+    public OutputChannelsChange Handle(DeviceId deviceId, IEnumerable<int> channels)
+    {
+        var validated = DeviceMqttBinding.ValidateOutputChannels(channels);
+        var before = bindings.Find(deviceId)?.AllowedOutputChannels;
+        if (!bindings.SetAllowedOutputChannels(deviceId, validated))
+            throw new InvalidOperationException("DEVICE_MQTT_BINDING_MISSING");
+        return new OutputChannelsChange(before, validated);
     }
 }
 

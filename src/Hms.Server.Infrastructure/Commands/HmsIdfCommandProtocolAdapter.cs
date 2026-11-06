@@ -13,8 +13,11 @@ namespace Hms.Server.Infrastructure.Commands;
 public sealed class HmsIdfCommandProtocolAdapter(
     IDeviceMqttBindingStore bindings,
     IProvisioningSecretGenerator secrets,
-    IDeviceLinkStateStore linkState) : ICommandProtocolAdapter
+    IDeviceLinkStateStore linkState,
+    Microsoft.Extensions.Options.IOptions<Mqtt.MqttLinkOptions>? options = null) : ICommandProtocolAdapter
 {
+    private readonly int _maxPulseMs = options?.Value.MaxPulseMs ?? OutputCommandPolicy.DefaultMaxPulseMs;
+
     // Spec §3 field limits, in UTF-8 bytes.
     private const int MaxTypeBytes = 31;
     private const int MaxActionBytes = 31;
@@ -51,6 +54,10 @@ public sealed class HmsIdfCommandProtocolAdapter(
 
         if (request.DryRun && !plan.Definition.DryRunSupported)
             return Fail(plan, "DRY_RUN_UNSUPPORTED");
+
+        // Physical outputs: exact payload shape and the device's channel allowlist, before signing.
+        if (OutputCommandPolicy.Check(plan.Definition, request.Payload, binding.AllowedOutputChannels, _maxPulseMs) is { } refused)
+            return Fail(plan, refused);
 
         // Find, never Generate: a freshly generated key is one the device has never seen.
         var keyset = secrets.Find(request.DeviceId, plan.KeyGeneration);

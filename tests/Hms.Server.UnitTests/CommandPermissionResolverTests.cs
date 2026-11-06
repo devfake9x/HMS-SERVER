@@ -136,7 +136,8 @@ public sealed class CommandPermissionResolverTests
         Assert.Equal(
             new[]
             {
-                "config.set", "mqtt.set_config", "network.configure_ethernet", "network.set_priority",
+                "config.set", "control.pulse", "control.set_all", "control.set_output",
+                "mqtt.set_config", "network.configure_ethernet", "network.set_priority",
                 "network.wifi_known_connect", "network.wifi_sta_config_set", "network.wifi_sta_connect",
                 "network.wifi_sta_disable", "network.wifi_sta_disconnect", "network.wifi_sta_enable",
                 "ota.apply", "ota.remote_config_get", "ota.remote_start", "system.factory_reset", "system.reboot"

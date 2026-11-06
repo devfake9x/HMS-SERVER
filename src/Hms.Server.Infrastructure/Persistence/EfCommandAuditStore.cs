@@ -41,6 +41,35 @@ public sealed class EfCommandAuditStore(
         return pending.Count;
     }
 
+    public int FailUnfinished(string code)
+    {
+        var published = nameof(CommandExecutionStatus.Published);
+        var failed = nameof(CommandExecutionStatus.Failed);
+        const string inFlight = "IN_FLIGHT";
+        var detail = CommandTransportOutcome.AfterRestartDetail;
+        if (db.Database.IsRelational())
+        {
+            return db.CommandAudits
+                .Where(x => x.Status == published || x.Status == inFlight)
+                .ExecuteUpdate(setters => setters
+                    .SetProperty(x => x.Status, failed)
+                    .SetProperty(x => x.Code, code)
+                    .SetProperty(x => x.Detail, detail));
+        }
+
+        var rows = db.CommandAudits.Where(x => x.Status == published || x.Status == inFlight).ToList();
+        foreach (var row in rows)
+        {
+            row.Status = failed;
+            row.Code = code;
+            row.Detail = detail;
+        }
+
+        if (rows.Count > 0)
+            db.SaveChanges();
+        return rows.Count;
+    }
+
     public async ValueTask<CommandAuditReservation> ReserveAsync(
         CommandExecutionPlan plan,
         string requestFingerprint,
@@ -65,7 +94,9 @@ public sealed class EfCommandAuditStore(
             RequestFingerprint = requestFingerprint,
             KeyGeneration = plan.KeyGeneration,
             ExpiresAt = plan.ExpiresAt,
-            CreatedAt = _clock()
+            CreatedAt = _clock(),
+            IssuedBy = plan.Request.UserId.Value,
+            PayloadSummary = SummarizePayload(plan)
         };
 
         db.CommandAudits.Add(candidate);
@@ -113,9 +144,9 @@ public sealed class EfCommandAuditStore(
         // Revocation is a terminal server-side fence. The predicate is part of
         // the database write, so a completion that races with revoke cannot
         // overwrite DEVICE_REVOKED after the revoke transaction commits.
-        // The device can reply before the sender records "published"; that late transport status
-        // only applies while the row is still unfinished, so it never overwrites a device outcome.
-        var publishedOnly = result.Status == CommandExecutionStatus.Published;
+        // The device can reply before the sender records its publish result; that late transport
+        // status only applies while the row is still unfinished, so it never overwrites a device outcome.
+        var publishedOnly = CommandTransportOutcome.IsTransportOnly(result);
         if (db.Database.IsRelational())
         {
             var updated = await db.CommandAudits
@@ -125,7 +156,8 @@ public sealed class EfCommandAuditStore(
                             (!publishedOnly || x.Status == "IN_FLIGHT"))
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(x => x.Status, result.Status.ToString())
-                    .SetProperty(x => x.Code, result.Code), cancellationToken);
+                    .SetProperty(x => x.Code, result.Code)
+                    .SetProperty(x => x.Detail, Truncate(result.Detail, CommandAuditRecord.MaxDetailLength)), cancellationToken);
 
             if (updated == 0)
                 return;
@@ -133,8 +165,9 @@ public sealed class EfCommandAuditStore(
         else
         {
             // The in-memory provider has no atomic SQL update surface. Keep the
-            // development/test fallback fail-closed for an already revoked row.
-            var current = await db.CommandAudits.AsNoTracking()
+            // development/test fallback fail-closed for an already revoked row. The row is
+            // loaded tracked: the reservation in the same scope may still track it.
+            var current = await db.CommandAudits
                 .SingleAsync(x => x.DeviceId == plan.Request.DeviceId.Value &&
                                   x.CorrelationId == plan.Request.CorrelationId,
                     cancellationToken);
@@ -143,7 +176,7 @@ public sealed class EfCommandAuditStore(
 
             current.Status = result.Status.ToString();
             current.Code = result.Code;
-            db.CommandAudits.Update(current);
+            current.Detail = Truncate(result.Detail, CommandAuditRecord.MaxDetailLength);
             await db.SaveChangesAsync(cancellationToken);
         }
     }
@@ -178,6 +211,26 @@ public sealed class EfCommandAuditStore(
                 : CommandExecutionStatus.Failed,
             record.Code,
             record.CorrelationId,
+            record.Detail,
             KeyGeneration: record.KeyGeneration);
     }
+
+    private static string? SummarizePayload(CommandExecutionPlan plan)
+    {
+        if (plan.Definition.Class is not (Domain.Commands.CommandClass.Physical
+            or Domain.Commands.CommandClass.Destructive
+            or Domain.Commands.CommandClass.Flash))
+            return null;
+        try
+        {
+            return Truncate(System.Text.Json.JsonSerializer.Serialize(plan.Request.Payload), CommandAuditRecord.MaxPayloadSummaryLength);
+        }
+        catch (Exception ex) when (ex is NotSupportedException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? Truncate(string? value, int max) =>
+        value is null || value.Length <= max ? value : value[..max];
 }

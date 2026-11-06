@@ -111,19 +111,23 @@ public sealed class CatalogTests
     }
 
     [Fact]
-    public void Pinned_catalog_opens_only_the_closed_read_actions()
+    public void Pinned_catalog_opens_only_the_closed_reads_and_the_two_relay_outputs()
     {
         var catalog = new PinnedCommandCatalog();
         var enabled = catalog.List().Where(x => x.Availability == CommandAvailability.Enabled).ToArray();
+        var expected = PinnedCommandCatalog.EnabledActions.Concat(PinnedCommandCatalog.PhysicalOutputActions);
 
         // Every allowlisted pair exists in the spec catalog, so a typo cannot silently open nothing.
         Assert.Equal(
-            PinnedCommandCatalog.EnabledActions.OrderBy(x => x.Type).ThenBy(x => x.Action),
+            expected.OrderBy(x => x.Type).ThenBy(x => x.Action),
             enabled.Select(x => (x.Type, x.Action)).OrderBy(x => x.Type).ThenBy(x => x.Action));
-        Assert.All(enabled, x => Assert.Equal(CommandClass.Read, x.Class));
+        Assert.All(PinnedCommandCatalog.EnabledActions, x => Assert.Equal(CommandClass.Read, catalog.Find(x.Type, x.Action)!.Class));
+        Assert.All(PinnedCommandCatalog.PhysicalOutputActions, x => Assert.Equal(CommandClass.Physical, catalog.Find(x.Type, x.Action)!.Class));
         Assert.Equal(CommandAvailability.Enabled, catalog.Find("system", "get_info")!.Availability);
+        Assert.Equal(CommandAvailability.Enabled, catalog.Find("control", "set_output")!.Availability);
+        Assert.Equal(CommandAvailability.Enabled, catalog.Find("control", "pulse")!.Availability);
+        Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("control", "set_all")!.Availability);
         Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("system", "reboot")!.Availability);
-        Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("control", "pulse")!.Availability);
     }
 
     [Fact]

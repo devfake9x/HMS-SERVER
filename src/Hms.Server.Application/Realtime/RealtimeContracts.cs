@@ -179,5 +179,6 @@ public sealed class BoundedDeviceEventPublisher(int capacity = 256) : IAuthorize
     private static bool IsCoalescible(string eventType) =>
         eventType.Equals("status", StringComparison.OrdinalIgnoreCase) ||
         eventType.Equals("capabilities", StringComparison.OrdinalIgnoreCase) ||
-        eventType.Equals("connectivity", StringComparison.OrdinalIgnoreCase);
+        eventType.Equals("connectivity", StringComparison.OrdinalIgnoreCase) ||
+        eventType.Equals("outputs", StringComparison.OrdinalIgnoreCase);
 }

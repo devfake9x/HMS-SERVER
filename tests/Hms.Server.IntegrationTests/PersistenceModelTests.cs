@@ -244,6 +244,43 @@ public sealed class PersistenceModelTests
     }
 
     [Fact]
+    public async Task Ef_command_audit_fails_what_a_previous_run_left_unfinished_and_keeps_device_outcomes()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(nameof(Ef_command_audit_fails_what_a_previous_run_left_unfinished_and_keeps_device_outcomes))
+            .Options;
+        var definition = new CommandDefinition(
+            "control", "set_output", "gpio.do_write", CommandAvailability.Enabled, false, false, 10_000, CommandClass.Physical);
+        CommandExecutionPlan Plan(string id) => new(
+            new DeviceCommandRequest(DeviceId.New(), new UserId(Guid.NewGuid()), "control", "set_output",
+                new Dictionary<string, object?> { ["channel"] = 1, ["value"] = true }, id, DateTimeOffset.UtcNow),
+            definition, 1, DateTimeOffset.UtcNow.AddSeconds(10));
+        var published = Plan("published");
+        var midPublish = Plan("mid-publish");
+        var executed = Plan("executed");
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var store = new EfCommandAuditStore(db);
+            foreach (var plan in new[] { published, midPublish, executed })
+                await store.ReserveAsync(plan, CommandRequestFingerprint.Compute(plan.Request));
+            await store.RecordAsync(published, new CommandExecutionResult(CommandExecutionStatus.Published, "MQTT_PUBLISHED", "published"));
+            await store.RecordAsync(executed, new CommandExecutionResult(CommandExecutionStatus.Executed, "DEVICE_EXECUTED", "executed"));
+            // The publish acknowledgement arrives after the reply: it must not replace it.
+            await store.RecordAsync(executed, new CommandExecutionResult(CommandExecutionStatus.Failed, CommandTransportOutcome.PublishUnconfirmed, "executed"));
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var store = new EfCommandAuditStore(db);
+            Assert.Equal(2, store.FailUnfinished("OUTCOME_UNKNOWN_AFTER_RESTART"));
+            Assert.Equal("OUTCOME_UNKNOWN_AFTER_RESTART", store.Find(published.Request.DeviceId, "published")!.Code);
+            Assert.Equal("OUTCOME_UNKNOWN_AFTER_RESTART", store.Find(midPublish.Request.DeviceId, "mid-publish")!.Code);
+            Assert.Equal("DEVICE_EXECUTED", store.Find(executed.Request.DeviceId, "executed")!.Code);
+        }
+    }
+
+    [Fact]
     public async Task Ef_command_audit_marks_expired_in_flight_reservation_as_outcome_unknown()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -318,6 +355,34 @@ public sealed class PersistenceModelTests
         var record = await db.CommandAudits.SingleAsync(x => x.CorrelationId == request.CorrelationId);
         Assert.Equal(nameof(CommandExecutionStatus.Failed), record.Status);
         Assert.Equal("DEVICE_REVOKED", record.Code);
+    }
+
+    [Fact]
+    public async Task Ef_command_audit_keeps_who_sent_a_physical_command_what_it_asked_and_why_it_failed()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(nameof(Ef_command_audit_keeps_who_sent_a_physical_command_what_it_asked_and_why_it_failed))
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        var sender = new UserId(Guid.NewGuid());
+        var request = new DeviceCommandRequest(
+            new DeviceId(Guid.NewGuid()), sender, "control", "pulse",
+            new Dictionary<string, object?> { ["channel"] = 1, ["duration_ms"] = 1000 }, "relay-pulse", DateTimeOffset.UtcNow);
+        var plan = new CommandExecutionPlan(
+            request,
+            new CommandDefinition("control", "pulse", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical),
+            1, request.RequestedAt.AddSeconds(10));
+        var audit = new EfCommandAuditStore(db);
+
+        await audit.ReserveAsync(plan, CommandRequestFingerprint.Compute(request));
+        await audit.RecordAsync(plan, new CommandExecutionResult(CommandExecutionStatus.Failed, "DEVICE_REJECTED",
+            request.CorrelationId, "ESP_ERR_INVALID_STATE: channel not in pulse mode"));
+
+        var record = await db.CommandAudits.AsNoTracking().SingleAsync(x => x.CorrelationId == "relay-pulse");
+        Assert.Equal(sender.Value, record.IssuedBy);
+        Assert.Equal("ESP_ERR_INVALID_STATE: channel not in pulse mode", record.Detail);
+        Assert.Contains("\"duration_ms\":1000", record.PayloadSummary);
+        Assert.Equal("ESP_ERR_INVALID_STATE: channel not in pulse mode", audit.Find(request.DeviceId, "relay-pulse")!.Detail);
     }
 
     [Fact]

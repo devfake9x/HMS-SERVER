@@ -2,6 +2,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import DeviceDetailView from './DeviceDetailView.vue'
+import { adminApi } from '@/core/api/adminApi'
+
+const hubHandlers = vi.hoisted(() => new Map<string, (payload: unknown) => void>())
 
 const mockRouter = {
   push: vi.fn(),
@@ -58,6 +61,7 @@ vi.mock('@/core/api/adminApi', () => ({
         free_heap: 1466815,
         network: { active_uplink: 'Ethernet', ethernet: { ip: '192.168.1.127' } },
         services: [{ name: 'mqtt', health: 'HEALTHY' }],
+        digital_outputs: [{ channel: 1, state: false }, { channel: 2, state: true }],
       },
     }),
     deviceLink: vi.fn().mockResolvedValue({
@@ -71,7 +75,21 @@ vi.mock('@/core/api/adminApi', () => ({
       capabilitiesAt: null,
       capabilityCount: 0,
       brokerConnected: true,
+      allowedOutputChannels: [],
+      canControlOutputs: false,
+      canViewOutputs: true,
     }),
+    deviceOutputs: vi.fn().mockResolvedValue({
+      kind: 'ok',
+      state: {
+        channels: [{ channel: 1, state: true, mode: 'toggle', pulseActive: false }],
+        readAt: '2026-09-30T16:00:00Z',
+        stale: false,
+        staleReason: null,
+      },
+    }),
+    sendCommand: vi.fn(),
+    commandResult: vi.fn(),
   },
   getCsrf: vi.fn().mockResolvedValue({ requestToken: 'test-csrf' }),
 }))
@@ -81,7 +99,7 @@ vi.mock('@/core/realtime/signalRConnection', () => ({
     start: async () => undefined,
     stop: async () => undefined,
     invoke: async () => undefined,
-    on: () => undefined,
+    on: (name: string, handler: (payload: unknown) => void) => { hubHandlers.set(name, handler) },
     off: () => undefined,
   }),
 }))
@@ -107,6 +125,55 @@ describe('DeviceDetailView', () => {
     expect(wrapper.find('[data-test="device-link-online"]').text()).toBe('Online')
     expect(wrapper.find('[data-test="device-link-key"]').text()).toBe('not registered')
     expect(wrapper.text()).not.toContain('broker.emqx.io')
+  })
+
+  it('shows relay outputs only from the verified outputs read, never from telemetry', async () => {
+    const wrapper = mount(DeviceDetailView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="do-panel"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="do-1-state"]').text()).toBe('ON')
+    expect(wrapper.find('[data-test="do-2-state"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="do-1-toggle"]').exists()).toBe(false)
+  })
+
+  it('offers the relay panel for a bound device that has sent no telemetry yet', async () => {
+    vi.mocked(adminApi.deviceTelemetry).mockRejectedValueOnce(new Error('Request failed (404)'))
+    const wrapper = mount(DeviceDetailView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="do-panel"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="device-link-online"]').exists()).toBe(true)
+  })
+
+  it('shows no invented digital inputs', async () => {
+    const wrapper = mount(DeviceDetailView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="di-1-state"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="di-unavailable"]').text()).toContain('DI không đọc được qua MQTT')
+  })
+
+  it('reloads the relay outputs when the server announces an outputs change', async () => {
+    mount(DeviceDetailView)
+    await flushPromises()
+    const outputs = vi.mocked(adminApi.deviceOutputs)
+    const links = vi.mocked(adminApi.deviceLink)
+    const before = outputs.mock.calls.length
+    const linksBefore = links.mock.calls.length
+
+    hubHandlers.get('DeviceEvent')?.({
+      deviceId: 'dev-101',
+      authorizationEpoch: 5,
+      policyVersion: 1,
+      eventType: 'outputs',
+      payload: { readAt: '2026-09-30T16:01:00Z', stale: true, staleReason: 'device_offline' },
+    })
+    await flushPromises()
+
+    expect(outputs.mock.calls.length).toBe(before + 1)
+    // The online and broker flags that decide whether the reading still counts are refreshed too.
+    expect(links.mock.calls.length).toBe(linksBefore + 1)
   })
 
   it('switches between tabs when navigation is clicked', async () => {

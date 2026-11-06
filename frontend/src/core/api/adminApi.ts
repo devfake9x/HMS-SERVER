@@ -110,7 +110,19 @@ export interface DeviceLinkDto {
   capabilitiesAt: string | null
   capabilityCount: number
   brokerConnected: boolean
+  /** Channels the server may drive; empty means none (fail closed). */
+  allowedOutputChannels: number[]
+  /** The caller's device-role permissions, as the server checks them. */
+  canControlOutputs: boolean
+  canViewOutputs: boolean
 }
+export interface OutputChannelDto { channel: number; state: boolean; mode: string | null; pulseActive: boolean | null }
+/** Relay state from the last verified control.get_status reply. */
+export interface DeviceOutputsDto { channels: OutputChannelDto[]; readAt: string; stale: boolean; staleReason: string | null }
+export type DeviceOutputsResult =
+  | { kind: 'ok'; state: DeviceOutputsDto }
+  | { kind: 'not_read' }
+  | { kind: 'forbidden' }
 export interface ManagedUserDto { id: string; email: string; emailConfirmed: boolean; roles: string[] }
 export interface RealtimeAuthorizationDto { deviceId: string; authorizationEpoch: number; policyVersion: number }
 
@@ -237,4 +249,14 @@ export const adminApi = {
     request<CommandResultDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/commands/${encodeURIComponent(correlationId)}`, { cache: 'no-store' }, options),
   deviceLink: (deviceId: string, options?: AdminApiOptions) =>
     request<DeviceLinkDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/link`, { cache: 'no-store' }, options),
+  deviceOutputs: async (deviceId: string, options?: AdminApiOptions): Promise<DeviceOutputsResult> => {
+    try {
+      return { kind: 'ok', state: await request<DeviceOutputsDto>(`/api/v1/devices/${encodeURIComponent(deviceId)}/outputs`, { cache: 'no-store' }, options) }
+    } catch (error) {
+      const status = Number(/\((\d{3})\)/.exec(String((error as Error)?.message))?.[1] ?? 0)
+      if (status === 404) return { kind: 'not_read' }
+      if (status === 403) return { kind: 'forbidden' }
+      throw error
+    }
+  },
 }

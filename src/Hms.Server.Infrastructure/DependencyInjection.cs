@@ -41,15 +41,19 @@ public static class DependencyInjection
             services.AddScoped<IDeviceMqttBindingStore, EfDeviceMqttBindingStore>();
         else
             services.AddSingleton<IDeviceMqttBindingStore, InMemoryDeviceMqttBindingStore>();
+        services.AddSingleton<IDeviceOutputStateStore, InMemoryDeviceOutputStateStore>();
+        services.AddScoped<DeviceReplyProjection>();
         services.AddScoped<DeviceCommandResponseCorrelator>();
         services.AddScoped<DeviceInboundMessageHandler>();
         services.AddScoped<ConfigureDeviceMqttBindingHandler>();
+        services.AddScoped<SetDeviceOutputChannelsHandler>();
         services.AddScoped<ImportDeviceCommandKeyHandler>();
         if (enableLiveMqtt)
         {
             services.AddSingleton<Mqtt.MqttDeviceLinkService>();
             services.AddHostedService(sp => sp.GetRequiredService<Mqtt.MqttDeviceLinkService>());
             services.AddSingleton<IDeviceLinkTransportStatus>(sp => sp.GetRequiredService<Mqtt.MqttDeviceLinkService>());
+            services.AddSingleton<Mqtt.IMqttCommandPublisher>(sp => sp.GetRequiredService<Mqtt.MqttDeviceLinkService>());
             services.AddScoped<IDeviceCommandTransport, Mqtt.MqttDeviceCommandTransport>();
         }
         else

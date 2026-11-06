@@ -25,7 +25,12 @@ public sealed class EfDeviceMqttBindingStore(ApplicationDbContext db) : IDeviceM
         var record = db.DeviceMqttBindings.SingleOrDefault(x => x.DeviceId == binding.DeviceId.Value);
         if (record is null)
         {
-            record = new DeviceMqttBindingRecord { DeviceId = binding.DeviceId.Value };
+            // Only a new row takes the allowlist from the caller; see the interface.
+            record = new DeviceMqttBindingRecord
+            {
+                DeviceId = binding.DeviceId.Value,
+                AllowedOutputChannels = FormatChannels(binding.AllowedOutputChannels)
+            };
             db.DeviceMqttBindings.Add(record);
         }
 
@@ -45,7 +50,51 @@ public sealed class EfDeviceMqttBindingStore(ApplicationDbContext db) : IDeviceM
         }
     }
 
+    public bool SetAllowedOutputChannels(DeviceId deviceId, IReadOnlyList<int>? channels)
+    {
+        var stored = FormatChannels(channels);
+        var now = DateTimeOffset.UtcNow;
+        if (db.Database.IsRelational())
+        {
+            // One column, one statement: nothing read earlier is written back.
+            return db.DeviceMqttBindings
+                .Where(x => x.DeviceId == deviceId.Value)
+                .ExecuteUpdate(setters => setters
+                    .SetProperty(x => x.AllowedOutputChannels, stored)
+                    .SetProperty(x => x.UpdatedAt, now)) > 0;
+        }
+
+        var record = db.DeviceMqttBindings.SingleOrDefault(x => x.DeviceId == deviceId.Value);
+        if (record is null)
+            return false;
+        record.AllowedOutputChannels = stored;
+        record.UpdatedAt = now;
+        db.SaveChanges();
+        return true;
+    }
+
+    private static string? FormatChannels(IReadOnlyList<int>? channels) =>
+        channels is null ? null : string.Join(',', channels);
+
     private static DeviceMqttBinding ToBinding(DeviceMqttBindingRecord record) =>
         new(new DeviceId(record.DeviceId), record.TopicPrefix, record.MqttDeviceId,
-            record.KeyVersion is { } version ? (uint)version : null);
+            record.KeyVersion is { } version ? (uint)version : null,
+            ParseChannels(record.AllowedOutputChannels));
+
+    // A stored value that does not parse allows nothing rather than everything.
+    private static IReadOnlyList<int>? ParseChannels(string? stored)
+    {
+        if (stored is null)
+            return null;
+        var parts = stored.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var channels = new List<int>(parts.Length);
+        foreach (var part in parts)
+        {
+            if (!int.TryParse(part, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var channel))
+                return [];
+            channels.Add(channel);
+        }
+
+        return channels;
+    }
 }

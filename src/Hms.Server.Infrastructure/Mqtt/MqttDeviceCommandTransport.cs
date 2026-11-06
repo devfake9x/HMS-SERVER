@@ -4,15 +4,35 @@ using Microsoft.Extensions.Options;
 
 namespace Hms.Server.Infrastructure.Mqtt;
 
+/// <summary>The publish side of the broker session, as the transport needs it.</summary>
+public interface IMqttCommandPublisher
+{
+    bool IsConnected { get; }
+
+    /// <summary>Null when the broker accepted the message; otherwise a failure code.</summary>
+    ValueTask<string?> PublishCommandAsync(string commandTopic, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// Publishes prepared commands on the live broker link. "Published" only means the broker took
 /// the message; the device outcome arrives later on <c>B/cmd/res</c> or as a timeout.
 /// </summary>
 public sealed class MqttDeviceCommandTransport(
-    MqttDeviceLinkService link,
+    IMqttCommandPublisher link,
     IPendingDeviceCommandRegistry pending,
     IOptions<MqttLinkOptions> options) : IDeviceCommandTransport
 {
+    /// <summary>Failures raised before anything was handed to the broker: the command certainly
+    /// did not leave the server.</summary>
+    public static readonly IReadOnlySet<string> NeverSentCodes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "MQTT_NOT_CONNECTED",
+        "MQTT_RESPONSE_SUBSCRIPTION_MISSING",
+        "MQTT_COMMAND_TOPIC_INVALID"
+    };
+
+    public const string PublishUnconfirmed = CommandTransportOutcome.PublishUnconfirmed;
+
     public async ValueTask<CommandExecutionResult> SendAsync(
         CommandExecutionPlan plan,
         PreparedDeviceCommand prepared,
@@ -35,15 +55,22 @@ public sealed class MqttDeviceCommandTransport(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            failure = "MQTT_PUBLISH_FAILED";
+            failure = PublishUnconfirmed;
         }
 
-        if (failure is not null)
+        if (failure is null)
+            return new(CommandExecutionStatus.Published, "MQTT_PUBLISHED", correlationId, KeyGeneration: plan.KeyGeneration);
+
+        if (NeverSentCodes.Contains(failure))
         {
             pending.Remove(plan.Request.DeviceId, correlationId);
             return new(CommandExecutionStatus.Failed, failure, correlationId);
         }
 
-        return new(CommandExecutionStatus.Published, "MQTT_PUBLISHED", correlationId, KeyGeneration: plan.KeyGeneration);
+        // The broker may have taken the message even though we saw no acknowledgement. Keep it
+        // pending so a reply still closes it, or the sweep marks it outcome-unknown (spec R4).
+        return new(CommandExecutionStatus.Failed, PublishUnconfirmed, correlationId,
+            $"Publish not acknowledged ({failure}); the device may still run it. Read state before retrying.",
+            plan.KeyGeneration);
     }
 }

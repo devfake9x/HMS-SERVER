@@ -41,6 +41,22 @@ public enum CommandExecutionStatus
     Failed
 }
 
+public static class CommandTransportOutcome
+{
+    /// <summary>The broker did not confirm the publish: the device may still run the command.</summary>
+    public const string PublishUnconfirmed = "MQTT_PUBLISH_UNCONFIRMED";
+
+    /// <summary>Text recorded for commands a restart left without an outcome.</summary>
+    public const string AfterRestartDetail =
+        "The server restarted before the device replied; read device state before retrying.";
+
+    /// <summary>True for what the sender learns about its own publish. That describes the transport
+    /// only, so it must never replace an outcome the device already reported.</summary>
+    public static bool IsTransportOnly(CommandExecutionResult result) =>
+        result.Status == CommandExecutionStatus.Published ||
+        StringComparer.Ordinal.Equals(result.Code, PublishUnconfirmed);
+}
+
 public sealed record CommandExecutionResult(
     CommandExecutionStatus Status,
     string Code,
@@ -106,6 +122,11 @@ public interface ICommandAuditStore
 
     /// <summary>Moves unfinished commands to a terminal, non-retryable revoke outcome.</summary>
     int CancelPendingForDevice(DeviceId deviceId, string code = "DEVICE_REVOKED");
+
+    /// <summary>At startup: commands still in flight or "Published" belonged to a process that can no
+    /// longer receive their reply, and may have reached the device before it stopped. Their outcome
+    /// is unknown (spec R4), never success.</summary>
+    int FailUnfinished(string code);
 
     ValueTask<CommandAuditReservation> ReserveAsync(
         CommandExecutionPlan plan,
@@ -290,6 +311,30 @@ public sealed class InMemoryCommandAuditStore : ICommandAuditStore
         }
     }
 
+    public int FailUnfinished(string code)
+    {
+        lock (_gate)
+        {
+            var failed = 0;
+            foreach (var key in _records.Keys.ToArray())
+            {
+                var entry = _records[key];
+                if (entry.Result is not null && entry.Result.Status != CommandExecutionStatus.Published)
+                    continue;
+                _records[key] = entry with
+                {
+                    Result = new CommandExecutionResult(CommandExecutionStatus.Failed, code,
+                        entry.Plan.Request.CorrelationId,
+                        CommandTransportOutcome.AfterRestartDetail,
+                        entry.Plan.KeyGeneration)
+                };
+                failed++;
+            }
+
+            return failed;
+        }
+    }
+
     public ValueTask<CommandAuditReservation> ReserveAsync(
         CommandExecutionPlan plan,
         string requestFingerprint,
@@ -334,9 +379,9 @@ public sealed class InMemoryCommandAuditStore : ICommandAuditStore
                 // not overwrite the explicit non-retryable outcome.
                 if (StringComparer.Ordinal.Equals(existing.Result?.Code, "DEVICE_REVOKED"))
                     return ValueTask.CompletedTask;
-                // The device can reply before the sender records "published"; that late
+                // The device can reply before the sender records its publish result; that late
                 // transport status must not overwrite the device's outcome.
-                if (result.Status == CommandExecutionStatus.Published && existing.Result is not null)
+                if (CommandTransportOutcome.IsTransportOnly(result) && existing.Result is not null)
                     return ValueTask.CompletedTask;
                 _records[key] = existing with { Result = result };
             }

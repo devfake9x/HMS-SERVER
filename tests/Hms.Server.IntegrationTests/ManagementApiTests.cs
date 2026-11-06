@@ -192,11 +192,15 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Contains(actions.EnumerateArray(), action =>
             action.GetProperty("type").GetString() == "system" &&
             action.GetProperty("action").GetString() == "get_info");
-        // Only the server's allowlist of closed read actions is offered as available.
-        Assert.All(actions.EnumerateArray(), action => Assert.Equal(
-            Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.EnabledActions.Contains(
-                (action.GetProperty("type").GetString()!, action.GetProperty("action").GetString()!)),
-            action.GetProperty("available").GetBoolean()));
+        // Only the server's allowlists (closed reads, relay outputs) are offered as available.
+        Assert.All(actions.EnumerateArray(), action =>
+        {
+            var pair = (action.GetProperty("type").GetString()!, action.GetProperty("action").GetString()!);
+            Assert.Equal(
+                Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.EnabledActions.Contains(pair) ||
+                Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.PhysicalOutputActions.Contains(pair),
+                action.GetProperty("available").GetBoolean());
+        });
     }
 
     [Fact]
@@ -242,7 +246,9 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Equal("wifi.ap_view", configGet.GetProperty("permissionByDomain").GetProperty("wifi_ap").GetString());
         Assert.False(configGet.GetProperty("highRisk").GetBoolean());
 
-        Assert.Equal(15, actions.Values.Count(x => x.GetProperty("highRisk").GetBoolean()));
+        // 15 rows plus the three relay output rows (gpio.do_write is high risk).
+        Assert.Equal(18, actions.Values.Count(x => x.GetProperty("highRisk").GetBoolean()));
+        Assert.True(actions["control.set_output"].GetProperty("highRisk").GetBoolean());
         Assert.All(actions.Values, x => Assert.Equal(
             new[]
             {
@@ -250,6 +256,109 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
                 "requiresConfirmation", "dryRunSupported", "ttlMs", "highRisk"
             },
             x.EnumerateObject().Select(p => p.Name).ToArray()));
+    }
+
+    [Fact]
+    public async Task Output_channel_allowlist_is_master_admin_only_validated_and_survives_rebinding()
+    {
+        // A device of its own: other tests revoke the shared child device.
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("relay-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+        }
+
+        var linkPath = $"/api/v1/devices/{deviceId}/link";
+        var mqttDeviceId = $"dev_{Guid.NewGuid():N}"[..24];
+        using var manager = _factory.CreateClientForUser(_factory.ScopedUserId,
+            new Claim("org-scope", _factory.ParentOrganizationId.ToString()),
+            new Claim("perm", "devices.manage"));
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+
+        var bind = await PutJsonAsync(manager, linkPath, new { topicPrefix = "test_lab", mqttDeviceId });
+        Assert.True(bind.IsSuccessStatusCode, await bind.Content.ReadAsStringAsync());
+        // devices.manage may bind a device but never open its relay outputs.
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await PutJsonAsync(manager, $"{linkPath}/output-channels", new { channels = new[] { 1 } })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await PutJsonAsync(admin, $"{linkPath}/output-channels", new { channels = new[] { 0 } })).StatusCode);
+        // Without the antiforgery token even a master admin is refused.
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await admin.PutAsJsonAsync($"{linkPath}/output-channels", new { channels = new[] { 1 } })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await PutJsonAsync(admin, $"{linkPath}/output-channels", new { channels = new[] { 3, 1 } })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await PutJsonAsync(manager, linkPath, new { topicPrefix = "test_lab", mqttDeviceId, keyVersion = 2 })).StatusCode);
+
+        var link = await admin.GetFromJsonAsync<JsonElement>(linkPath);
+        Assert.Equal([1, 3], link.GetProperty("allowedOutputChannels").EnumerateArray().Select(x => x.GetInt32()));
+    }
+
+    [Fact]
+    public async Task Telemetry_ingestion_is_master_admin_only()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("telemetry-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+        }
+        using var manager = _factory.CreateClientForUser(_factory.ScopedUserId,
+            new Claim("org-scope", _factory.ParentOrganizationId.ToString()),
+            new Claim("perm", "devices.manage"));
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+        var path = $"/api/v1/devices/{deviceId}/telemetry";
+        var body = new Dictionary<string, object?> { ["uptime_seconds"] = 5 };
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await PostAsync(manager, path, body)).StatusCode);
+        Assert.True((await PostAsync(admin, path, body)).IsSuccessStatusCode);
+    }
+
+    [Fact]
+    public async Task Output_state_needs_the_view_permission_and_link_reports_what_the_caller_may_do()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("relay-state-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+        }
+        using var viewer = _factory.CreateClientForUser(_factory.ScopedUserId,
+            new Claim("org-scope", _factory.ParentOrganizationId.ToString()));
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+        var outputsPath = $"/api/v1/devices/{deviceId}/outputs";
+
+        using (var notRead = await admin.GetAsync(outputsPath))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, notRead.StatusCode);
+            Assert.Equal("OUTPUTS_NOT_READ", (await notRead.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        }
+        using (var scope = _factory.Services.CreateScope())
+        {
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.IDeviceOutputStateStore>()
+                .Set(new DeviceId(deviceId), [new(1, true, "toggle", false), new(2, false, "pulse", null)], DateTimeOffset.UtcNow);
+        }
+
+        // In scope, but no device role granting gpio.do_view.
+        Assert.Equal(HttpStatusCode.Forbidden, (await viewer.GetAsync(outputsPath)).StatusCode);
+        var state = await admin.GetFromJsonAsync<JsonElement>(outputsPath);
+        Assert.Equal(2, state.GetProperty("channels").GetArrayLength());
+        Assert.True(state.GetProperty("channels")[0].GetProperty("state").GetBoolean());
+        Assert.False(state.GetProperty("stale").GetBoolean());
+
+        var viewerLink = await viewer.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/link");
+        var adminLink = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/link");
+        Assert.False(viewerLink.GetProperty("canControlOutputs").GetBoolean());
+        Assert.False(viewerLink.GetProperty("canViewOutputs").GetBoolean());
+        Assert.True(adminLink.GetProperty("canControlOutputs").GetBoolean());
+        Assert.True(adminLink.GetProperty("canViewOutputs").GetBoolean());
     }
 
     [Fact]
@@ -1052,6 +1161,14 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
     {
         var csrf = await client.GetFromJsonAsync<CsrfResponse>("/api/v1/auth/csrf");
         using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
+        request.Headers.Add("X-CSRF-TOKEN", csrf!.RequestToken);
+        return await client.SendAsync(request);
+    }
+
+    private static async Task<HttpResponseMessage> PutJsonAsync(HttpClient client, string path, object body)
+    {
+        var csrf = await client.GetFromJsonAsync<CsrfResponse>("/api/v1/auth/csrf");
+        using var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(body) };
         request.Headers.Add("X-CSRF-TOKEN", csrf!.RequestToken);
         return await client.SendAsync(request);
     }

@@ -136,9 +136,15 @@ if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Develop
             if (!string.IsNullOrWhiteSpace(seed.CommandKeyHex))
                 scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.ImportDeviceCommandKeyHandler>()
                     .Handle(deviceId, seed.CommandKeyHex);
-            app.Logger.LogInformation("Bound device {DeviceId} to MQTT base {Prefix}/{MqttDeviceId} (command key {KeyState})",
+            // Left out = no output channel may be driven (fail closed).
+            if (seed.AllowedOutputChannels is { } channels)
+                scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.SetDeviceOutputChannelsHandler>()
+                    .Handle(deviceId, channels);
+            app.Logger.LogInformation(
+                "Bound device {DeviceId} to MQTT base {Prefix}/{MqttDeviceId} (command key {KeyState}, output channels [{Channels}])",
                 seed.DeviceId, seed.TopicPrefix, seed.MqttDeviceId,
-                string.IsNullOrWhiteSpace(seed.CommandKeyHex) ? "not configured" : "registered");
+                string.IsNullOrWhiteSpace(seed.CommandKeyHex) ? "not configured" : "registered",
+                string.Join(',', seed.AllowedOutputChannels ?? []));
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
@@ -146,6 +152,16 @@ if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Develop
             app.Logger.LogWarning("MQTT seed for device {DeviceId} skipped: {Code}", seed.DeviceId, ex.Message.Split(' ')[0]);
         }
     }
+}
+
+// Commands still "Published" from a previous run can no longer get their reply; record their
+// outcome as unknown so nobody reads them as pending or successful (spec R4).
+using (var startupScope = app.Services.CreateScope())
+{
+    var unfinished = startupScope.ServiceProvider.GetRequiredService<Hms.Server.Application.Commands.ICommandAuditStore>()
+        .FailUnfinished("OUTCOME_UNKNOWN_AFTER_RESTART");
+    if (unfinished > 0)
+        app.Logger.LogWarning("{Count} device command(s) left published by a previous run marked outcome unknown", unfinished);
 }
 
 app.Run();

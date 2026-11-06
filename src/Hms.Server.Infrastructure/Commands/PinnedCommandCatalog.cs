@@ -61,6 +61,17 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             ("control", "get_status")
         }.ToFrozenSet();
 
+    // Relay outputs (class B). pulse is SLICE_PASS in the spec; set_output is opened ahead of the
+    // firmware campaign by owner decision (2026-11-06): §6.4 defines its contract and every result
+    // is confirmed by a control.get_status read-back. set_all stays closed: it is not atomic.
+    // OutputCommandPolicy gates these before signing; it fails closed for any other class B row.
+    public static readonly FrozenSet<(string Type, string Action)> PhysicalOutputActions =
+        new HashSet<(string Type, string Action)>
+        {
+            ("control", "set_output"),
+            ("control", "pulse")
+        }.ToFrozenSet();
+
     private readonly IReadOnlyDictionary<(string Type, string Action), CommandDefinition> _definitions;
 
     public PinnedCommandCatalog() : this(ReadEmbeddedCatalog())
@@ -187,11 +198,15 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             row.TtlMs is <= 0 or > MaxTtlMs)
             throw new InvalidOperationException(RowInvalid);
 
-        // Only reads are ever opened, whatever the allowlist says: a write needs its own review of
-        // confirm, read-back and retry rules before the server signs it.
-        var availability = commandClass == CommandClass.Read && EnabledActions.Contains((row.Type, row.Action))
-            ? CommandAvailability.Enabled
-            : CommandAvailability.DeniedUntilActionContract;
+        // A row opens only through the list for its class: a write needs its own review of confirm,
+        // read-back and retry rules before the server signs it.
+        var opened = commandClass switch
+        {
+            CommandClass.Read => EnabledActions.Contains((row.Type, row.Action)),
+            CommandClass.Physical => PhysicalOutputActions.Contains((row.Type, row.Action)),
+            _ => false
+        };
+        var availability = opened ? CommandAvailability.Enabled : CommandAvailability.DeniedUntilActionContract;
         return new CommandDefinition(
             row.Type,
             row.Action,

@@ -23,8 +23,8 @@ public sealed class DevicePermissionCodesTests
         Assert.Equal(
             new[]
             {
-                "eth.edit", "mqtt.config_edit", "net.priority_edit", "sys.factory_reset", "sys.ota", "sys.reboot",
-                "wifi.sta_connect", "wifi.sta_edit"
+                "eth.edit", "gpio.do_write", "mqtt.config_edit", "net.priority_edit", "sys.factory_reset", "sys.ota",
+                "sys.reboot", "wifi.sta_connect", "wifi.sta_edit"
             },
             DevicePermissionCodes.HighRisk.Order(StringComparer.Ordinal).ToArray());
         Assert.Subset(

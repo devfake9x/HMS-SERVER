@@ -159,4 +159,28 @@ describe('DeviceCommandModal', () => {
     vi.restoreAllMocks()
     vi.useRealTimers()
   })
+
+  it('offers no relay writes, which only the DO panel may send', async () => {
+    const control = (action: string) => ({ type: 'control', action, featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: false, defaultTtlMs: 10000 })
+    const wrapper = mount(DeviceCommandModal, {
+      attachTo: document.body,
+      props: {
+        modelValue: true,
+        deviceId: 'dev-1',
+        deviceName: 'Device Alpha',
+        catalog: { ...catalog, actions: [control('get_status'), control('set_output'), control('pulse'), control('set_all')] },
+        catalogProof: { version: '1.0.0', hash: 'hash-abc' },
+        catalogFresh: true,
+        permissions,
+        csrfToken: 'csrf',
+      },
+    })
+    const vm = wrapper.vm as unknown as { selectedType: string; actionOptions: Array<{ value: string }> }
+    vm.selectedType = 'control'
+    await wrapper.vm.$nextTick()
+
+    expect(vm.actionOptions.map(o => o.value)).toEqual(['get_status'])
+    expect(document.body.querySelector('[data-test="do-panel-only-note"]')?.textContent).toContain('Điều khiển DO trên panel DO')
+    wrapper.unmount()
+  })
 })

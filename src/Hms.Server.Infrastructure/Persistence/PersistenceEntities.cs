@@ -42,6 +42,11 @@ public sealed class DeviceMqttBindingRecord
     public string TopicPrefix { get; set; } = string.Empty;
     public string MqttDeviceId { get; set; } = string.Empty;
     public long? KeyVersion { get; set; }
+
+    /// <summary>Comma-separated channel numbers ("1,3"); null or empty allows none. Text keeps the
+    /// in-memory and Npgsql providers identical.</summary>
+    public string? AllowedOutputChannels { get; set; }
+
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
@@ -85,6 +90,19 @@ public sealed class CommandAuditRecord
     public int KeyGeneration { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+
+    public const int MaxDetailLength = 1024;
+    public const int MaxPayloadSummaryLength = 512;
+
+    /// <summary>Who sent the command; null on rows written before this column existed.</summary>
+    public Guid? IssuedBy { get; set; }
+
+    /// <summary>The outcome's reason, e.g. the device's handler error.</summary>
+    public string? Detail { get; set; }
+
+    /// <summary>Compact JSON of the parameters, kept for commands that change the device
+    /// (physical, destructive, flash), so an operator can see what was asked.</summary>
+    public string? PayloadSummary { get; set; }
 }
 
 public sealed class PermissionGrantRecord

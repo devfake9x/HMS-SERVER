@@ -18,6 +18,20 @@ public sealed record DeviceTelemetryDto(
     string? ActiveUplink,
     IReadOnlyDictionary<string, object?> Data);
 
+/// <summary>Relay states never travel as telemetry: they are served only from the verified
+/// control.get_status read, behind gpio.do_view, while telemetry is readable by anyone who can
+/// view the device.</summary>
+public static class TelemetryRelayStates
+{
+    private static readonly string[] Keys = ["digital_outputs", "digitalOutputs"];
+
+    public static void Remove(IDictionary<string, object?> data)
+    {
+        foreach (var key in Keys)
+            data.Remove(key);
+    }
+}
+
 public interface IDeviceTelemetryStore
 {
     void Record(DeviceId deviceId, IReadOnlyDictionary<string, object?> data);
@@ -114,12 +128,9 @@ public sealed class InMemoryDeviceTelemetryStore : IDeviceTelemetryStore
         }
 
         var mergedData = new Dictionary<string, object?>(data);
+        TelemetryRelayStates.Remove(mergedData);
         if (_latest.TryGetValue(deviceId, out var existing) && existing.Data is not null)
         {
-            if (!mergedData.ContainsKey("digital_outputs") && existing.Data.TryGetValue("digital_outputs", out var existingDo))
-            {
-                mergedData["digital_outputs"] = existingDo;
-            }
             if (!mergedData.ContainsKey("digital_inputs") && existing.Data.TryGetValue("digital_inputs", out var existingDi))
             {
                 mergedData["digital_inputs"] = existingDi;

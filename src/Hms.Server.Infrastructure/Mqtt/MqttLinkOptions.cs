@@ -26,6 +26,10 @@ public sealed class MqttLinkOptions
     /// <summary>Spec R4: after 30 s without a reply the outcome is unknown.</summary>
     public int ResponseTimeoutSeconds { get; set; } = 30;
 
+    /// <summary>Server cap on <c>control.pulse</c> duration. The spec leaves the device's own
+    /// limit to its HTTP configuration (§6.4), so this is a server safety policy.</summary>
+    public int MaxPulseMs { get; set; } = Application.DeviceLink.OutputCommandPolicy.DefaultMaxPulseMs;
+
     /// <summary>Development seed: devices to bind (and, from a secret store only, their command
     /// key) at startup. Production binds devices through the API.</summary>
     public List<MqttDeviceSeedOptions> Devices { get; set; } = [];
@@ -40,6 +44,11 @@ public sealed class MqttLinkOptions
             throw new InvalidOperationException("MQTT_CLIENT_ID_INVALID");
         if (ResponseTimeoutSeconds is < 1 or > 600 || KeepAliveSeconds is < 5 or > 3600 || ReconnectDelaySeconds is < 1 or > 300)
             throw new InvalidOperationException("MQTT_TIMING_INVALID");
+        // A physical command must expire on the device before the server gives up on its reply.
+        if (ResponseTimeoutSeconds * 1000L <= Application.Commands.SendDeviceCommandHandler.PhysicalCommandTtlMs)
+            throw new InvalidOperationException("MQTT_TIMING_INVALID");
+        if (MaxPulseMs is < 1 or > 3_600_000)
+            throw new InvalidOperationException("MQTT_MAX_PULSE_INVALID");
     }
 }
 
@@ -53,4 +62,7 @@ public sealed class MqttDeviceSeedOptions
     /// <summary>64 hex characters. Set it through user secrets or the environment, never in a
     /// committed settings file.</summary>
     public string? CommandKeyHex { get; set; }
+
+    /// <summary>Output channels the server may drive. Left out = none (fail closed).</summary>
+    public int[]? AllowedOutputChannels { get; set; }
 }

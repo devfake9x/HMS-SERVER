@@ -170,14 +170,25 @@ namespace Hms.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Detail")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
                     b.Property<Guid>("DeviceId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("IssuedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("KeyGeneration")
                         .HasColumnType("integer");
+
+                    b.Property<string>("PayloadSummary")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<string>("RequestFingerprint")
                         .IsRequired()
@@ -320,6 +331,10 @@ namespace Hms.Server.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("DeviceId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AllowedOutputChannels")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<long?>("KeyVersion")
                         .HasColumnType("bigint");
