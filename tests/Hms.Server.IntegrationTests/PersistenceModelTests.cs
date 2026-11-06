@@ -386,6 +386,35 @@ public sealed class PersistenceModelTests
     }
 
     [Fact]
+    public async Task Ef_command_audit_keeps_what_an_opened_config_write_asked_and_nothing_of_other_writes()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(nameof(Ef_command_audit_keeps_what_an_opened_config_write_asked_and_nothing_of_other_writes))
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        var audit = new EfCommandAuditStore(db);
+        var device = new DeviceId(Guid.NewGuid());
+
+        async Task<CommandAuditRecord> WriteAsync(string type, string action, string id, Dictionary<string, object?> payload)
+        {
+            var request = new DeviceCommandRequest(device, new UserId(Guid.NewGuid()), type, action, payload, id, DateTimeOffset.UtcNow);
+            var plan = new CommandExecutionPlan(request,
+                new CommandDefinition(type, action, "x.edit", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Write),
+                1, request.RequestedAt.AddSeconds(10));
+            await audit.ReserveAsync(plan, CommandRequestFingerprint.Compute(request));
+            await audit.RecordAsync(plan, new CommandExecutionResult(CommandExecutionStatus.Executed, "DEVICE_EXECUTED", id));
+            return await db.CommandAudits.AsNoTracking().SingleAsync(x => x.CorrelationId == id);
+        }
+
+        var hostname = await WriteAsync("system", "set_hostname", "config-hostname", new() { ["hostname"] = "gw-t" });
+        // A write class whose payload may carry secrets (Wi-Fi, MQTT passwords) stays unrecorded.
+        var other = await WriteAsync("network", "wifi_sta_config_set", "config-wifi", new() { ["password"] = "never-stored" });
+
+        Assert.Contains("\"hostname\":\"gw-t\"", hostname.PayloadSummary);
+        Assert.Null(other.PayloadSummary);
+    }
+
+    [Fact]
     public async Task Ef_command_completion_without_reservation_does_not_stage_an_audit_row()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()

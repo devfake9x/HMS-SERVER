@@ -90,6 +90,21 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             ("control", "pulse")
         }.ToFrozenSet();
 
+    // Configuration writes (classes W and C) opened ahead of the firmware campaign by owner decision
+    // (2026-11-06): they change neither the network path nor the device clock. ConfigCommandPolicy
+    // holds the exact payload rule of each one and fails closed for any other write. set_time and
+    // set_ntp_servers stay closed: a wrong device clock makes the device refuse every later command,
+    // including the one that would fix it, or turns off its command age check (spec §2, §3).
+    public static readonly FrozenSet<(string Type, string Action)> ConfigWriteActions =
+        new HashSet<(string Type, string Action)>
+        {
+            ("system", "set_hostname"),
+            ("system", "set_timezone"),
+            ("system", "sync_ntp"),
+            ("adc", "set_channel"),
+            ("adc", "toggle_channel")
+        }.ToFrozenSet();
+
     private readonly IReadOnlyDictionary<(string Type, string Action), CommandDefinition> _definitions;
 
     public PinnedCommandCatalog() : this(ReadEmbeddedCatalog())
@@ -222,6 +237,7 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
         {
             CommandClass.Read => EnabledActions.Contains((row.Type, row.Action)),
             CommandClass.Physical => PhysicalOutputActions.Contains((row.Type, row.Action)),
+            CommandClass.Write or CommandClass.Control => ConfigWriteActions.Contains((row.Type, row.Action)),
             _ => false
         };
         var availability = opened ? CommandAvailability.Enabled : CommandAvailability.DeniedUntilActionContract;

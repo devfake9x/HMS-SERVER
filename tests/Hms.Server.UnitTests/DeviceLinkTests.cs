@@ -126,8 +126,12 @@ public sealed class DeviceLinkTests
         var withMqttId = await link.Adapter.PrepareAsync(link.Plan(definition, confirm: "REBOOT-gateway_870c"));
 
         Assert.Equal("CONFIRM_MISMATCH", withGuid.FailureCode);
-        Assert.True(withMqttId.CanPublish);
-        Assert.Contains("\"confirm\":\"REBOOT-gateway_870c\"", Encoding.UTF8.GetString(withMqttId.Payload.Span));
+        // The right token passes the confirm check. A flash write has no payload rule yet, so the
+        // config policy stops it there until it is opened with its own review.
+        Assert.Equal(ConfigCommandPolicy.ActionUnsupported, withMqttId.FailureCode);
+        var unsigned = HmsIdfCommandCodec.Serialize(new HmsIdfCommandCodec.CommandEnvelope(
+            "system", "reboot-1", 1_790_899_200, 60_000, "reboot", Confirm: "REBOOT-gateway_870c"));
+        Assert.Contains("\"confirm\":\"REBOOT-gateway_870c\"", Encoding.UTF8.GetString(unsigned));
     }
 
     [Fact]
@@ -206,6 +210,55 @@ public sealed class DeviceLinkTests
         Assert.Equal(status, recorded.Status);
         Assert.Equal(code, recorded.Code);
         Assert.Equal(detail, recorded.Detail);
+    }
+
+    [Fact]
+    public async Task A_confirm_token_is_signed_into_the_command_the_device_receives()
+    {
+        // A config write with a confirm gate (none of the opened ones has one yet, so this row is
+        // made up): the token built from the MQTT device id must be in the signed bytes.
+        var link = new Link();
+        var definition = new CommandDefinition("system", "set_hostname", "sys.hostname_edit", CommandAvailability.Enabled,
+            false, true, 60000, CommandClass.Write, ConfirmTemplate: "HOST-<DEVID>");
+        var plan = link.Plan(definition, confirm: "HOST-gateway_870c",
+            payload: new Dictionary<string, object?> { ["hostname"] = "gw-t" });
+
+        var prepared = await link.Adapter.PrepareAsync(plan);
+
+        Assert.True(prepared.CanPublish);
+        Assert.Contains("\"confirm\":\"HOST-gateway_870c\"", Encoding.UTF8.GetString(prepared.Payload.Span));
+    }
+
+    [Fact]
+    public async Task A_config_write_the_device_is_still_running_keeps_the_write_lane_closed()
+    {
+        var link = new Link();
+        var setChannel = new CommandDefinition("adc", "set_channel", "adc.config_edit", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Write);
+        var plan = await link.PublishedAsync(setChannel);
+        var receivedAt = DateTimeOffset.UtcNow;
+
+        await link.Correlator.HandleAsync(link.Device.Id, link.SignedReply(plan,
+            """{"success":false,"error":"ESP_ERR_TIMEOUT","data":{"accepted":true,"pending":true,"operation_id":"7"}}"""), receivedAt);
+
+        Assert.Equal(CommandExecutionStatus.Acknowledged, link.Audit.Find(link.Device.Id, plan.Request.CorrelationId)!.Status);
+        var next = link.Plan(setChannel);
+        Assert.Equal(DeviceLaneCodes.WriteBusy,
+            link.Pending.TryRegisterWrite(new PendingDeviceCommand(next, receivedAt.AddSeconds(59), receivedAt.AddSeconds(89)), 10));
+        Assert.Null(link.Pending.TryRegisterWrite(new PendingDeviceCommand(next, receivedAt.AddSeconds(61), receivedAt.AddSeconds(91)), 10));
+    }
+
+    [Fact]
+    public async Task A_config_write_the_device_finished_frees_the_write_lane_at_once()
+    {
+        var link = new Link();
+        var setHostname = new CommandDefinition("system", "set_hostname", "sys.hostname_edit", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Write);
+        var plan = await link.PublishedAsync(setHostname);
+        var receivedAt = DateTimeOffset.UtcNow;
+
+        await link.Correlator.HandleAsync(link.Device.Id, link.SignedReply(plan, """{"success":true,"data":{"hostname":"gw-t"}}"""), receivedAt);
+
+        var next = link.Plan(setHostname);
+        Assert.Null(link.Pending.TryRegisterWrite(new PendingDeviceCommand(next, receivedAt.AddMilliseconds(1), receivedAt.AddSeconds(30)), 10));
     }
 
     [Fact]
@@ -348,9 +401,12 @@ public sealed class DeviceLinkTests
         }
 
         /// <summary>A plan the transport has published: reserved, recorded as published, pending.</summary>
-        public async Task<CommandExecutionPlan> PublishedAsync(string type, string action)
+        public Task<CommandExecutionPlan> PublishedAsync(string type, string action) =>
+            PublishedAsync(new CommandDefinition(type, action, "sys.info_view", CommandAvailability.Enabled, false, true, 120_000));
+
+        public async Task<CommandExecutionPlan> PublishedAsync(CommandDefinition definition)
         {
-            var plan = Plan(type, action);
+            var plan = Plan(definition);
             await Audit.ReserveAsync(plan, CommandRequestFingerprint.Compute(plan.Request));
             await Audit.RecordAsync(plan, new CommandExecutionResult(CommandExecutionStatus.Published, "MQTT_PUBLISHED", plan.Request.CorrelationId));
             Pending.Register(new PendingDeviceCommand(plan, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddSeconds(30)));

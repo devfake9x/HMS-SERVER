@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ReadStep } from '@/core/commands/useDeviceReads'
 import DeviceReadCard from './DeviceReadCard.vue'
+import DeviceTimeConfig from './DeviceTimeConfig.vue'
 import ReadSection from './ReadSection.vue'
 import ReadFieldList, { type FieldSpec } from './ReadFieldList.vue'
 import type { ReadCardContext } from './readCard'
@@ -54,7 +55,7 @@ const idFields: FieldSpec[] = [
 
 <template>
   <DeviceReadCard v-bind="props" title="Thiết bị & thời gian" :steps="steps">
-    <template #default="{ states, stale, now }">
+    <template #default="{ states, stale, now, refresh, lockReads }">
       <ReadSection title="Thời gian" step-key="system.get_time" :state="states['system.get_time']" :stale="stale" :now="now" :fields="timeFields" />
       <ReadSection title="Hostname" step-key="system.get_hostname" :state="states['system.get_hostname']" :stale="stale" :now="now" :fields="hostnameFields" />
       <ReadSection title="Định danh" step-key="system.get_device_id" :state="states['system.get_device_id']" :stale="stale" :now="now" :fields="idFields" />
@@ -63,6 +64,7 @@ const idFields: FieldSpec[] = [
           <ReadFieldList :data="unwrapOta(data)" :fields="otaFields" />
         </template>
       </ReadSection>
+      <DeviceTimeConfig v-bind="props" :states="states" :now="now" :refresh="refresh" :lock-reads="lockReads" />
     </template>
   </DeviceReadCard>
 </template>

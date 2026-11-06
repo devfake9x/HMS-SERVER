@@ -33,7 +33,17 @@ public sealed class SendDeviceCommandHandler(
             return Failure(request, CommandExecutionStatus.Failed, "COMMAND_ACTOR_MISMATCH");
         }
 
-        var requestFingerprint = CommandRequestFingerprint.Compute(request);
+        string requestFingerprint;
+        try
+        {
+            requestFingerprint = CommandRequestFingerprint.Compute(request);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Text.Json.JsonException)
+        {
+            // A string that is not valid UTF-16 (a lone "\uD800" escape) cannot be serialized: refuse
+            // it as a bad payload instead of failing the request.
+            return Failure(request, CommandExecutionStatus.ContractUnavailable, "COMMAND_PAYLOAD_INVALID");
+        }
         var previousPlan = auditStore.FindPlan(request.DeviceId, request.CorrelationId);
         CommandExecutionResult? cachedResult = null;
         if (previousPlan is not null)
@@ -127,6 +137,12 @@ public sealed class SendDeviceCommandHandler(
         {
             return await RecordAsync(request, null, Failure(request, CommandExecutionStatus.ContractUnavailable, "TTL_EXCEEDS_FIRMWARE_LIMIT"), cancellationToken);
         }
+
+        // A write is signed with server time. A client time up to 60 s ahead would keep it valid on
+        // the device (spec §3) long after the write lane let the next one through and the operator
+        // read the state back.
+        if (CommandLanes.IsWrite(definition.Class))
+            request = request with { RequestedAt = DateTimeOffset.UtcNow };
 
         if (request.RequestedAt > DateTimeOffset.UtcNow.AddSeconds(60))
         {

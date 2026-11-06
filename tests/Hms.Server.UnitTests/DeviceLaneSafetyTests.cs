@@ -25,6 +25,204 @@ public sealed class DeviceLaneSafetyTests
         "control", "set_output", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical);
     private static readonly CommandDefinition GetStatus = new(
         "control", "get_status", "gpio.do_view", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Read);
+    private static readonly CommandDefinition SetHostname = new(
+        "system", "set_hostname", "sys.hostname_edit", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Write);
+    private static readonly CommandDefinition SyncNtp = new(
+        "system", "sync_ntp", "sys.time_edit", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Control);
+
+    [Fact]
+    public async Task A_device_has_at_most_one_config_write_waiting()
+    {
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var publisher = new CountingPublisher();
+        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4));
+        var deviceA = DeviceId.New();
+        var first = Plan(deviceA, SetHostname);
+
+        Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(first, Prepared(first))).Status);
+        var second = Plan(deviceA, SyncNtp);
+        var refused = await transport.SendAsync(second, Prepared(second));
+
+        Assert.Equal(CommandExecutionStatus.ContractUnavailable, refused.Status);
+        Assert.Equal(MqttDeviceCommandTransport.WriteBusy, refused.Code);
+        Assert.Equal(1, publisher.Count);
+        Assert.Null(pending.Find(deviceA, second.Request.CorrelationId));
+
+        // Another device, a read and a relay command on the same device are not held back by the write.
+        var other = Plan(DeviceId.New(), SetHostname);
+        Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(other, Prepared(other))).Status);
+        var read = Plan(deviceA, GetInfo);
+        Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(read, Prepared(read))).Status);
+        var relay = Plan(deviceA, SetOutput);
+        Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(relay, Prepared(relay))).Status);
+
+        // The device answered: the next write may go at once.
+        pending.Remove(deviceA, first.Request.CorrelationId);
+        var next = Plan(deviceA, SyncNtp);
+        Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(next, Prepared(next))).Status);
+    }
+
+    [Fact]
+    public async Task Waiting_reads_and_relay_commands_do_not_block_a_config_write()
+    {
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4));
+        var device = DeviceId.New();
+        foreach (var definition in new[] { GetInfo, GetInfo, SetOutput })
+        {
+            var plan = Plan(device, definition);
+            await transport.SendAsync(plan, Prepared(plan));
+        }
+
+        var write = Plan(device, SetHostname);
+
+        Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(write, Prepared(write))).Status);
+    }
+
+    [Fact]
+    public void A_write_swept_without_a_reply_holds_the_lane_until_it_has_expired_on_the_device()
+    {
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var device = DeviceId.New();
+        var now = DateTimeOffset.UtcNow;
+        // No reply by the server deadline, but the device may still dequeue it until its expiry (spec R4).
+        var silent = Plan(device, SetHostname, expiresAt: now.AddSeconds(20));
+        Assert.Null(pending.TryRegisterWrite(new PendingDeviceCommand(silent, now.AddSeconds(-1), now), 10));
+
+        Assert.Single(pending.TakeExpired(now.AddSeconds(1)));
+
+        var tooSoon = new PendingDeviceCommand(Plan(device, SyncNtp), now.AddSeconds(21), now.AddSeconds(51));
+        Assert.Equal(MqttDeviceCommandTransport.WriteBusy, pending.TryRegisterWrite(tooSoon, 10));
+        var afterExpiry = new PendingDeviceCommand(Plan(device, SyncNtp), now.AddSeconds(23), now.AddSeconds(53));
+        Assert.Null(pending.TryRegisterWrite(afterExpiry, 10));
+    }
+
+    [Fact]
+    public void A_job_the_device_is_still_running_holds_the_write_lane()
+    {
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var device = DeviceId.New();
+        var now = DateTimeOffset.UtcNow;
+
+        pending.HoldWriteLane(device, now.AddSeconds(60));
+
+        Assert.Equal(MqttDeviceCommandTransport.WriteBusy,
+            pending.TryRegisterWrite(new PendingDeviceCommand(Plan(device, SyncNtp), now.AddSeconds(59), now.AddSeconds(89)), 10));
+        Assert.Null(pending.TryRegisterWrite(new PendingDeviceCommand(Plan(device, SyncNtp), now.AddSeconds(61), now.AddSeconds(91)), 10));
+    }
+
+    [Fact]
+    public void A_device_takes_at_most_ten_config_writes_a_minute()
+    {
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var device = DeviceId.New();
+        var start = DateTimeOffset.UtcNow;
+        for (var i = 0; i < 10; i++)
+        {
+            var write = Plan(device, SyncNtp);
+            Assert.Null(pending.TryRegisterWrite(new PendingDeviceCommand(write, start.AddSeconds(i), start.AddSeconds(i + 30)), 10));
+            pending.Remove(device, write.Request.CorrelationId);
+        }
+
+        var eleventh = Plan(device, SyncNtp);
+        Assert.Equal(MqttDeviceCommandTransport.WriteRateLimited,
+            pending.TryRegisterWrite(new PendingDeviceCommand(eleventh, start.AddSeconds(30), start.AddSeconds(60)), 10));
+        Assert.Null(pending.Find(device, eleventh.Request.CorrelationId));
+
+        // The first write left the one-minute window.
+        Assert.Null(pending.TryRegisterWrite(new PendingDeviceCommand(eleventh, start.AddSeconds(60.5), start.AddSeconds(90)), 10));
+    }
+
+    [Fact]
+    public async Task A_write_that_certainly_never_left_the_server_frees_the_lane()
+    {
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var device = DeviceId.New();
+        var notSent = Plan(device, SetHostname);
+
+        var result = await new MqttDeviceCommandTransport(new CountingPublisher("MQTT_NOT_CONNECTED"), pending, Options(maxReads: 4))
+            .SendAsync(notSent, Prepared(notSent));
+
+        Assert.Equal("MQTT_NOT_CONNECTED", result.Code);
+        var next = Plan(device, SetHostname);
+        Assert.Equal(CommandExecutionStatus.Published,
+            (await new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4)).SendAsync(next, Prepared(next))).Status);
+    }
+
+    [Fact]
+    public async Task A_burst_of_config_writes_publishes_exactly_one()
+    {
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var publisher = new CountingPublisher();
+        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4));
+        var device = DeviceId.New();
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Task.Run(async () =>
+        {
+            var plan = Plan(device, SetHostname);
+            return await transport.SendAsync(plan, Prepared(plan));
+        })));
+
+        Assert.Single(results, x => x.Status == CommandExecutionStatus.Published);
+        Assert.Equal(9, results.Count(x => x.Code == MqttDeviceCommandTransport.WriteBusy));
+        Assert.Equal(1, publisher.Count);
+    }
+
+    [Theory]
+    [InlineData("system", "set_hostname", """{"hostname":"x\uD800"}""")]
+    [InlineData("system", "get_info", """{"note":"\uDC00"}""")]
+    public async Task A_payload_string_that_is_not_valid_utf16_is_refused_not_thrown_on(string type, string action, string json)
+    {
+        var setup = new Setup();
+        var definition = type == SetHostname.Type && action == SetHostname.Action ? SetHostname : GetInfo;
+        using var document = JsonDocument.Parse(json);
+        var payload = document.RootElement.EnumerateObject().ToDictionary(x => x.Name, x => (object?)x.Value.Clone());
+
+        var result = await setup.Handler(definition).HandleAsync(
+            setup.Request(definition, payload, DateTimeOffset.UtcNow), setup.Actor("sys.hostname_edit", "sys.info_view"));
+
+        Assert.Equal(CommandExecutionStatus.ContractUnavailable, result.Status);
+        Assert.Equal("COMMAND_PAYLOAD_INVALID", result.Code);
+        Assert.Empty(setup.Transport.Records);
+    }
+
+    [Fact]
+    public async Task A_write_refused_by_the_busy_lane_is_recorded_in_the_audit_without_a_publish()
+    {
+        var setup = new Setup();
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var publisher = new CountingPublisher();
+        var audit = new InMemoryCommandAuditStore();
+        var handler = setup.Handler(SyncNtp, new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4)), audit);
+        var actor = setup.Actor("sys.time_edit");
+
+        var first = await handler.HandleAsync(setup.Request(SyncNtp), actor);
+        var request = setup.Request(SyncNtp);
+        var refused = await handler.HandleAsync(request, actor);
+
+        Assert.Equal(CommandExecutionStatus.Published, first.Status);
+        Assert.Equal(MqttDeviceCommandTransport.WriteBusy, refused.Code);
+        Assert.Equal(MqttDeviceCommandTransport.WriteBusy, audit.Find(setup.Device.Id, request.CorrelationId)!.Code);
+        Assert.Equal(1, publisher.Count);
+    }
+
+    [Fact]
+    public async Task Config_writes_are_signed_with_server_time_whatever_the_client_sent()
+    {
+        var setup = new Setup();
+        var actor = setup.Actor("sys.hostname_edit", "sys.info_view");
+        var clientTime = DateTimeOffset.UtcNow.AddSeconds(50);
+
+        await setup.Handler(SetHostname).HandleAsync(
+            setup.Request(SetHostname, new Dictionary<string, object?> { ["hostname"] = "gw-t" }, clientTime), actor);
+        await setup.Handler(GetInfo).HandleAsync(setup.Request(GetInfo, null, clientTime), actor);
+
+        var write = setup.Transport.Records[0].Plan;
+        Assert.InRange(write.Request.RequestedAt, DateTimeOffset.UtcNow.AddSeconds(-5), DateTimeOffset.UtcNow);
+        Assert.True(write.ExpiresAt <= DateTimeOffset.UtcNow.AddMilliseconds(SendDeviceCommandHandler.MaxCommandTtlMs));
+        // Reads keep the time the client asked for (unchanged behaviour).
+        Assert.Equal(clientTime, setup.Transport.Records[1].Plan.Request.RequestedAt);
+    }
 
     [Fact]
     public async Task A_device_takes_at_most_the_configured_number_of_pending_reads()
@@ -183,15 +381,16 @@ public sealed class DeviceLaneSafetyTests
 
     private static string Body(byte[] wire) => Encoding.UTF8.GetString(wire[..^(8 + 64 + 2)]) + "}";
 
-    private sealed class CountingPublisher : IMqttCommandPublisher
+    private sealed class CountingPublisher(string? failure = null) : IMqttCommandPublisher
     {
-        public int Count { get; private set; }
+        private int _count;
+        public int Count => _count;
         public bool IsConnected => true;
 
         public ValueTask<string?> PublishCommandAsync(string commandTopic, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
         {
-            Count++;
-            return ValueTask.FromResult<string?>(null);
+            Interlocked.Increment(ref _count);
+            return ValueTask.FromResult(failure);
         }
     }
 
@@ -217,9 +416,12 @@ public sealed class DeviceLaneSafetyTests
         public HmsIdfCommandProtocolAdapter Adapter { get; }
         public RecordingDeviceCommandTransport Transport { get; } = new();
 
-        public DeviceCommandRequest Request(CommandDefinition definition) =>
-            new(Device.Id, TestUser, definition.Type, definition.Action, new Dictionary<string, object?>(),
-                Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow, CatalogVersion: "test", CatalogHash: "hash");
+        public DeviceCommandRequest Request(CommandDefinition definition) => Request(definition, null, DateTimeOffset.UtcNow);
+
+        public DeviceCommandRequest Request(
+            CommandDefinition definition, IReadOnlyDictionary<string, object?>? payload, DateTimeOffset requestedAt) =>
+            new(Device.Id, TestUser, definition.Type, definition.Action, payload ?? new Dictionary<string, object?>(),
+                Guid.NewGuid().ToString("N"), requestedAt, CatalogVersion: "test", CatalogHash: "hash");
 
         public SendDeviceCommandHandler Handler(
             CommandDefinition definition, IDeviceCommandTransport? transport = null, ICommandAuditStore? audit = null) => new(

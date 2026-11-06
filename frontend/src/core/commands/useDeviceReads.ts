@@ -88,9 +88,32 @@ export function useDeviceReads(
   const states = reactive<Record<string, ReadState>>({})
   const reading = ref(false)
   let controller: AbortController | null = null
+  let running: Promise<void> | null = null
 
   async function read(steps: ReadStep[]): Promise<void> {
     if (reading.value) return
+    const run = readSteps(steps)
+    running = run
+    try {
+      await run
+    } finally {
+      if (running === run) running = null
+    }
+  }
+
+  /**
+   * Reads these steps afresh: stops a read in progress, waits for it to let go of the device
+   * lane, then reads. `read` alone would do nothing while a read is running. Resolves with the
+   * state of each step afterwards.
+   */
+  async function refresh(steps: ReadStep[]): Promise<Record<string, ReadState>> {
+    cancel()
+    await running?.catch(() => undefined)
+    await read(steps)
+    return Object.fromEntries(steps.map(step => [stepKey(step), { ...(states[stepKey(step)] ?? { kind: 'idle' }) }]))
+  }
+
+  async function readSteps(steps: ReadStep[]): Promise<void> {
     const current = new AbortController()
     controller = current
     const device = deviceId()
@@ -130,5 +153,5 @@ export function useDeviceReads(
 
   onScopeDispose(cancel)
 
-  return { states, reading, read, cancel, reset }
+  return { states, reading, read, refresh, cancel, reset }
 }

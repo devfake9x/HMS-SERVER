@@ -183,4 +183,36 @@ describe('DeviceCommandModal', () => {
     expect(document.body.querySelector('[data-test="do-panel-only-note"]')?.textContent).toContain('Điều khiển DO trên panel DO')
     wrapper.unmount()
   })
+
+  it('offers no config writes, which only the read cards may send', async () => {
+    const act = (type: string, action: string) => ({ type, action, featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: false, defaultTtlMs: 10000 })
+    const wrapper = mount(DeviceCommandModal, {
+      attachTo: document.body,
+      props: {
+        modelValue: true,
+        deviceId: 'dev-1',
+        deviceName: 'Device Alpha',
+        catalog: {
+          ...catalog,
+          actions: [
+            act('system', 'get_time'), act('system', 'set_hostname'), act('system', 'set_timezone'), act('system', 'sync_ntp'),
+            act('adc', 'get_channels'), act('adc', 'set_channel'), act('adc', 'toggle_channel'),
+          ],
+        },
+        catalogProof: { version: '1.0.0', hash: 'hash-abc' },
+        catalogFresh: true,
+        permissions,
+        csrfToken: 'csrf',
+      },
+    })
+    const vm = wrapper.vm as unknown as { selectedType: string; actionOptions: Array<{ value: string }> }
+
+    vm.selectedType = 'system'
+    await wrapper.vm.$nextTick()
+    expect(vm.actionOptions.map(o => o.value)).toEqual(['get_time'])
+    vm.selectedType = 'adc'
+    await wrapper.vm.$nextTick()
+    expect(vm.actionOptions.map(o => o.value)).toEqual(['get_channels'])
+    wrapper.unmount()
+  })
 })

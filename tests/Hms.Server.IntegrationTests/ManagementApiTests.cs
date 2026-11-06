@@ -192,13 +192,14 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Contains(actions.EnumerateArray(), action =>
             action.GetProperty("type").GetString() == "system" &&
             action.GetProperty("action").GetString() == "get_info");
-        // Only the server's allowlists (closed reads, relay outputs) are offered as available.
+        // Only the server's allowlists (reads, relay outputs, config writes) are offered as available.
         Assert.All(actions.EnumerateArray(), action =>
         {
             var pair = (action.GetProperty("type").GetString()!, action.GetProperty("action").GetString()!);
             Assert.Equal(
                 Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.EnabledActions.Contains(pair) ||
-                Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.PhysicalOutputActions.Contains(pair),
+                Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.PhysicalOutputActions.Contains(pair) ||
+                Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.ConfigWriteActions.Contains(pair),
                 action.GetProperty("available").GetBoolean());
         });
     }
@@ -356,6 +357,54 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
     }
 
     [Fact]
+    public async Task Config_writes_open_to_their_permission_holders_and_clock_writes_stay_closed()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("config-write-device", new OrganizationId(_factory.ChildOrganizationId));
+            device.Activate();
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            // A binding, so a refusal comes from the payload rule and not DEVICE_MQTT_BINDING_MISSING.
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.IDeviceMqttBindingStore>()
+                .Upsert(Hms.Server.Application.DeviceLink.DeviceMqttBinding.Create(device.Id, "hms_toan_lab", "config_write_dev", null));
+            deviceId = device.Id.Value;
+        }
+        var timeEditorId = Guid.NewGuid();
+        GrantDeviceRole(timeEditorId, deviceId, "sys.time_edit", "sys.hostname_edit");
+        var viewerId = Guid.NewGuid();
+        GrantDeviceRole(viewerId, deviceId, "sys.time_view", "sys.hostname_view");
+        using var timeEditor = _factory.CreateClientForUser(timeEditorId);
+        using var viewer = _factory.CreateClientForUser(viewerId);
+        var metadata = PinnedCatalogMetadata();
+        var commandsPath = $"/api/v1/devices/{deviceId}/commands";
+        object Body(string type, string action, object payload) => new
+        {
+            type, action, payload, catalogVersion = metadata.CatalogVersion, catalogHash = metadata.CatalogHash
+        };
+
+        var editorActions = (await timeEditor.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/allowed-commands"))
+            .GetProperty("actions").EnumerateArray().Select(x => x.GetString()!).ToArray();
+        var viewerActions = (await viewer.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/allowed-commands"))
+            .GetProperty("actions").EnumerateArray().Select(x => x.GetString()!).ToArray();
+        Assert.Equal(["system.set_hostname", "system.set_timezone", "system.sync_ntp"], editorActions);
+        Assert.Equal(["system.get_hostname", "system.get_time"], viewerActions);
+
+        // Holding sys.time_edit does not open the clock writes: the catalog keeps them closed.
+        using var ntp = await PostAsync(timeEditor, commandsPath, Body("system", "set_ntp_servers", new { servers = new[] { "pool.ntp.org" } }));
+        using var clock = await PostAsync(timeEditor, commandsPath, Body("system", "set_time", new { epoch = 1 }));
+        // A permission refusal is an HTTP 200 carrying the code, not a 403.
+        using var refused = await PostAsync(viewer, commandsPath, Body("system", "set_hostname", new { hostname = "gw-t" }));
+        using var invalid = await PostAsync(timeEditor, commandsPath, Body("system", "set_hostname", new { hostname = "bad_name" }));
+
+        Assert.Equal("DENIED_UNTIL_ACTION_CONTRACT", await CodeOfAsync(ntp));
+        Assert.Equal("DENIED_UNTIL_ACTION_CONTRACT", await CodeOfAsync(clock));
+        Assert.Equal(HttpStatusCode.OK, refused.StatusCode);
+        Assert.Equal(DeviceAccessCodes.PermissionRequired, await CodeOfAsync(refused));
+        Assert.Equal("COMMAND_PAYLOAD_INVALID", await CodeOfAsync(invalid));
+    }
+
+    [Fact]
     public async Task A_member_who_still_holds_the_permission_reads_their_reply()
     {
         Guid deviceId;
@@ -435,6 +484,34 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, (await sender.GetAsync(path)).StatusCode);
         var asAdmin = await admin.GetFromJsonAsync<JsonElement>(path);
         Assert.Equal(4.2, asAdmin.GetProperty("reply").GetProperty("data")[0].GetProperty("value").GetDouble());
+    }
+
+    [Fact]
+    public async Task A_config_write_reply_needs_the_write_permission_at_read_time()
+    {
+        Guid deviceId;
+        const string correlationId = "write-recheck-1";
+        var memberId = Guid.NewGuid();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("write-recheck-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+            // The member wrote the hostname earlier; their role now only lets them read it.
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.ICommandResponseStore>().Save(
+                device.Id, correlationId,
+                new Hms.Server.Application.DeviceLink.StoredCommandResponse(new UserId(memberId),
+                    "system", "set_hostname", true, null, """{"hostname":"gw-t","applied_immediately":true}""", DateTimeOffset.UtcNow));
+        }
+        GrantDeviceRole(memberId, deviceId, "sys.hostname_view");
+        var path = $"/api/v1/devices/{deviceId}/commands/{correlationId}";
+        using var member = _factory.CreateClientForUser(memberId);
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await member.GetAsync(path)).StatusCode);
+        var asAdmin = await admin.GetFromJsonAsync<JsonElement>(path);
+        Assert.Equal("gw-t", asAdmin.GetProperty("reply").GetProperty("data").GetProperty("hostname").GetString());
     }
 
     [Fact]

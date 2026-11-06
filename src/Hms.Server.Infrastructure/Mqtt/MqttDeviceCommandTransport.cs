@@ -36,6 +36,16 @@ public sealed class MqttDeviceCommandTransport(
     /// <summary>The device already has its share of reads waiting; nothing was published.</summary>
     public const string ReadBusy = "DEVICE_READ_BUSY";
 
+    /// <summary>The device has a write waiting or a job running; nothing was published.</summary>
+    public const string WriteBusy = DeviceLaneCodes.WriteBusy;
+
+    /// <summary>The device took its share of writes this minute; nothing was published.</summary>
+    public const string WriteRateLimited = DeviceLaneCodes.WriteRateLimited;
+
+    /// <summary>Writes per device per minute. Each one is a flash write on the device, and the
+    /// device has one queue and one rate bucket for every client (spec §3).</summary>
+    public const int MaxWritesPerMinute = 10;
+
     private static bool IsRelayReadBack(CommandExecutionPlan plan) =>
         plan.Request.Type == "control" && plan.Request.Action == "get_status";
 
@@ -64,6 +74,15 @@ public sealed class MqttDeviceCommandTransport(
             if (!pending.TryRegisterRead(entry, perDevice + reserved, Math.Max(1, perDevice / 2) + reserved))
                 return new(CommandExecutionStatus.ContractUnavailable, ReadBusy, correlationId,
                     "The device already has the maximum number of reads waiting for a reply; retry shortly.");
+        }
+        else if (CommandLanes.IsWrite(plan.Definition.Class))
+        {
+            // One write at a time per device, never through Register (which skips the lane gate).
+            if (pending.TryRegisterWrite(entry, MaxWritesPerMinute) is { } refused)
+                return new(CommandExecutionStatus.ContractUnavailable, refused, correlationId,
+                    refused == WriteBusy
+                        ? "The device is still handling another write; read its state, then retry."
+                        : "Too many writes to this device in the last minute; retry later.");
         }
         else
         {

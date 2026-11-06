@@ -37,6 +37,10 @@ public sealed class DeviceCommandResponseCorrelator(
 {
     public const string CommandResultEvent = "command_result";
 
+    /// <summary>How long a write the device accepted as a running job keeps the write lane closed.
+    /// The server does not follow the job; the operator's client polls it (spec §5).</summary>
+    public static readonly TimeSpan RunningJobWriteHold = TimeSpan.FromSeconds(60);
+
     public async ValueTask<DeviceResponseOutcome> HandleAsync(
         DeviceId deviceId,
         ReadOnlyMemory<byte> wire,
@@ -72,10 +76,15 @@ public sealed class DeviceCommandResponseCorrelator(
             return DeviceResponseOutcome.Rejected;
         }
 
+        var result = ToResult(response, plan);
+
+        // A write the device took as a still-running job keeps the lane closed for a while. Held
+        // before the removal below, so no other write can slip in between.
+        if (result.Status == CommandExecutionStatus.Acknowledged && CommandLanes.IsWrite(plan.Definition.Class))
+            pending.HoldWriteLane(deviceId, receivedAt + RunningJobWriteHold);
+
         if (!pending.Remove(deviceId, id))
             return DeviceResponseOutcome.Ignored;
-
-        var result = ToResult(response, plan);
 
         // First, and guarded: whether the outputs may have changed must not depend on the audit
         // write below succeeding, and an unreadable reply must not stop the steps below.

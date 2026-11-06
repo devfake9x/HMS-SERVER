@@ -17,6 +17,13 @@
 //   SIM_PULSE_CHANNELS comma list of channels in pulse mode (default 6)
 //   SIM_HEARTBEAT_SECONDS status heartbeat period on <base>/status (default 5; 0 = none, which
 //                    the server shows as offline)
+//   SIM_ADC_CHANNELS number of analog inputs (default 8)
+// Failure modes for the config-write flow (§5, §6.1, §6.2):
+//   SIM_ADC_JOB=1          adc.set_channel answers "accepted, still running" and applies after 10 s;
+//                          system.get_operations reports the job
+//   SIM_HOSTNAME_DEFERRED=1 set_hostname answers applied_immediately:false; get_hostname keeps the old name
+//   SIM_ADC_DROP_FIELDS=1  set_channel resets type/enabled when they are not sent
+//   SIM_CLOCK_SKEW_S=<n>   system.get_time reports an epoch n seconds off
 'use strict'
 const fs = require('fs')
 const crypto = require('crypto')
@@ -40,6 +47,16 @@ const outputs = Array.from({ length: channelCount }, (_, i) => ({
   pulseActive: false,
   timer: null,
 }))
+
+const flag = name => env[name] === '1'
+const clockSkewSeconds = Number(env.SIM_CLOCK_SKEW_S || 0)
+const nowSeconds = () => Math.floor(Date.now() / 1000)
+const system = { hostname: 'sim-rtu', pendingHostname: null, timezone: 'ICT-7', ntpServers: [], lastSync: nowSeconds() }
+const adcChannels = Array.from({ length: Number(env.SIM_ADC_CHANNELS || 8) }, (_, i) => ({
+  ai: i + 1, name: `AI-${i + 1}`, type: '4-20mA', enabled: true,
+}))
+const jobs = new Map()
+let nextJob = 100
 
 function required(name) {
   if (!env[name]) fail(`missing ${name}`)
@@ -96,6 +113,95 @@ const handlers = {
   },
   'system.ping': () => ({ data: { status: 'alive' } }),
   'system.get_info': () => ({ data: { device_id: base.split('/').pop(), firmware: 'spec-simulator' } }),
+
+  // §6.1 system and time.
+  'system.get_device_id': () => ({ data: { device_id: base.split('/').pop(), mac: '02:00:00:00:00:09' } }),
+  'system.get_hostname': () => ({ data: { hostname: system.hostname } }),
+  'system.set_hostname': (data) => {
+    if (typeof data.hostname !== 'string' || !data.hostname) return invalid('hostname must be a non-empty string')
+    if (flag('SIM_HOSTNAME_DEFERRED')) {
+      system.pendingHostname = data.hostname
+      return { data: { hostname: data.hostname, applied_immediately: false, reboot_recommended: true } }
+    }
+    system.hostname = data.hostname
+    return { data: { hostname: data.hostname, applied_immediately: true, reboot_recommended: false } }
+  },
+  'system.get_time': () => {
+    const epoch = nowSeconds() + clockSkewSeconds
+    return {
+      data: {
+        epoch, datetime: new Date(epoch * 1000).toISOString().slice(0, 19), ntp_synced: clockSkewSeconds === 0,
+        last_sync: system.lastSync, rtc_available: false, rtc_model: 'none', timezone: system.timezone,
+        ntp_servers: system.ntpServers, ntp_mode: system.ntpServers.length ? 'manual' : 'auto',
+      },
+    }
+  },
+  'system.set_timezone': (data) => {
+    if (typeof data.timezone !== 'string' || !data.timezone) return invalid('timezone must be a non-empty string')
+    system.timezone = data.timezone
+    return { data: { timezone: system.timezone, datetime: new Date().toISOString().slice(0, 19), message: 'Timezone updated' } }
+  },
+  'system.sync_ntp': () => {
+    system.lastSync = nowSeconds()
+    return { data: { message: 'NTP sync started', was_synced: true } }
+  },
+  // §5: job read-back, camelCase fields.
+  'system.get_operations': (data) => {
+    const id = data.operation_id
+    if (typeof id !== 'string' || !/^[1-9][0-9]*$/.test(id)) return invalid('operation_id must be a decimal string')
+    const job = jobs.get(id)
+    if (!job) return { data: { operationId: id, state: 'unknown' } }
+    if (Date.now() < job.doneAt) return { data: { operationId: id, state: 'pending' } }
+    return { data: { operationId: id, state: 'terminal', terminal: true, resultSuccess: true, resultCode: 0, resultMessage: 'applied' } }
+  },
+  'ota.get_status': () => ({ data: { success: true, data: { firmware: { version: 'spec-simulator' }, ota: { state: 'idle', progress: 0 } } } }),
+  'mqtt.get_config': () => ({ data: { broker: 'simulator', port: 443, client_id: 'hms_sim', use_tls: true, has_password: false } }),
+
+  // §6.2 battery and ADC.
+  'battery.get_status': () => ({ data: { available: false } }),
+  'battery.get_alerts': () => ({ data: { available: false } }),
+  'adc.get_config': () => ({ data: { available: true, channel_count: adcChannels.length, hardware: { num_devices: 1 } } }),
+  'adc.get_channels': () => ({ data: adcChannels.map(c => ({ ...c })) }),
+  'adc.get_values': () => ({
+    data: adcChannels.map(c => ({ ai: c.ai, value: c.enabled ? 4 + c.ai / 10 : 0, unit: 'mA', quality: c.enabled ? 'GOOD' : 'DISABLED' })),
+  }),
+  'adc.set_channel': (data) => {
+    const channel = findAnalog(data)
+    if (!channel.ai) return channel
+    if (data.name !== undefined && typeof data.name !== 'string') return invalid('name must be a string')
+    const apply = () => {
+      if (data.name !== undefined) channel.name = data.name
+      if (typeof data.type === 'string') channel.type = data.type
+      else if (flag('SIM_ADC_DROP_FIELDS')) channel.type = ''
+      if (typeof data.enabled === 'boolean') channel.enabled = data.enabled
+      else if (flag('SIM_ADC_DROP_FIELDS')) channel.enabled = false
+    }
+    if (flag('SIM_ADC_JOB')) {
+      const id = String(nextJob++)
+      jobs.set(id, { doneAt: Date.now() + 10_000 })
+      setTimeout(apply, 10_000)
+      return { error: 'ESP_ERR_TIMEOUT', data: { accepted: true, pending: true, operation_id: id } }
+    }
+    apply()
+    return { data: { ...channel } }
+  },
+  'adc.toggle_channel': (data) => {
+    const channel = findAnalog(data)
+    if (!channel.ai) return channel
+    if (typeof data.enabled !== 'boolean') return invalid('enabled must be a boolean')
+    channel.enabled = data.enabled
+    return { data: { ai: channel.ai, enabled: channel.enabled } }
+  },
+}
+
+function invalid(message) {
+  return { error: 'ESP_ERR_INVALID_ARG', data: { error: message } }
+}
+
+function findAnalog(data) {
+  const ai = data && data.ai
+  if (!Number.isInteger(ai) || ai < 1 || ai > 16) return invalid('ai must be an integer 1..16')
+  return adcChannels[ai - 1] || invalid(`ai ${ai} not present`)
 }
 
 const client = mqtt.connect(url, {

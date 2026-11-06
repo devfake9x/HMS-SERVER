@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import DeviceDetailView from './DeviceDetailView.vue'
 import { adminApi } from '@/core/api/adminApi'
+import { runDeviceWrite } from '@/core/commands/useDeviceWrite'
 
 const hubHandlers = vi.hoisted(() => new Map<string, (payload: unknown) => void>())
 // Reactive so a test can move the page to another device, as the router does for /devices/:id.
@@ -220,6 +221,31 @@ describe('DeviceDetailView', () => {
     })
     await flushPromises()
     expect(heartbeat()).not.toBe(before)
+  })
+
+  it('marks the matching card stale when someone else changes its configuration, but not for its own write', async () => {
+    const wrapper = mount(DeviceDetailView)
+    await flushPromises()
+    const banners = () => wrapper.findAll('[data-test="read-card"]').map(card => card.find('[data-test="read-config-changed"]').exists())
+    const send = (correlationId: string, type: string, action: string) => hubHandlers.get('DeviceEvent')?.({
+      deviceId: 'dev-101', authorizationEpoch: 8, policyVersion: 1, eventType: 'command_result',
+      payload: { correlationId, type, action, status: 'Executed', code: 'DEVICE_EXECUTED' },
+    })
+    expect(banners()).toEqual([false, false, false])
+
+    vi.mocked(adminApi.sendCommand).mockResolvedValueOnce({ status: 'ContractUnavailable', code: 'DEVICE_WRITE_BUSY', correlationId: 'own-1' })
+    await runDeviceWrite('dev-101', { type: 'system', action: 'set_hostname', correlationId: 'own-1' }, {})
+    send('own-1', 'system', 'set_hostname')
+    await flushPromises()
+    expect(banners()).toEqual([false, false, false])
+
+    send('theirs-1', 'system', 'set_hostname')
+    await flushPromises()
+    expect(banners()).toEqual([true, false, false])
+
+    send('theirs-2', 'adc', 'toggle_channel')
+    await flushPromises()
+    expect(banners()).toEqual([true, false, true])
   })
 
   it('reloads everything when the route moves to another device', async () => {

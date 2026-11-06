@@ -62,9 +62,14 @@ const showDangerConfirm = ref(false)
 const rawParamsJson = ref('{}')
 const paramsJsonError = ref('')
 
-// Relay outputs are driven only from the DO panel, which locks the channel and reads the state
-// back after every command; this generic dialog does neither.
-const PANEL_ONLY_ACTIONS = new Set(['control.set_output', 'control.pulse', 'control.set_all'])
+// Relay outputs are driven only from the DO panel, and the five config writes only from the
+// "Thiết bị & thời gian" and "Nguồn & ADC" cards. They confirm old to new, lock the control and
+// read the state back after every command; this generic dialog does none of that.
+const PANEL_ONLY_ACTIONS = new Set([
+  'control.set_output', 'control.pulse', 'control.set_all',
+  'system.set_hostname', 'system.set_timezone', 'system.sync_ntp',
+  'adc.set_channel', 'adc.toggle_channel',
+])
 
 const catalogActions = computed<CatalogAction[]>(() =>
   (props.catalog?.actions ?? []).filter(a => !PANEL_ONLY_ACTIONS.has(`${a.type}.${a.action}`)))

@@ -47,6 +47,24 @@ export function httpStatusOf(error: unknown): number | null {
   return match ? Number(match[1]) : null
 }
 
+function isOutcome(value: unknown): value is DeviceCommandOutcome {
+  return typeof value === 'object' && value !== null && 'phase' in value && 'dispatch' in value
+}
+
+/**
+ * Whether a command that was sent may have run on the device, from what the caller saw: a
+ * `runDeviceCommand` outcome or the error it threw. Only proof that nothing was signed or handed
+ * to the broker returns false (a server refusal that never published, an HTTP refusal below 500).
+ * Every other case returns true and the caller must read the state back: a device rejection, a
+ * timeout, a server error, a lost connection. Shared by every panel that drives hardware.
+ */
+export function mayHaveRun(outcomeOrError: DeviceCommandOutcome | unknown): boolean {
+  if (isOutcome(outcomeOrError))
+    return !(outcomeOrError.phase === 'not_sent' && certainlyNotSent(outcomeOrError.dispatch))
+  const status = httpStatusOf(outcomeOrError)
+  return !(status !== null && status < 500)
+}
+
 function stillWaiting(result: CommandExecutionResult | null): boolean {
   return !result || result.status === 'Published' || result.code === PUBLISH_UNCONFIRMED
 }

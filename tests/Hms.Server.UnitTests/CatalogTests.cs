@@ -136,11 +136,13 @@ public sealed class CatalogTests
     }
 
     [Fact]
-    public void Pinned_catalog_opens_only_the_closed_reads_and_the_two_relay_outputs()
+    public void Pinned_catalog_opens_only_the_listed_reads_relay_outputs_and_config_writes()
     {
         var catalog = new PinnedCommandCatalog();
         var enabled = catalog.List().Where(x => x.Availability == CommandAvailability.Enabled).ToArray();
-        var expected = PinnedCommandCatalog.EnabledActions.Concat(PinnedCommandCatalog.PhysicalOutputActions);
+        var expected = PinnedCommandCatalog.EnabledActions
+            .Concat(PinnedCommandCatalog.PhysicalOutputActions)
+            .Concat(PinnedCommandCatalog.ConfigWriteActions);
 
         // Every allowlisted pair exists in the spec catalog, so a typo cannot silently open nothing.
         Assert.Equal(
@@ -148,11 +150,40 @@ public sealed class CatalogTests
             enabled.Select(x => (x.Type, x.Action)).OrderBy(x => x.Type).ThenBy(x => x.Action));
         Assert.All(PinnedCommandCatalog.EnabledActions, x => Assert.Equal(CommandClass.Read, catalog.Find(x.Type, x.Action)!.Class));
         Assert.All(PinnedCommandCatalog.PhysicalOutputActions, x => Assert.Equal(CommandClass.Physical, catalog.Find(x.Type, x.Action)!.Class));
+        Assert.All(PinnedCommandCatalog.ConfigWriteActions, x =>
+            Assert.Contains(catalog.Find(x.Type, x.Action)!.Class, new[] { CommandClass.Write, CommandClass.Control }));
+        Assert.Equal(33, enabled.Length);
         Assert.Equal(CommandAvailability.Enabled, catalog.Find("system", "get_info")!.Availability);
         Assert.Equal(CommandAvailability.Enabled, catalog.Find("control", "set_output")!.Availability);
         Assert.Equal(CommandAvailability.Enabled, catalog.Find("control", "pulse")!.Availability);
         Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("control", "set_all")!.Availability);
         Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("system", "reboot")!.Availability);
+    }
+
+    [Fact]
+    public void Only_the_system_and_adc_config_writes_open_and_clock_or_link_writes_stay_closed()
+    {
+        var catalog = new PinnedCommandCatalog();
+        string[] open =
+        [
+            "system.set_hostname", "system.set_timezone", "system.sync_ntp", "adc.set_channel", "adc.toggle_channel"
+        ];
+        // The device clock (set_time, set_ntp_servers) decides whether it accepts any later command
+        // (spec §3), and the link-changing writes can cut the path that would undo them.
+        string[] closed =
+        [
+            "system.set_ntp_servers", "system.set_time", "system.reboot", "system.factory_reset", "config.set",
+            "network.set_priority", "network.configure_ethernet", "network.wifi_sta_config_set", "mqtt.set_config",
+            "mqtt.reconnect", "broker.create_signal", "modbus.set_rtu_config", "ota.remote_start", "ota.apply"
+        ];
+        bool Open(string pair) =>
+            catalog.Find(pair.Split('.')[0], pair.Split('.')[1])!.Availability == CommandAvailability.Enabled;
+
+        Assert.All(open, x => Assert.True(Open(x), x));
+        Assert.All(closed, x => Assert.False(Open(x), x));
+        Assert.Equal(open.Length, PinnedCommandCatalog.ConfigWriteActions.Count);
+        Assert.All(catalog.List().Where(x => x.Class is CommandClass.Destructive or CommandClass.Flash),
+            x => Assert.Equal(CommandAvailability.DeniedUntilActionContract, x.Availability));
     }
 
     [Fact]

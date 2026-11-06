@@ -59,6 +59,10 @@ public sealed class HmsIdfCommandProtocolAdapter(
         if (OutputCommandPolicy.Check(plan.Definition, request.Payload, binding.AllowedOutputChannels, _maxPulseMs) is { } refused)
             return Fail(plan, refused);
 
+        // Configuration writes: an exact payload rule per opened action, before the key is read.
+        if (ConfigCommandPolicy.Check(plan.Definition, request.Payload) is { } invalid)
+            return Fail(plan, invalid);
+
         // Find, never Generate: a freshly generated key is one the device has never seen.
         var keyset = secrets.Find(request.DeviceId, plan.KeyGeneration);
         if (keyset is null)

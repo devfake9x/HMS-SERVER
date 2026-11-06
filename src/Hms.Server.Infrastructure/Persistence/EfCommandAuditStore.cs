@@ -215,11 +215,16 @@ public sealed class EfCommandAuditStore(
             KeyGeneration: record.KeyGeneration);
     }
 
+    // What a state-changing command asked for. Of the config writes only the opened ones are kept:
+    // their payloads hold no secret, while other writes (Wi-Fi, MQTT) carry passwords and need a
+    // per-action redaction before they may be stored.
     private static string? SummarizePayload(CommandExecutionPlan plan)
     {
-        if (plan.Definition.Class is not (Domain.Commands.CommandClass.Physical
-            or Domain.Commands.CommandClass.Destructive
-            or Domain.Commands.CommandClass.Flash))
+        var kept = plan.Definition.Class is Domain.Commands.CommandClass.Physical
+                       or Domain.Commands.CommandClass.Destructive
+                       or Domain.Commands.CommandClass.Flash ||
+                   Commands.PinnedCommandCatalog.ConfigWriteActions.Contains((plan.Request.Type, plan.Request.Action));
+        if (!kept)
             return null;
         try
         {

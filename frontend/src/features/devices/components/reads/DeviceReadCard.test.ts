@@ -116,3 +116,80 @@ describe('DeviceReadCard', () => {
     expect(send).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('DeviceReadCard refresh and lockReads', () => {
+  type Scope = {
+    states: Record<string, { kind: string; data?: unknown }>
+    refresh: (list: { type: string; action: string }[]) => Promise<Record<string, { kind: string; data?: unknown; readAt?: string }>>
+    lockReads: (on: boolean) => void
+  }
+  let scope: Scope
+  function mountCapturing(props: Record<string, unknown> = {}) {
+    return mount(DeviceReadCard, {
+      props: {
+        title: 'Thiết bị', steps, deviceId: 'dev-1', csrfToken: 'csrf', catalog, catalogVerified: true,
+        allowedCommands: ['system.get_time', 'system.get_hostname'], link: link(), ...props,
+      },
+      slots: { default: (s: Scope) => { scope = s; return h('span') } },
+    })
+  }
+
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('refresh reads again even while the card is reading, and returns the new states', async () => {
+    let n = 0
+    const send = vi.spyOn(adminApi, 'sendCommand').mockImplementation(async (_d, body) => published(`${body.action}-${++n}`))
+    vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) => executed(id, { id }))
+    const wrapper = mountCapturing()
+    await wrapper.find('[data-test="read-start"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(100)
+
+    const refreshing = scope.refresh(steps)
+    await vi.advanceTimersByTimeAsync(5000)
+    const states = await refreshing
+
+    expect(send.mock.calls.map(c => c[1].action)).toEqual(['get_time', 'get_time', 'get_hostname'])
+    expect(states['system.get_time'].kind).toBe('ok')
+    expect(states['system.get_hostname'].kind).toBe('ok')
+    expect((states['system.get_time'].data as { id: string }).id).toBe('get_time-2')
+    expect(states['system.get_time'].readAt).toBeDefined()
+  })
+
+  it('refresh only sends the steps the caller may send', async () => {
+    const send = vi.spyOn(adminApi, 'sendCommand').mockImplementation(async (_d, body) => published(body.action))
+    vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) => executed(id, {}))
+    const wrapper = mountCapturing({ allowedCommands: ['system.get_hostname'] })
+    await flushPromises()
+
+    const refreshing = scope.refresh(steps)
+    await vi.advanceTimersByTimeAsync(5000)
+    const states = await refreshing
+
+    expect(send.mock.calls.map(c => c[1].action)).toEqual(['get_hostname'])
+    expect(Object.keys(states)).toEqual(['system.get_hostname'])
+    wrapper.unmount()
+  })
+
+  it('lockReads(true) locks the read and stop buttons, lockReads(false) frees them', async () => {
+    const wrapper = mountCapturing()
+
+    scope.lockReads(true)
+    await flushPromises()
+    expect(wrapper.find('[data-test="read-start"]').attributes('disabled')).toBeDefined()
+
+    scope.lockReads(false)
+    await flushPromises()
+    expect(wrapper.find('[data-test="read-start"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('says the configuration changed when the page marks a change newer than every read', async () => {
+    const wrapper = mountCapturing({ configChangedAt: Date.now() })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="read-config-changed"]').text()).toContain('Cấu hình vừa đổi, hãy đọc lại')
+  })
+})

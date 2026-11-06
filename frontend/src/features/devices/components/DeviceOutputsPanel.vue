@@ -7,9 +7,9 @@ import {
   type DeviceOutputsDto,
 } from '@/core/api/adminApi'
 import {
-  certainlyNotSent,
   httpStatusOf,
   mayHaveReachedDevice,
+  mayHaveRun,
   runDeviceCommand,
   type DeviceCommandBody,
   type DeviceCommandOutcome,
@@ -187,7 +187,7 @@ async function operate(channel: number, command: DeviceCommandBody): Promise<boo
       problem = sent.code === 'CATALOG_STALE'
         ? 'Catalog lệnh trên server đã đổi, hãy tải lại trang'
         : sent.detail ? `${sent.code}: ${sent.detail}` : sent.code
-      if (certainlyNotSent(sent)) {
+      if (!mayHaveRun(outcome)) {
         channelError[channel] = problem
         delete channelBusy[channel]
         return false
@@ -198,7 +198,7 @@ async function operate(channel: number, command: DeviceCommandBody): Promise<boo
   } catch (error) {
     if (props.deviceId !== device) return false
     const status = httpStatusOf(error)
-    if (status !== null && status < 500) {
+    if (!mayHaveRun(error)) {
       // The request was refused at the API boundary, before any command was built.
       channelError[channel] = `HTTP ${status}: yêu cầu bị từ chối, lệnh chưa được gửi`
       delete channelBusy[channel]

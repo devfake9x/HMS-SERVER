@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { adminApi } from '@/core/api/adminApi'
-import { runDeviceCommand, mayHaveReachedDevice, certainlyNotSent, httpStatusOf, useDeviceCommand } from './useDeviceCommand'
+import { runDeviceCommand, mayHaveReachedDevice, certainlyNotSent, httpStatusOf, useDeviceCommand, mayHaveRun, type DeviceCommandOutcome } from './useDeviceCommand'
 
 const body = { type: 'control', action: 'set_output', payload: { channel: 1, value: true }, catalogVersion: 'v', catalogHash: 'h' }
 
@@ -97,5 +97,49 @@ describe('mayHaveReachedDevice', () => {
     expect(mayHaveReachedDevice({ status: 'Failed', code: 'MQTT_NOT_CONNECTED', correlationId: 'x' })).toBe(false)
     expect(mayHaveReachedDevice({ status: 'Failed', code: 'DEVICE_PERMISSION_REQUIRED', correlationId: 'x' })).toBe(false)
     expect(mayHaveReachedDevice({ status: 'ContractUnavailable', code: 'COMMAND_PAYLOAD_INVALID', correlationId: 'x' })).toBe(false)
+  })
+})
+
+describe('mayHaveRun', () => {
+  const outcome = (phase: DeviceCommandOutcome['phase'], status: string, code: string, final: DeviceCommandOutcome['final'] = null): DeviceCommandOutcome =>
+    ({ phase, dispatch: { status, code, correlationId: 'c' }, final })
+  const done = (status: string, code: string) =>
+    outcome('done', 'Published', 'MQTT_PUBLISHED', { correlationId: 'c', result: { status, code, correlationId: 'c' }, reply: null })
+
+  it.each([
+    ['ContractUnavailable', 'DEVICE_WRITE_BUSY'],
+    ['TransportNotConfigured', 'X'],
+    ['Failed', 'MQTT_NOT_CONNECTED'],
+    ['Failed', 'MQTT_RESPONSE_SUBSCRIPTION_MISSING'],
+    ['Failed', 'MQTT_COMMAND_TOPIC_INVALID'],
+  ])('is false when %s/%s proves nothing was sent', (status, code) => {
+    expect(mayHaveRun(outcome('not_sent', status, code))).toBe(false)
+  })
+
+  it.each([400, 403, 409])('is false for an HTTP %i refusal at the API boundary', status => {
+    expect(mayHaveRun(new Error(`Request failed (${status})`))).toBe(false)
+  })
+
+  it.each([
+    ['DEVICE_PERMISSION_REQUIRED'],
+    ['IDEMPOTENCY_OUTCOME_UNKNOWN'],
+    ['OUTCOME_UNKNOWN_AFTER_RESTART'],
+  ])('is true for a refused dispatch coded %s, which a publish may precede', code => {
+    expect(mayHaveRun(outcome('not_sent', 'Failed', code))).toBe(true)
+  })
+
+  it('is true for every device outcome, including a rejection and an acknowledgement without a job id', () => {
+    expect(mayHaveRun(done('Failed', 'DEVICE_REJECTED'))).toBe(true)
+    expect(mayHaveRun(done('Failed', 'DEVICE_RESPONSE_TIMEOUT'))).toBe(true)
+    expect(mayHaveRun(done('Acknowledged', 'DEVICE_ACCEPTED'))).toBe(true)
+    expect(mayHaveRun(done('Executed', 'DEVICE_EXECUTED'))).toBe(true)
+    expect(mayHaveRun(outcome('not_sent', 'MqttDeferred', 'MQTT_DEFERRED'))).toBe(true)
+  })
+
+  it('is true when polling ran out, on HTTP 5xx and on a network error', () => {
+    expect(mayHaveRun(outcome('timeout', 'Published', 'MQTT_PUBLISHED'))).toBe(true)
+    expect(mayHaveRun(new Error('Request failed (500)'))).toBe(true)
+    expect(mayHaveRun(new Error('Request failed (503)'))).toBe(true)
+    expect(mayHaveRun(new TypeError('Failed to fetch'))).toBe(true)
   })
 })

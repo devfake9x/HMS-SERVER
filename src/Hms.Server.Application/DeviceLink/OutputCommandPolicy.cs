@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Hms.Server.Domain.Commands;
 
 namespace Hms.Server.Application.DeviceLink;
@@ -55,35 +54,11 @@ public static class OutputCommandPolicy
     }
 
     private static bool HasExactly(IReadOnlyDictionary<string, object?> payload, params string[] keys) =>
-        payload.Count == keys.Length && keys.All(payload.ContainsKey);
+        CommandPayloadRules.HasExactly(payload, keys);
 
-    // Only true integers: no strings, no fractions, no booleans-as-numbers.
-    private static bool TryInteger(object? value, out int result)
-    {
-        result = 0;
-        switch (value)
-        {
-            case JsonElement { ValueKind: JsonValueKind.Number } element:
-                return element.TryGetInt32(out result);
-            case int i:
-                result = i;
-                return true;
-            case long l and >= int.MinValue and <= int.MaxValue:
-                result = (int)l;
-                return true;
-            case short s:
-                result = s;
-                return true;
-            case byte b:
-                result = b;
-                return true;
-            default:
-                return false;
-        }
-    }
+    private static bool TryInteger(object? value, out int result) => CommandPayloadRules.TryInteger(value, out result);
 
     // The spec accepts 0/1 too, but asks clients to send booleans; numbers are refused so a
     // typed-in channel number can never be read as a value.
-    private static bool IsBoolean(object? value) =>
-        value is bool || value is JsonElement { ValueKind: JsonValueKind.True or JsonValueKind.False };
+    private static bool IsBoolean(object? value) => CommandPayloadRules.IsBoolean(value);
 }

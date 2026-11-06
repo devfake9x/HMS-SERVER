@@ -11,6 +11,7 @@ import {
 } from '@/core/api/adminApi'
 import { createSessionFence, type SessionLease } from '@/core/auth/sessionFence'
 import { createCatalogVerification, verifyCatalog } from '@/core/commands/catalogVerification'
+import { isOwnWrite } from '@/core/commands/useDeviceWrite'
 import { useDeviceOperationsHub } from '@/core/realtime/useDeviceOperationsHub'
 import { createSignalRConnection } from '@/core/realtime/signalRConnection'
 import { downloadSecretBlob } from '@/core/storage/secureDownload'
@@ -280,6 +281,10 @@ const operationsHub = useDeviceOperationsHub({
         refreshOutputs()
         return
       }
+      if (event.eventType === 'command_result') {
+        noteConfigChange(event.payload)
+        return
+      }
       // Only a heartbeat proves the device is alive and carries telemetry. Command results,
       // device events and capabilities do not, and must not make an offline device look live.
       if (event.eventType !== 'status') return
@@ -296,6 +301,25 @@ const operationsHub = useDeviceOperationsHub({
   },
 })
 
+// The five config writes and the card that shows each. A result for one of them that this page
+// did not send means someone else changed the device: the card's readings are stale until re-read.
+const CONFIG_WRITE_CARD: Record<string, 'info' | 'adc'> = {
+  'system.set_hostname': 'info',
+  'system.set_timezone': 'info',
+  'system.sync_ntp': 'info',
+  'adc.set_channel': 'adc',
+  'adc.toggle_channel': 'adc',
+}
+
+function noteConfigChange(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return
+  const { type, action, correlationId } = payload as Record<string, unknown>
+  const card = CONFIG_WRITE_CARD[`${String(type)}.${String(action)}`]
+  if (!card || isOwnWrite(correlationId)) return
+  if (card === 'info') infoConfigChangedAt.value = Date.now()
+  else adcConfigChangedAt.value = Date.now()
+}
+
 function refreshOutputs() {
   outputsRefreshKey.value++
   const lease = sessionFence.capture()
@@ -306,8 +330,16 @@ function refreshOutputs() {
 
 // Events sent while the hub was reconnecting are lost; re-read instead of trusting the last state.
 watch(operationsHub.connectionState, (state, previous) => {
-  if (state === 'connected' && previous === 'reconnecting') refreshOutputs()
+  if (state === 'connected' && previous === 'reconnecting') {
+    refreshOutputs()
+    // A config change someone made meanwhile was not heard either: edits need a fresh read.
+    infoConfigChangedAt.value = Date.now()
+    adcConfigChangedAt.value = Date.now()
+  }
 })
+
+const infoConfigChangedAt = ref<number | null>(null)
+const adcConfigChangedAt = ref<number | null>(null)
 
 const readCardContext = computed<ReadCardContext>(() => ({
   deviceId: deviceId.value,
@@ -330,6 +362,8 @@ watch(deviceId, (next, previous) => {
   telemetryData.value = emptyTelemetryData()
   commandHistory.value = []
   lastHeartbeat.value = 'Never'
+  infoConfigChangedAt.value = null
+  adcConfigChangedAt.value = null
   void loadDeviceData(sessionFence.rotate())
   void joinRealtime()
 })
@@ -948,9 +982,9 @@ onUnmounted(() => {
 
       <!-- On-demand reads from the device: only what the caller may send on this device -->
       <div v-if="deviceLink?.binding" class="grid grid-cols-1 lg:grid-cols-3 gap-3" data-test="read-cards">
-        <DeviceInfoTimeCard v-bind="readCardContext" />
+        <DeviceInfoTimeCard v-bind="readCardContext" :config-changed-at="infoConfigChangedAt" />
         <DeviceNetworkCard v-bind="readCardContext" />
-        <DevicePowerAdcCard v-bind="readCardContext" />
+        <DevicePowerAdcCard v-bind="readCardContext" :config-changed-at="adcConfigChangedAt" />
       </div>
     </div>
 

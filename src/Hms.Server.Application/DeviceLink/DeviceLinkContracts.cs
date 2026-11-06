@@ -266,28 +266,49 @@ public interface IPendingDeviceCommandRegistry
     /// The count and the insert are one atomic step.</summary>
     bool TryRegisterRead(PendingDeviceCommand pending, int maxPerDevice, int maxPerUser);
 
+    /// <summary>Registers a write-lane command (<see cref="CommandLanes.IsWrite"/>) unless its device
+    /// already has one waiting, is held for a running job, or took <paramref name="maxPerMinute"/>
+    /// writes in the last minute. Returns null when registered, otherwise a
+    /// <see cref="DeviceLaneCodes"/> refusal. The checks and the insert are one atomic step.</summary>
+    string? TryRegisterWrite(PendingDeviceCommand pending, int maxPerMinute);
+
+    /// <summary>Keeps the device's write lane closed until <paramref name="until"/>: the device
+    /// accepted a write as a job that is still running (spec §5).</summary>
+    void HoldWriteLane(DeviceId deviceId, DateTimeOffset until);
+
     PendingDeviceCommand? Find(DeviceId deviceId, string correlationId);
     bool Remove(DeviceId deviceId, string correlationId);
     IReadOnlyList<PendingDeviceCommand> TakeExpired(DateTimeOffset now);
 }
 
+public static class DeviceLaneCodes
+{
+    public const string WriteBusy = "DEVICE_WRITE_BUSY";
+    public const string WriteRateLimited = "DEVICE_WRITE_RATE_LIMITED";
+}
+
 public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommandRegistry
 {
     private readonly ConcurrentDictionary<(DeviceId DeviceId, string CorrelationId), PendingDeviceCommand> _pending = new();
-    private readonly object _readGate = new();
+    // One gate for every lane decision, so a count and its insert, or a sweep and the hold it
+    // leaves, are never interleaved with another command's check.
+    private readonly object _laneGate = new();
+    private readonly Dictionary<DeviceId, DateTimeOffset> _writeHolds = new();
+    private readonly Dictionary<DeviceId, Queue<DateTimeOffset>> _recentWrites = new();
 
     public void Register(PendingDeviceCommand pending) =>
         _pending[(pending.Plan.Request.DeviceId, pending.Plan.Request.CorrelationId)] = pending;
 
-    // A read the device has not answered by its expiry is dropped by the device (spec §3 TTL), so
-    // it stops holding a queue slot then; the grace covers clock skew and transit.
+    // A command the device has not answered by its expiry is dropped by the device (spec §3 TTL);
+    // the grace covers clock skew and transit.
     private static readonly TimeSpan ReadSlotGrace = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan WriteRateWindow = TimeSpan.FromMinutes(1);
 
     public bool TryRegisterRead(PendingDeviceCommand pending, int maxPerDevice, int maxPerUser)
     {
         var deviceId = pending.Plan.Request.DeviceId;
         var userId = pending.Plan.Request.UserId;
-        lock (_readGate)
+        lock (_laneGate)
         {
             var live = _pending.Values.Where(x =>
                 x.Plan.Request.DeviceId == deviceId &&
@@ -300,6 +321,38 @@ public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommand
         }
     }
 
+    public string? TryRegisterWrite(PendingDeviceCommand pending, int maxPerMinute)
+    {
+        var deviceId = pending.Plan.Request.DeviceId;
+        var now = pending.PublishedAt;
+        lock (_laneGate)
+        {
+            // A write waiting for its reply holds the lane however old it is: no reply does not
+            // mean it did not run (spec R4). The sweep releases it at the server deadline.
+            if (_pending.Values.Any(x => x.Plan.Request.DeviceId == deviceId && CommandLanes.IsWrite(x.Plan.Definition.Class)))
+                return DeviceLaneCodes.WriteBusy;
+            if (_writeHolds.TryGetValue(deviceId, out var heldUntil) && heldUntil > now)
+                return DeviceLaneCodes.WriteBusy;
+
+            if (!_recentWrites.TryGetValue(deviceId, out var recent))
+                _recentWrites[deviceId] = recent = new Queue<DateTimeOffset>();
+            while (recent.Count > 0 && recent.Peek() <= now - WriteRateWindow)
+                recent.Dequeue();
+            if (recent.Count >= maxPerMinute)
+                return DeviceLaneCodes.WriteRateLimited;
+
+            recent.Enqueue(now);
+            Register(pending);
+            return null;
+        }
+    }
+
+    public void HoldWriteLane(DeviceId deviceId, DateTimeOffset until)
+    {
+        lock (_laneGate)
+            Hold(deviceId, until);
+    }
+
     public PendingDeviceCommand? Find(DeviceId deviceId, string correlationId) =>
         _pending.GetValueOrDefault((deviceId, correlationId));
 
@@ -309,13 +362,27 @@ public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommand
     public IReadOnlyList<PendingDeviceCommand> TakeExpired(DateTimeOffset now)
     {
         var expired = new List<PendingDeviceCommand>();
-        foreach (var (key, pending) in _pending)
+        lock (_laneGate)
         {
-            if (pending.Deadline <= now && _pending.TryRemove(key, out var removed))
+            foreach (var (key, pending) in _pending)
+            {
+                if (pending.Deadline > now || !_pending.TryRemove(key, out var removed))
+                    continue;
                 expired.Add(removed);
+                // Unanswered by the deadline, a write may still leave the device queue until it
+                // expires there: keep the lane closed until then.
+                if (CommandLanes.IsWrite(removed.Plan.Definition.Class))
+                    Hold(removed.Plan.Request.DeviceId, removed.Plan.ExpiresAt + ReadSlotGrace);
+            }
         }
 
         return expired;
+    }
+
+    private void Hold(DeviceId deviceId, DateTimeOffset until)
+    {
+        if (!_writeHolds.TryGetValue(deviceId, out var current) || current < until)
+            _writeHolds[deviceId] = until;
     }
 }
 
