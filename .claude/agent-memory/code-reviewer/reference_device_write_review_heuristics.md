@@ -24,4 +24,8 @@ metadata:
 - Simulator reply shapes: check handler errors against spec R3 (the envelope `error` holds the esp_err_t name, the reason sits in `data.error`). A simulator that puts `busy` in the envelope makes anchored regexes like `/^busy/` on the server detail pass in simulation and fail on hardware (server detail = "ESP_ERR_INVALID_STATE: busy").
 - Interleaving probes without editing the repo: wrap `IAuthorizedEventPublisher` and run an action on the first `outputs` event. That event fires between `Upgrade` and `RecordAsync` in the correlator, the window where HTTP-thread and sweep actions can interleave.
 
+- Paired per-channel UI maps (translated error text + raw device code, DO panel 2026-11-10): check that every write site of the text map also clears the code map. The pulse-duration validation branch missed it, so a later local error showed an old device code.
+- Vue Test Utils `trigger` does nothing on a disabled element, so "click the locked button, nothing is sent" assertions cannot fail on their own; the `disabled` checks are the real proof.
+- STJ `JsonElement.GetString()` on a lone-surrogate escape throws InvalidOperationException. In `DeviceReplyProjection.ParseChannels` the correlator catches it and the whole get_status projection is dropped (no state stored). Probe every new string field of a reply with it.
+
 Related: [[hms-review-workflow]], [[authz-probe-heuristics]], [[reference-firmware-c-oracle]].
