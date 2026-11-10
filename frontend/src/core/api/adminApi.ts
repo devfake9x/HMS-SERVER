@@ -66,6 +66,8 @@ export interface CommandCatalogAction {
   available: boolean
   dangerous: boolean
   requiresConfirmation: boolean
+  /** Command class from the pinned catalog: Read, Write, Control, Destructive, Physical or Flash. */
+  class?: string
   featurePermission: string
   /** The spec §11 permission the server enforces for this action (null for config domains). */
   requiredPermission?: string | null
@@ -231,7 +233,7 @@ export const adminApi = {
   createBundle: (deviceId: string, body: { brokerHost: string; brokerPort: number; brokerMode: string }, options: AdminApiOptions) => request<ProvisioningBundleMetadata>(`/api/v1/devices/${encodeURIComponent(deviceId)}/provisioning-bundles`, { method: 'POST', body: JSON.stringify(body) }, options),
   downloadBundle: (deviceId: string, bundleId: string, options: AdminApiOptions = {}) => `/api/v1/devices/${encodeURIComponent(deviceId)}/provisioning-bundles/${encodeURIComponent(bundleId)}/download`,
   applyLicense: (deviceId: string, body: { kid: string; issuer: string; generation: number; rawEnvelope: string }, options: AdminApiOptions) => request<LicenseApplyResult>(`/api/v1/devices/${encodeURIComponent(deviceId)}/licenses/apply`, { method: 'POST', body: JSON.stringify(body) }, options),
-  sendCommand: (deviceId: string, body: { type: string; action: string; payload?: Record<string, unknown>; correlationId?: string; requestedAt?: string; dryRun?: boolean; catalogVersion?: string; catalogHash?: string }, options: AdminApiOptions) => request<CommandExecutionResult>(`/api/v1/devices/${encodeURIComponent(deviceId)}/commands`, { method: 'POST', body: JSON.stringify(body) }, options),
+  sendCommand: (deviceId: string, body: { type: string; action: string; payload?: Record<string, unknown>; correlationId?: string; requestedAt?: string; dryRun?: boolean; confirm?: string; catalogVersion?: string; catalogHash?: string }, options: AdminApiOptions) => request<CommandExecutionResult>(`/api/v1/devices/${encodeURIComponent(deviceId)}/commands`, { method: 'POST', body: JSON.stringify(body) }, options),
   listUsers: (options?: AdminApiOptions) => request<ManagedUserDto[]>('/api/v1/users', {}, options),
   createUser: (body: { email: string; password: string; emailConfirmed?: boolean; organizationId?: string | null }, options: AdminApiOptions) => request<ManagedUserDto>('/api/v1/users', { method: 'POST', body: JSON.stringify({ ...body, organizationId: strongId(body.organizationId) }) }, options),
   createRole: (name: string, options: AdminApiOptions) => request<void>('/api/v1/users/roles', { method: 'POST', body: JSON.stringify({ name }) }, options),

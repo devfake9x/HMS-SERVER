@@ -37,6 +37,13 @@ public static class CommandPermissionResolver
         DevicePermissionCodes.IsHighRisk(definition.RequiredPermission) ||
         DomainPermissions(definition)?.Values.Any(DevicePermissionCodes.IsHighRisk) == true;
 
+    /// <summary>Flash-class commands (class F) are sent by a master-admin only, whatever device
+    /// permission a role grants. User decision 2026-11-09: stricter than the device permission
+    /// model needs today, because no HTTP endpoint creates roles or memberships yet. Loosening it
+    /// takes its own decision. Checked at send time, before anything is reserved or signed.</summary>
+    public static bool RequiresMasterAdmin(CommandDefinition definition) =>
+        definition.Class == CommandClass.Flash;
+
     private static string ForClass(CommandClass commandClass, DomainPermission permission) =>
         commandClass == CommandClass.Read ? permission.ViewPermission : permission.EditPermission;
 

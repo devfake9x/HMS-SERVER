@@ -19,8 +19,9 @@ public sealed class SendDeviceCommandHandler(
     /// would then reject every command, including the reads used to diagnose it.</summary>
     public const int MaxCommandTtlMs = 20_000;
 
-    /// <summary>Tighter bound for commands that move physical equipment: a late relay write is
-    /// worse than a refused one.</summary>
+    /// <summary>Tighter bound for commands that move physical equipment or restart the device
+    /// (relay writes, reboot): a late one is worse than a refused one. This is not a replay
+    /// bound: a device with a slow clock or a broker that redelivers can still run an old command.</summary>
     public const int MaxPhysicalCommandTtlMs = 10_000;
 
     public async ValueTask<CommandExecutionResult> HandleAsync(
@@ -116,6 +117,15 @@ public sealed class SendDeviceCommandHandler(
             return await RecordAsync(request, null, Failure(request, CommandExecutionStatus.Failed, decision.Code), cancellationToken);
         }
 
+        // A flash command (reboot) is for a master-admin only, whatever the role grants (user
+        // decision 2026-11-09). Refused here, before the confirm check, the audit reservation and
+        // any signing. Missing the permission is still the plain permission refusal above.
+        if (CommandPermissionResolver.RequiresMasterAdmin(definition) && !access.IsMasterAdmin)
+        {
+            return await RecordAsync(request, null,
+                Failure(request, CommandExecutionStatus.Failed, DeviceAccessOutcomeCodes.HighRiskRequiresMasterAdmin), cancellationToken);
+        }
+
         if (definition.ConfirmTemplate is not null && string.IsNullOrWhiteSpace(request.Confirm))
         {
             return await RecordAsync(request, null, Failure(request, CommandExecutionStatus.Failed, "CONFIRM_REQUIRED"), cancellationToken);
@@ -130,7 +140,9 @@ public sealed class SendDeviceCommandHandler(
         // A command must expire on the device before the server stops waiting for its reply;
         // otherwise it can still run (and hold a slot of the device's small queue) after the
         // operator was told it timed out. Spec §3: TTL is checked when it leaves the queue.
-        var maxTtl = definition.Class == Domain.Commands.CommandClass.Physical ? MaxPhysicalCommandTtlMs : MaxCommandTtlMs;
+        var maxTtl = definition.Class is Domain.Commands.CommandClass.Physical or Domain.Commands.CommandClass.Flash
+            ? MaxPhysicalCommandTtlMs
+            : MaxCommandTtlMs;
         if (ttl > TimeSpan.FromMilliseconds(maxTtl))
             ttl = TimeSpan.FromMilliseconds(maxTtl);
         if (ttl > TimeSpan.FromHours(24))

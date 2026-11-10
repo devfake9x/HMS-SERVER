@@ -1,4 +1,5 @@
 using Hms.Server.Application.Commands;
+using Hms.Server.Application.DeviceLink;
 using Hms.Server.Domain.Devices;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,14 +48,25 @@ public sealed class EfCommandAuditStore(
         var failed = nameof(CommandExecutionStatus.Failed);
         const string inFlight = "IN_FLIGHT";
         var detail = CommandTransportOutcome.AfterRestartDetail;
+        // A reboot the device replied to keeps its status (it did reply); only the watch for the
+        // device coming back is lost, so it gets its own code and text.
+        var scheduled = DeviceRebootCodes.Scheduled;
+        var unknown = DeviceRebootCodes.OutcomeUnknown;
+        var watchLost = CommandTransportOutcome.RebootWatchLostDetail;
         if (db.Database.IsRelational())
         {
-            return db.CommandAudits
+            var unfinished = db.CommandAudits
                 .Where(x => x.Status == published || x.Status == inFlight)
                 .ExecuteUpdate(setters => setters
                     .SetProperty(x => x.Status, failed)
                     .SetProperty(x => x.Code, code)
                     .SetProperty(x => x.Detail, detail));
+            var watching = db.CommandAudits
+                .Where(x => x.Code == scheduled)
+                .ExecuteUpdate(setters => setters
+                    .SetProperty(x => x.Code, unknown)
+                    .SetProperty(x => x.Detail, watchLost));
+            return unfinished + watching;
         }
 
         var rows = db.CommandAudits.Where(x => x.Status == published || x.Status == inFlight).ToList();
@@ -65,9 +77,16 @@ public sealed class EfCommandAuditStore(
             row.Detail = detail;
         }
 
-        if (rows.Count > 0)
+        var watched = db.CommandAudits.Where(x => x.Code == scheduled).ToList();
+        foreach (var row in watched)
+        {
+            row.Code = unknown;
+            row.Detail = watchLost;
+        }
+
+        if (rows.Count + watched.Count > 0)
             db.SaveChanges();
-        return rows.Count;
+        return rows.Count + watched.Count;
     }
 
     public async ValueTask<CommandAuditReservation> ReserveAsync(
@@ -181,6 +200,44 @@ public sealed class EfCommandAuditStore(
         }
     }
 
+    public async ValueTask<bool> TryCompleteAsync(
+        CommandExecutionPlan plan,
+        CommandExecutionResult result,
+        IReadOnlySet<string> fromCodes,
+        CancellationToken cancellationToken = default)
+    {
+        var deviceId = plan.Request.DeviceId.Value;
+        var correlationId = plan.Request.CorrelationId;
+        var codes = fromCodes.ToArray();
+        var status = result.Status.ToString();
+        var detail = Truncate(result.Detail, CommandAuditRecord.MaxDetailLength);
+        if (db.Database.IsRelational())
+        {
+            // The expected code is part of the database write, so a completion that raced with
+            // another one (or with a revoke) cannot replace the code it did not expect.
+            var updated = await db.CommandAudits
+                .Where(x => x.DeviceId == deviceId && x.CorrelationId == correlationId &&
+                            x.Code != "DEVICE_REVOKED" && codes.Contains(x.Code))
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.Status, status)
+                    .SetProperty(x => x.Code, result.Code)
+                    .SetProperty(x => x.Detail, detail), cancellationToken);
+            return updated > 0;
+        }
+
+        // The in-memory provider has no atomic SQL update: development and tests only.
+        var current = await db.CommandAudits
+            .SingleOrDefaultAsync(x => x.DeviceId == deviceId && x.CorrelationId == correlationId, cancellationToken);
+        if (current is null || current.Code == "DEVICE_REVOKED" || !codes.Contains(current.Code))
+            return false;
+
+        current.Status = status;
+        current.Code = result.Code;
+        current.Detail = detail;
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private CommandAuditReservation ToReservation(
         CommandAuditRecord record,
         string requestedFingerprint)
@@ -228,7 +285,12 @@ public sealed class EfCommandAuditStore(
             return null;
         try
         {
-            return Truncate(System.Text.Json.JsonSerializer.Serialize(plan.Request.Payload), CommandAuditRecord.MaxPayloadSummaryLength);
+            // A dry-run and a real flash command share a payload ({}), and the table has no column
+            // for the difference; without this a timed-out preview reads like a timed-out reboot.
+            object summary = plan.Definition.Class == Domain.Commands.CommandClass.Flash
+                ? new Dictionary<string, object?> { ["dry_run"] = plan.Request.DryRun, ["payload"] = plan.Request.Payload }
+                : plan.Request.Payload;
+            return Truncate(System.Text.Json.JsonSerializer.Serialize(summary), CommandAuditRecord.MaxPayloadSummaryLength);
         }
         catch (Exception ex) when (ex is NotSupportedException or System.Text.Json.JsonException)
         {

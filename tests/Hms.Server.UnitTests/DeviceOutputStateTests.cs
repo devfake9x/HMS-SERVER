@@ -222,6 +222,9 @@ public sealed class DeviceOutputStateTests
 
         public ValueTask RecordAsync(CommandExecutionPlan plan, CommandExecutionResult result, CancellationToken cancellationToken = default) =>
             Broken ? throw new InvalidOperationException("AUDIT_DOWN") : _inner.RecordAsync(plan, result, cancellationToken);
+
+        public ValueTask<bool> TryCompleteAsync(CommandExecutionPlan plan, CommandExecutionResult result, IReadOnlySet<string> fromCodes, CancellationToken cancellationToken = default) =>
+            Broken ? throw new InvalidOperationException("AUDIT_DOWN") : _inner.TryCompleteAsync(plan, result, fromCodes, cancellationToken);
     }
 
     private sealed class Link
@@ -236,9 +239,9 @@ public sealed class DeviceOutputStateTests
             Secrets.Import(Device.Id, Device.KeyGeneration, CommandKey);
             Projection = new DeviceReplyProjection(Outputs, Events, Epochs, Permissions, NullLogger<DeviceReplyProjection>.Instance);
             Correlator = new DeviceCommandResponseCorrelator(Pending, new HmsIdfResponseCodec(), Secrets, Audit,
-                Responses, Events, Epochs, Permissions, NullLogger<DeviceCommandResponseCorrelator>.Instance, Projection);
+                Responses, Events, Epochs, Permissions, Tracker, NullLogger<DeviceCommandResponseCorrelator>.Instance, Projection);
             Inbound = new DeviceInboundMessageHandler(Devices, Telemetry, new InMemoryDeviceLinkStateStore(), Events, Epochs,
-                Permissions, Correlator, NullLogger<DeviceInboundMessageHandler>.Instance, Projection);
+                Permissions, Correlator, Tracker, NullLogger<DeviceInboundMessageHandler>.Instance, Projection);
         }
 
         public Device Device { get; }
@@ -251,6 +254,7 @@ public sealed class DeviceOutputStateTests
         public InMemoryAuthorizationEpochStore Epochs { get; } = new();
         public InMemoryPermissionStore Permissions { get; } = new();
         public InMemoryDeviceTelemetryStore Telemetry { get; } = new();
+        public InMemoryDeviceRebootTracker Tracker { get; } = new();
         public InMemoryDeviceOutputStateStore Outputs { get; } = new();
         public DeviceReplyProjection Projection { get; }
         public DeviceCommandResponseCorrelator Correlator { get; }

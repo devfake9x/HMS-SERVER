@@ -161,7 +161,7 @@ using (var startupScope = app.Services.CreateScope())
     var unfinished = startupScope.ServiceProvider.GetRequiredService<Hms.Server.Application.Commands.ICommandAuditStore>()
         .FailUnfinished("OUTCOME_UNKNOWN_AFTER_RESTART");
     if (unfinished > 0)
-        app.Logger.LogWarning("{Count} device command(s) left published by a previous run marked outcome unknown", unfinished);
+        app.Logger.LogWarning("{Count} device command(s) a previous run left unfinished (published, or a reboot still being watched) marked outcome unknown", unfinished);
 }
 
 app.Run();

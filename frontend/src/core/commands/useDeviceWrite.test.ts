@@ -94,6 +94,39 @@ describe('runDeviceWrite', () => {
     expect((await settle(45_000)).kind).toBe('unknown')
   })
 
+  it('with followJobs off, an acknowledged job is unknown and system.get_operations is never sent', async () => {
+    const sent = fakeDevice(() => accepted('42'))
+    const run = runDeviceWrite('dev-1', body, { followJobs: false })
+    await vi.advanceTimersByTimeAsync(70_000)
+    const outcome = await run
+
+    expect(outcome.kind).toBe('unknown')
+    expect(outcome.code).toBe('DEVICE_ACCEPTED')
+    expect(sent.filter(s => s.key === OPS)).toHaveLength(0)
+    expect(writesSent(sent)).toBe(1)
+  })
+
+  it('follows an acknowledged job by default (followJobs unset)', async () => {
+    const sent = fakeDevice((key, _p, n) => key === WRITE ? accepted('42')
+      : operation({ operationId: '42', state: 'terminal', resultSuccess: true, n }))
+    const outcome = await settle(10_000)
+
+    expect(outcome.kind).toBe('executed')
+    expect(sent.filter(s => s.key === OPS)).toHaveLength(1)
+  })
+
+  it('passes confirm and dryRun on to the server', async () => {
+    const sent = fakeDevice(() => ({}))
+    await settle()
+    expect(sent[0].confirm).toBeUndefined()
+    expect(sent[0].dryRun).toBeUndefined()
+
+    const run = runDeviceWrite('dev-1', { ...body, confirm: 'REBOOT-x', dryRun: true }, {})
+    await vi.advanceTimersByTimeAsync(5000)
+    await run
+    expect(sent[1]).toMatchObject({ confirm: 'REBOOT-x', dryRun: true })
+  })
+
   it('remembers the correlation id of its write so the page can tell its own event apart', async () => {
     const sent = fakeDevice(() => ({}))
     await settle()

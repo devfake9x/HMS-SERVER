@@ -126,13 +126,43 @@ public sealed class DeviceLinkTests
         var withMqttId = await link.Adapter.PrepareAsync(link.Plan(definition, confirm: "REBOOT-gateway_870c"));
 
         Assert.Equal("CONFIRM_MISMATCH", withGuid.FailureCode);
-        // The right token passes the confirm check. A flash write has no payload rule yet, so the
-        // config policy stops it there until it is opened with its own review.
-        Assert.Equal(ConfigCommandPolicy.ActionUnsupported, withMqttId.FailureCode);
-        var unsigned = HmsIdfCommandCodec.Serialize(new HmsIdfCommandCodec.CommandEnvelope(
-            "system", "reboot-1", 1_790_899_200, 60_000, "reboot", Confirm: "REBOOT-gateway_870c"));
-        Assert.Contains("\"confirm\":\"REBOOT-gateway_870c\"", Encoding.UTF8.GetString(unsigned));
+        // The right token passes the confirm check and the empty-payload rule, and is signed in.
+        Assert.True(withMqttId.CanPublish);
+        Assert.Contains("\"confirm\":\"REBOOT-gateway_870c\"", Encoding.UTF8.GetString(withMqttId.Payload.Span));
     }
+
+    [Fact]
+    public async Task A_reboot_dry_run_is_signed_with_dry_run_and_confirm_at_the_root()
+    {
+        var link = new Link();
+        var plan = link.Plan(RebootDefinition, confirm: "REBOOT-gateway_870c");
+        plan = plan with { Request = plan.Request with { DryRun = true } };
+
+        var prepared = await link.Adapter.PrepareAsync(plan);
+
+        Assert.True(prepared.CanPublish);
+        var wire = Encoding.UTF8.GetString(prepared.Payload.Span);
+        Assert.Contains("\"dry_run\":true", wire);
+        Assert.Contains("\"confirm\":\"REBOOT-gateway_870c\"", wire);
+        Assert.Contains("\"data\":{\"action\":\"reboot\"}", wire);
+    }
+
+    [Fact]
+    public async Task A_reboot_with_a_payload_is_refused_without_reading_the_key()
+    {
+        var link = new Link(importKey: false);
+        var plan = link.Plan(RebootDefinition, confirm: "REBOOT-gateway_870c",
+            payload: new Dictionary<string, object?> { ["delay_ms"] = 2000 });
+
+        var prepared = await link.Adapter.PrepareAsync(plan);
+
+        Assert.False(prepared.CanPublish);
+        // Not COMMAND_KEY_NOT_PROVISIONED: the payload rule runs before the key is looked up.
+        Assert.Equal(ConfigCommandPolicy.PayloadInvalid, prepared.FailureCode);
+    }
+
+    private static readonly CommandDefinition RebootDefinition = new("system", "reboot", "sys.reboot",
+        CommandAvailability.Enabled, true, false, 60000, CommandClass.Flash, ConfirmTemplate: "REBOOT-<DEVID>", DryRunSupported: true);
 
     [Fact]
     public async Task Adapter_refuses_what_the_device_would_drop()
@@ -365,9 +395,9 @@ public sealed class DeviceLinkTests
                 Secrets.Import(Device.Id, Device.KeyGeneration, CommandKey);
             Adapter = new HmsIdfCommandProtocolAdapter(Bindings, Secrets, LinkState);
             Correlator = new DeviceCommandResponseCorrelator(Pending, new HmsIdfResponseCodec(), Secrets, Audit,
-                Responses, Events, Epochs, Permissions, NullLogger<DeviceCommandResponseCorrelator>.Instance);
+                Responses, Events, Epochs, Permissions, Tracker, NullLogger<DeviceCommandResponseCorrelator>.Instance);
             Inbound = new DeviceInboundMessageHandler(Devices, Telemetry, LinkState, Events, Epochs, Permissions,
-                Correlator, NullLogger<DeviceInboundMessageHandler>.Instance);
+                Correlator, Tracker, NullLogger<DeviceInboundMessageHandler>.Instance);
         }
 
         public Device Device { get; }
@@ -382,6 +412,7 @@ public sealed class DeviceLinkTests
         public InMemoryAuthorizationEpochStore Epochs { get; } = new();
         public InMemoryPermissionStore Permissions { get; } = new();
         public InMemoryDeviceTelemetryStore Telemetry { get; } = new();
+        public InMemoryDeviceRebootTracker Tracker { get; } = new();
         public HmsIdfCommandProtocolAdapter Adapter { get; }
         public DeviceCommandResponseCorrelator Correlator { get; }
         public DeviceInboundMessageHandler Inbound { get; }

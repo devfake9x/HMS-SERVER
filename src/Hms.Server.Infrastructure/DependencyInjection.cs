@@ -36,6 +36,9 @@ public static class DependencyInjection
         services.AddSingleton<IDeviceResponseCodec, Commands.HmsIdfResponseCodec>();
         services.AddSingleton<IDeviceLinkStateStore, InMemoryDeviceLinkStateStore>();
         services.AddSingleton<IPendingDeviceCommandRegistry, InMemoryPendingDeviceCommandRegistry>();
+        // One tracker for the transport, the reply and heartbeat handlers and the rebind and revoke
+        // handlers; registered outside every branch so no path can build any of them without it.
+        services.AddSingleton<IDeviceRebootTracker, InMemoryDeviceRebootTracker>();
         services.AddSingleton<ICommandResponseStore>(_ => new InMemoryCommandResponseStore());
         if (!string.IsNullOrWhiteSpace(databaseConnectionString))
             services.AddScoped<IDeviceMqttBindingStore, EfDeviceMqttBindingStore>();

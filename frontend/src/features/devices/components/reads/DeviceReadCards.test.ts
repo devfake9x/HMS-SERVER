@@ -493,7 +493,7 @@ describe('config writes on the read cards', () => {
       expect(result(wrapper)).not.toContain('khác')
     })
 
-    it('tells that the device recommends a reboot, which the server does not offer', async () => {
+    it('tells that the device recommends a reboot, which a master-admin does from the reboot button', async () => {
       startDevice((key, payload) => {
         if (key !== 'system.set_hostname') return undefined
         sim.hostname = String(payload?.hostname)
@@ -505,7 +505,7 @@ describe('config writes on the read cards', () => {
       await confirm(wrapper)
       await settle()
 
-      expect(result(wrapper)).toContain('Thiết bị khuyên khởi động lại; reboot chưa mở trên server')
+      expect(result(wrapper)).toContain('Thiết bị khuyên khởi động lại; master-admin dùng nút Khởi động lại trên trang')
     })
 
     it('changes the timezone and re-reads system.get_time', async () => {

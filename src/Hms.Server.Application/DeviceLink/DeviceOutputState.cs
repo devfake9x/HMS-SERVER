@@ -26,6 +26,7 @@ public static class OutputStaleReasons
     public const string DeviceRebooted = "device_rebooted";
     public const string OutputCommandExecuted = "output_command_executed";
     public const string OutputCommandOutcomeUnknown = "output_command_outcome_unknown";
+    public const string DeviceRebootScheduled = "device_reboot_scheduled";
 }
 
 /// <summary>Written only by <see cref="DeviceReplyProjection"/>: heartbeats, device events and

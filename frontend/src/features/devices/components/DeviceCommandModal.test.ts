@@ -10,8 +10,11 @@ describe('DeviceCommandModal', () => {
     catalogHash: 'hash-abc',
     trusted: true,
     actions: [
-      { type: 'telemetry', action: 'poll', featurePermission: 'commands.read', available: true, dangerous: false, requiresConfirmation: false, idempotent: true, defaultTtlMs: 5000 },
-      { type: 'system', action: 'reboot', featurePermission: 'commands.admin', available: true, dangerous: true, requiresConfirmation: true, idempotent: false, defaultTtlMs: 5000 },
+      { type: 'telemetry', action: 'poll', class: 'Read', featurePermission: 'commands.read', available: true, dangerous: false, requiresConfirmation: false, idempotent: true, defaultTtlMs: 5000 },
+      { type: 'system', action: 'reboot', class: 'Flash', featurePermission: 'commands.admin', available: true, dangerous: true, requiresConfirmation: true, idempotent: false, defaultTtlMs: 5000 },
+      { type: 'system', action: 'factory_reset', class: 'Flash', featurePermission: 'commands.admin', available: true, dangerous: true, requiresConfirmation: true, idempotent: false, defaultTtlMs: 5000 },
+      { type: 'ota', action: 'apply', class: 'Flash', featurePermission: 'commands.admin', available: true, dangerous: true, requiresConfirmation: true, idempotent: false, defaultTtlMs: 5000 },
+      { type: 'system', action: 'get_info', class: 'Read', featurePermission: 'commands.read', available: true, dangerous: false, requiresConfirmation: false, idempotent: true, defaultTtlMs: 5000 },
     ],
   }
 
@@ -98,7 +101,7 @@ describe('DeviceCommandModal', () => {
         catalog: {
           ...catalog,
           // featurePermission is empty, as in what the server sends today.
-          actions: [{ type: 'system', action: 'get_info', requiredPermission: 'sys.info_view', featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: true, defaultTtlMs: 120000 }],
+          actions: [{ type: 'system', action: 'get_info', class: 'Read', requiredPermission: 'sys.info_view', featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: true, defaultTtlMs: 120000 }],
         },
         catalogProof: { version: '1.0.0', hash: 'hash-abc' },
         catalogFresh: true,
@@ -160,8 +163,78 @@ describe('DeviceCommandModal', () => {
     vi.useRealTimers()
   })
 
+  it('offers no class F action, which only the reboot panel may send', async () => {
+    const wrapper = mountVerified()
+    const vm = wrapper.vm as unknown as { selectedType: string; availableTypes: string[]; actionOptions: Array<{ value: string }> }
+
+    expect(vm.availableTypes).not.toContain('ota')
+    vm.selectedType = 'system'
+    await wrapper.vm.$nextTick()
+    expect(vm.actionOptions.map(o => o.value)).toEqual(['get_info'])
+    wrapper.unmount()
+  })
+
+  it('fails closed: an action whose catalog class is missing is hidden too', async () => {
+    const wrapper = mount(DeviceCommandModal, {
+      attachTo: document.body,
+      props: {
+        modelValue: true, deviceId: 'dev-1', deviceName: 'Device Alpha',
+        catalog: {
+          ...catalog,
+          actions: [
+            { type: 'x', action: 'no_class', featurePermission: '', available: true, dangerous: true, requiresConfirmation: true, idempotent: false, defaultTtlMs: 5000 },
+            { type: 'x', action: 'plain', class: 'Read', featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: true, defaultTtlMs: 5000 },
+          ],
+        },
+        catalogProof: { version: '1.0.0', hash: 'hash-abc' }, catalogFresh: true, permissions, csrfToken: 'csrf',
+      },
+    })
+    const vm = wrapper.vm as unknown as { selectedType: string; actionOptions: Array<{ value: string }> }
+    vm.selectedType = 'x'
+    await wrapper.vm.$nextTick()
+
+    expect(vm.actionOptions.map(o => o.value)).toEqual(['plain'])
+    wrapper.unmount()
+  })
+
+  it('hides class F by the catalog class, not by the action name', async () => {
+    const wrapper = mount(DeviceCommandModal, {
+      attachTo: document.body,
+      props: {
+        modelValue: true, deviceId: 'dev-1', deviceName: 'Device Alpha',
+        catalog: {
+          ...catalog,
+          actions: [
+            { type: 'x', action: 'new_flash', class: 'Flash', featurePermission: '', available: true, dangerous: true, requiresConfirmation: true, idempotent: false, defaultTtlMs: 5000 },
+            { type: 'x', action: 'plain', class: 'Read', featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: true, defaultTtlMs: 5000 },
+          ],
+        },
+        catalogProof: { version: '1.0.0', hash: 'hash-abc' }, catalogFresh: true, permissions, csrfToken: 'csrf',
+      },
+    })
+    const vm = wrapper.vm as unknown as { selectedType: string; actionOptions: Array<{ value: string }> }
+    vm.selectedType = 'x'
+    await wrapper.vm.$nextTick()
+
+    expect(vm.actionOptions.map(o => o.value)).toEqual(['plain'])
+    wrapper.unmount()
+  })
+
+  it.each([['system', 'reboot'], ['system', 'factory_reset'], ['ota', 'apply'], ['system', 'get_info']])(
+    'never puts a confirm_token in the parameters of %s.%s', async (type, action) => {
+      const wrapper = mountVerified()
+      const vm = wrapper.vm as unknown as { selectedType: string; selectedAction: string; rawParamsJson: string }
+      vm.selectedType = type
+      vm.selectedAction = action
+      await wrapper.vm.$nextTick()
+
+      expect(vm.rawParamsJson).toBe('{}')
+      expect(vm.rawParamsJson).not.toContain('confirm_token')
+      wrapper.unmount()
+    })
+
   it('offers no relay writes, which only the DO panel may send', async () => {
-    const control = (action: string) => ({ type: 'control', action, featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: false, defaultTtlMs: 10000 })
+    const control = (action: string) => ({ type: 'control', action, class: 'Control', featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: false, defaultTtlMs: 10000 })
     const wrapper = mount(DeviceCommandModal, {
       attachTo: document.body,
       props: {
@@ -185,7 +258,7 @@ describe('DeviceCommandModal', () => {
   })
 
   it('offers no config writes, which only the read cards may send', async () => {
-    const act = (type: string, action: string) => ({ type, action, featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: false, defaultTtlMs: 10000 })
+    const act = (type: string, action: string) => ({ type, action, class: 'Write', featurePermission: '', available: true, dangerous: false, requiresConfirmation: false, idempotent: false, defaultTtlMs: 10000 })
     const wrapper = mount(DeviceCommandModal, {
       attachTo: document.body,
       props: {

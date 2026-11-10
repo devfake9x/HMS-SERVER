@@ -134,11 +134,13 @@ async function followJob(
 /**
  * Sends one write, exactly once, and classifies what is known afterwards. It never sends the write
  * again, whatever the outcome; every kind except `not_sent` means the caller must read the state back.
+ * With `followJobs: false` an accepted job stays `unknown` instead of being polled with
+ * system.get_operations (a device that is restarting cannot answer).
  */
 export async function runDeviceWrite(
   deviceId: string,
   body: DeviceCommandBody,
-  options: { csrfToken?: string; signal?: AbortSignal },
+  options: { csrfToken?: string; signal?: AbortSignal; followJobs?: boolean },
 ): Promise<WriteOutcome> {
   const correlationId = body.correlationId ?? newCorrelationId()
   rememberOwnWrite(correlationId)
@@ -170,7 +172,7 @@ export async function runDeviceWrite(
   if (result?.status === 'Failed' && code === 'DEVICE_REJECTED') return outcomeOf('rejected', sent, code, detail)
   if (result?.status === 'Acknowledged') {
     const jobId = OPERATION_ID.exec(detail ?? '')?.[1]
-    return jobId ? followJob(deviceId, jobId, sent, body, options) : outcomeOf('unknown', sent, code, detail)
+    return jobId && options.followJobs !== false ? followJob(deviceId, jobId, sent, body, options) : outcomeOf('unknown', sent, code, detail)
   }
   return outcomeOf('unknown', sent, code, detail)
 }

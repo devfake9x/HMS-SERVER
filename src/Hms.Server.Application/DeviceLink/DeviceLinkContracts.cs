@@ -269,8 +269,11 @@ public interface IPendingDeviceCommandRegistry
     /// <summary>Registers a write-lane command (<see cref="CommandLanes.IsWrite"/>) unless its device
     /// already has one waiting, is held for a running job, or took <paramref name="maxPerMinute"/>
     /// writes in the last minute. Returns null when registered, otherwise a
-    /// <see cref="DeviceLaneCodes"/> refusal. The checks and the insert are one atomic step.</summary>
-    string? TryRegisterWrite(PendingDeviceCommand pending, int maxPerMinute);
+    /// <see cref="DeviceLaneCodes"/> refusal. The checks and the insert are one atomic step.
+    /// <paramref name="admit"/>, when given, runs inside that step after the busy and rate checks and
+    /// before the write is counted: a non-null result is the refusal, and the write then uses no
+    /// slot of the per-minute budget. It runs under the lane lock, so it must not call back here.</summary>
+    string? TryRegisterWrite(PendingDeviceCommand pending, int maxPerMinute, Func<string?>? admit = null);
 
     /// <summary>Keeps the device's write lane closed until <paramref name="until"/>: the device
     /// accepted a write as a job that is still running (spec §5).</summary>
@@ -321,7 +324,7 @@ public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommand
         }
     }
 
-    public string? TryRegisterWrite(PendingDeviceCommand pending, int maxPerMinute)
+    public string? TryRegisterWrite(PendingDeviceCommand pending, int maxPerMinute, Func<string?>? admit = null)
     {
         var deviceId = pending.Plan.Request.DeviceId;
         var now = pending.PublishedAt;
@@ -340,6 +343,11 @@ public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommand
                 recent.Dequeue();
             if (recent.Count >= maxPerMinute)
                 return DeviceLaneCodes.WriteRateLimited;
+
+            // Last check, and before the slot is taken: a refused command must not use up the
+            // budget of the commands that follow it.
+            if (admit?.Invoke() is { } refused)
+                return refused;
 
             recent.Enqueue(now);
             Register(pending);

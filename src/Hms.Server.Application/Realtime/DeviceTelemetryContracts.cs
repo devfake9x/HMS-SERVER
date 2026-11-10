@@ -32,6 +32,21 @@ public static class TelemetryRelayStates
     }
 }
 
+/// <summary>Reads fields out of a status message the same way the telemetry store does, so a
+/// caller that must not depend on the store (it also takes manual telemetry posts) sees the
+/// same value.</summary>
+public static class DeviceTelemetryParsing
+{
+    public static long? UptimeSeconds(IReadOnlyDictionary<string, object?> data)
+    {
+        if (!data.TryGetValue("uptime_seconds", out var u) || u is null)
+            return null;
+        if (u is long l) return l;
+        if (u is int i) return i;
+        return long.TryParse(u.ToString(), out var parsed) ? parsed : null;
+    }
+}
+
 public interface IDeviceTelemetryStore
 {
     void Record(DeviceId deviceId, IReadOnlyDictionary<string, object?> data);
@@ -44,13 +59,7 @@ public sealed class InMemoryDeviceTelemetryStore : IDeviceTelemetryStore
 
     public void Record(DeviceId deviceId, IReadOnlyDictionary<string, object?> data)
     {
-        long? uptime = null;
-        if (data.TryGetValue("uptime_seconds", out var u) && u is not null)
-        {
-            if (u is long l) uptime = l;
-            else if (u is int i) uptime = i;
-            else if (long.TryParse(u.ToString(), out var parsed)) uptime = parsed;
-        }
+        var uptime = DeviceTelemetryParsing.UptimeSeconds(data);
 
         long? freeHeap = null;
         if (data.TryGetValue("free_heap", out var fh) && fh is not null)

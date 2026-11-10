@@ -312,6 +312,18 @@ describe('DeviceOutputsPanel', () => {
     expect(wrapper.find('[data-test="do-stale"]').exists()).toBe(true)
   })
 
+  it('says the device is restarting when the server marks the state stale for a scheduled reboot', async () => {
+    vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({
+      kind: 'ok',
+      state: { ...state([[1, true, 'toggle']], true), staleReason: 'device_reboot_scheduled' },
+    })
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="do-stale"]').text()).toContain('thiết bị đang khởi động lại')
+    expect(wrapper.find('[data-test="do-stale"]').text()).not.toContain('device_reboot_scheduled')
+  })
+
   it('offers pulse only in pulse mode and reads back again after the pulse ends', async () => {
     vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: state([[1, false, 'toggle'], [6, false, 'pulse']]) })
     const send = vi.spyOn(adminApi, 'sendCommand').mockImplementation(async (_d, body) => published(`${body.action}-${send.mock.calls.length}`))

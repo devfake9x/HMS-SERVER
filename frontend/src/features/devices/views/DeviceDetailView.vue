@@ -12,6 +12,7 @@ import {
 import { createSessionFence, type SessionLease } from '@/core/auth/sessionFence'
 import { createCatalogVerification, verifyCatalog } from '@/core/commands/catalogVerification'
 import { isOwnWrite } from '@/core/commands/useDeviceWrite'
+import { useDeviceReboot } from '@/core/commands/useDeviceReboot'
 import { useDeviceOperationsHub } from '@/core/realtime/useDeviceOperationsHub'
 import { createSignalRConnection } from '@/core/realtime/signalRConnection'
 import { downloadSecretBlob } from '@/core/storage/secureDownload'
@@ -21,6 +22,7 @@ import Button from '@/shared/ui/primitives/Button.vue'
 import DeviceCommandModal from '../components/DeviceCommandModal.vue'
 import DevicePermissionsTab from '../components/DevicePermissionsTab.vue'
 import DeviceOutputsPanel from '../components/DeviceOutputsPanel.vue'
+import DeviceRebootPanel from '../components/reboot/DeviceRebootPanel.vue'
 import DeviceInfoTimeCard from '../components/reads/DeviceInfoTimeCard.vue'
 import DeviceNetworkCard from '../components/reads/DeviceNetworkCard.vue'
 import DevicePowerAdcCard from '../components/reads/DevicePowerAdcCard.vue'
@@ -283,6 +285,7 @@ const operationsHub = useDeviceOperationsHub({
       }
       if (event.eventType === 'command_result') {
         noteConfigChange(event.payload)
+        noteReboot(event.payload)
         return
       }
       // Only a heartbeat proves the device is alive and carries telemetry. Command results,
@@ -318,6 +321,28 @@ function noteConfigChange(payload: unknown) {
   if (!card || isOwnWrite(correlationId)) return
   if (card === 'info') infoConfigChangedAt.value = Date.now()
   else adcConfigChangedAt.value = Date.now()
+}
+
+// The result of a reboot, whoever sent it: the panel that follows it polls at once; once the device
+// is seen back, the link's online flag is stale and so is every setting that applies only on boot
+// (a hostname saved but not yet applied), even for the reboot this page sent itself.
+const rebootEvent = ref<{ correlationId: string } | null>(null)
+// The reboot run lives with the page, not with the panel: leaving the telemetry tab must not end it.
+// It stops when the page goes or the device changes.
+const reboot = useDeviceReboot(() => deviceId.value, () => ({
+  csrfToken: csrfToken.value, catalog: catalog.value, allowedCommands: allowedCommands.value,
+}))
+
+function noteReboot(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return
+  const { type, action, correlationId, code } = payload as Record<string, unknown>
+  if (type !== 'system' || action !== 'reboot' || typeof correlationId !== 'string') return
+  rebootEvent.value = { correlationId }
+  if (code === 'DEVICE_REBOOT_OBSERVED') {
+    refreshOutputs()
+    infoConfigChangedAt.value = Date.now()
+    adcConfigChangedAt.value = Date.now()
+  }
 }
 
 function refreshOutputs() {
@@ -361,6 +386,7 @@ watch(deviceId, (next, previous) => {
   hardwareTelemetry.value = emptyHardwareTelemetry()
   telemetryData.value = emptyTelemetryData()
   commandHistory.value = []
+  rebootEvent.value = null
   lastHeartbeat.value = 'Never'
   infoConfigChangedAt.value = null
   adcConfigChangedAt.value = null
@@ -927,6 +953,13 @@ onUnmounted(() => {
                 <span class="font-mono text-[var(--text-primary)]">{{ deviceLink?.capabilityCount ? `${deviceLink.capabilityCount} actions` : '—' }}</span>
               </div>
             </div>
+            <DeviceRebootPanel
+              v-bind="readCardContext"
+              :reboot="reboot"
+              :command-event="rebootEvent"
+              :outputs-key="outputsRefreshKey"
+              @refresh-link="refreshOutputs"
+            />
           </div>
 
           <!-- Column 2: Relay outputs (DO) — the only UI path that drives them -->

@@ -232,6 +232,7 @@ public sealed class GrantDeviceActionHandler(IPermissionStore permissions)
 public sealed class RevokeDeviceHandler(
     IDeviceStore devices,
     IAuthorizationEpochStore epochs,
+    DeviceLink.IDeviceRebootTracker reboots,
     ICommandAuditStore? commandAudits = null)
 {
     public void Handle(DeviceId deviceId)
@@ -241,5 +242,8 @@ public sealed class RevokeDeviceHandler(
         devices.Update(device);
         epochs.Advance(deviceId);
         commandAudits?.CancelPendingForDevice(deviceId);
+        // CancelPendingForDevice only reaches rows still in flight, so a reboot row that is being
+        // watched would stay "scheduled" for good; end the watch with an honest unknown.
+        reboots.Abandon(deviceId, "revoked");
     }
 }

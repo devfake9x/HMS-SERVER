@@ -20,7 +20,9 @@ public interface IMqttCommandPublisher
 public sealed class MqttDeviceCommandTransport(
     IMqttCommandPublisher link,
     IPendingDeviceCommandRegistry pending,
-    IOptions<MqttLinkOptions> options) : IDeviceCommandTransport
+    IOptions<MqttLinkOptions> options,
+    IDeviceRebootTracker reboots,
+    TimeProvider? clock = null) : IDeviceCommandTransport
 {
     /// <summary>Failures raised before anything was handed to the broker: the command certainly
     /// did not leave the server.</summary>
@@ -62,8 +64,9 @@ public sealed class MqttDeviceCommandTransport(
 
         // Registered before the publish: the reply can arrive before PublishAsync returns. Reads
         // are capped per device so they cannot fill the queue a relay command needs.
-        var now = DateTimeOffset.UtcNow;
+        var now = (clock ?? TimeProvider.System).GetUtcNow();
         var entry = new PendingDeviceCommand(plan, now, now.AddSeconds(options.Value.ResponseTimeoutSeconds));
+        var isReboot = DeviceRebootCodes.IsReboot(plan.Request.Type, plan.Request.Action);
         if (plan.Definition.Class == Domain.Commands.CommandClass.Read)
         {
             // Each sender gets half the slots, so one user cannot hold them all. The relay
@@ -78,11 +81,19 @@ public sealed class MqttDeviceCommandTransport(
         else if (CommandLanes.IsWrite(plan.Definition.Class))
         {
             // One write at a time per device, never through Register (which skips the lane gate).
-            if (pending.TryRegisterWrite(entry, MaxWritesPerMinute) is { } refused)
-                return new(CommandExecutionStatus.ContractUnavailable, refused, correlationId,
-                    refused == WriteBusy
-                        ? "The device is still handling another write; read its state, then retry."
-                        : "Too many writes to this device in the last minute; retry later.");
+            // A reboot also passes the reboot gate, inside the same atomic step: it holds the device
+            // from here (not from the reply), so a lost or late reply cannot leave the next reboot
+            // ungated, and a refused one costs no slot.
+            Func<string?>? admit = isReboot ? () => reboots.Admit(plan, now, entry.Deadline) : null;
+            if (pending.TryRegisterWrite(entry, MaxWritesPerMinute, admit) is { } refused)
+                return new(CommandExecutionStatus.ContractUnavailable, refused, correlationId, refused switch
+                {
+                    WriteBusy => "The device is still handling another write; read its state, then retry.",
+                    WriteRateLimited => "Too many writes to this device in the last minute; retry later.",
+                    DeviceRebootCodes.InProgress => "A reboot of this device is already being handled; wait until it is settled.",
+                    DeviceRebootCodes.TooSoon => "This device accepted a reboot less than a minute ago; wait before the next one.",
+                    _ => "The write was refused; nothing was published."
+                });
         }
         else
         {
@@ -105,6 +116,9 @@ public sealed class MqttDeviceCommandTransport(
         if (NeverSentCodes.Contains(failure))
         {
             pending.Remove(plan.Request.DeviceId, correlationId);
+            // Certainly not sent, so the device will not restart: the hold goes (its one-minute mark stays).
+            if (isReboot)
+                reboots.Disarm(plan.Request.DeviceId, correlationId);
             return new(CommandExecutionStatus.Failed, failure, correlationId);
         }
 

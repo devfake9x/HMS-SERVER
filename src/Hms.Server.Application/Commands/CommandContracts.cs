@@ -50,6 +50,11 @@ public static class CommandTransportOutcome
     public const string AfterRestartDetail =
         "The server restarted before the device replied; read device state before retrying.";
 
+    /// <summary>Text for a reboot the device did reply to, whose watch for the device coming back
+    /// ended with the restart. <see cref="AfterRestartDetail"/> would be wrong: the reply came.</summary>
+    public const string RebootWatchLostDetail =
+        "The server restarted while it watched for the device to come back; read the device state.";
+
     /// <summary>True for what the sender learns about its own publish. That describes the transport
     /// only, so it must never replace an outcome the device already reported.</summary>
     public static bool IsTransportOnly(CommandExecutionResult result) =>
@@ -136,6 +141,14 @@ public interface ICommandAuditStore
     ValueTask RecordAsync(
         CommandExecutionPlan plan,
         CommandExecutionResult result,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Writes <paramref name="result"/> only while the row's code is one of
+    /// <paramref name="fromCodes"/> (and not a revoke). False when the row moved on or is missing.</summary>
+    ValueTask<bool> TryCompleteAsync(
+        CommandExecutionPlan plan,
+        CommandExecutionResult result,
+        IReadOnlySet<string> fromCodes,
         CancellationToken cancellationToken = default);
 }
 
@@ -319,6 +332,22 @@ public sealed class InMemoryCommandAuditStore : ICommandAuditStore
             foreach (var key in _records.Keys.ToArray())
             {
                 var entry = _records[key];
+                // The device replied to a reboot, and the server was watching for it to come back
+                // when it stopped: the reply stays a success, the watch is what is lost.
+                if (StringComparer.Ordinal.Equals(entry.Result?.Code, DeviceLink.DeviceRebootCodes.Scheduled))
+                {
+                    _records[key] = entry with
+                    {
+                        Result = entry.Result! with
+                        {
+                            Code = DeviceLink.DeviceRebootCodes.OutcomeUnknown,
+                            Detail = CommandTransportOutcome.RebootWatchLostDetail
+                        }
+                    };
+                    failed++;
+                    continue;
+                }
+
                 if (entry.Result is not null && entry.Result.Status != CommandExecutionStatus.Published)
                     continue;
                 _records[key] = entry with
@@ -389,6 +418,24 @@ public sealed class InMemoryCommandAuditStore : ICommandAuditStore
                 _records[key] = new Entry(plan, CommandRequestFingerprint.Compute(plan.Request), result, _clock());
         }
         return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<bool> TryCompleteAsync(
+        CommandExecutionPlan plan,
+        CommandExecutionResult result,
+        IReadOnlySet<string> fromCodes,
+        CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            var key = (plan.Request.DeviceId, plan.Request.CorrelationId);
+            if (!_records.TryGetValue(key, out var existing) || existing.Result is not { } current ||
+                StringComparer.Ordinal.Equals(current.Code, "DEVICE_REVOKED") || !fromCodes.Contains(current.Code))
+                return ValueTask.FromResult(false);
+
+            _records[key] = existing with { Result = result };
+            return ValueTask.FromResult(true);
+        }
     }
 
     private static CommandAuditPlan ToAuditPlan(CommandExecutionPlan plan, string fingerprint) =>

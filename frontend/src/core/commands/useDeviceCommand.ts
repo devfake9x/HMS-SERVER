@@ -9,6 +9,10 @@ export interface DeviceCommandBody {
   type: string
   action: string
   payload?: Record<string, unknown>
+  /** Typed confirmation phrase, for the commands the catalog marks as needing one. */
+  confirm?: string
+  /** Ask the device to preview the command without running it (spec 4.2). */
+  dryRun?: boolean
   correlationId?: string
   catalogVersion?: string
   catalogHash?: string

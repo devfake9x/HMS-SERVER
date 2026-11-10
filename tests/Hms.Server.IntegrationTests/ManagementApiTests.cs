@@ -192,14 +192,15 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Contains(actions.EnumerateArray(), action =>
             action.GetProperty("type").GetString() == "system" &&
             action.GetProperty("action").GetString() == "get_info");
-        // Only the server's allowlists (reads, relay outputs, config writes) are offered as available.
+        // Only the server's allowlists (reads, relay outputs, config writes, reboot) are offered as available.
         Assert.All(actions.EnumerateArray(), action =>
         {
             var pair = (action.GetProperty("type").GetString()!, action.GetProperty("action").GetString()!);
             Assert.Equal(
                 Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.EnabledActions.Contains(pair) ||
                 Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.PhysicalOutputActions.Contains(pair) ||
-                Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.ConfigWriteActions.Contains(pair),
+                Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.ConfigWriteActions.Contains(pair) ||
+                Hms.Server.Infrastructure.Commands.PinnedCommandCatalog.FlashActions.Contains(pair),
                 action.GetProperty("available").GetBoolean());
         });
     }
@@ -402,6 +403,91 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Equal(HttpStatusCode.OK, refused.StatusCode);
         Assert.Equal(DeviceAccessCodes.PermissionRequired, await CodeOfAsync(refused));
         Assert.Equal("COMMAND_PAYLOAD_INVALID", await CodeOfAsync(invalid));
+    }
+
+    [Fact]
+    public async Task Reboot_is_for_the_master_admin_only_and_is_checked_before_anything_is_signed()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("reboot-device", new OrganizationId(_factory.ChildOrganizationId));
+            device.Activate();
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.IDeviceMqttBindingStore>()
+                .Upsert(Hms.Server.Application.DeviceLink.DeviceMqttBinding.Create(device.Id, "hms_toan_lab", "reboot_dev", null));
+            deviceId = device.Id.Value;
+        }
+        var holderId = Guid.NewGuid();
+        GrantDeviceRole(holderId, deviceId, "sys.reboot");
+        var viewerId = Guid.NewGuid();
+        GrantDeviceRole(viewerId, deviceId, "sys.time_view");
+        using var holder = _factory.CreateClientForUser(holderId);
+        using var viewer = _factory.CreateClientForUser(viewerId);
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+        var metadata = PinnedCatalogMetadata();
+        var commandsPath = $"/api/v1/devices/{deviceId}/commands";
+        object Body(string action, object payload, string? confirm = null, bool dryRun = false) => new
+        {
+            type = "system", action, payload, confirm, dryRun, catalogVersion = metadata.CatalogVersion, catalogHash = metadata.CatalogHash
+        };
+        async Task<string[]> AllowedAsync(HttpClient client) =>
+            (await client.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/allowed-commands"))
+                .GetProperty("actions").EnumerateArray().Select(x => x.GetString()!).ToArray();
+
+        // The permission alone is not enough: the button is hidden from a holder who is not master-admin.
+        Assert.Contains("system.reboot", await AllowedAsync(admin));
+        Assert.DoesNotContain("system.reboot", await AllowedAsync(holder));
+        Assert.DoesNotContain("system.reboot", await AllowedAsync(viewer));
+
+        using var byHolder = await PostAsync(holder, commandsPath, Body("reboot", new { }, "REBOOT-reboot_dev"));
+        using var byViewer = await PostAsync(viewer, commandsPath, Body("reboot", new { }, "REBOOT-reboot_dev"));
+        using var noConfirm = await PostAsync(admin, commandsPath, Body("reboot", new { }));
+        using var wrongConfirm = await PostAsync(admin, commandsPath, Body("reboot", new { }, $"REBOOT-{deviceId}"));
+        using var withDelay = await PostAsync(admin, commandsPath, Body("reboot", new { delay_ms = 2000 }, "REBOOT-reboot_dev"));
+        using var factoryReset = await PostAsync(admin, commandsPath, Body("factory_reset", new { }, "FACTORY-RESET-reboot_dev"));
+
+        Assert.Equal(HttpStatusCode.OK, byHolder.StatusCode);
+        Assert.Equal(DeviceAccessOutcomeCodes.HighRiskRequiresMasterAdmin, await CodeOfAsync(byHolder));
+        Assert.Equal(DeviceAccessCodes.PermissionRequired, await CodeOfAsync(byViewer));
+        Assert.Equal("CONFIRM_REQUIRED", await CodeOfAsync(noConfirm));
+        Assert.Equal("CONFIRM_MISMATCH", await CodeOfAsync(wrongConfirm));
+        Assert.Equal("COMMAND_PAYLOAD_INVALID", await CodeOfAsync(withDelay));
+        Assert.Equal("DENIED_UNTIL_ACTION_CONTRACT", await CodeOfAsync(factoryReset));
+    }
+
+    [Theory]
+    [InlineData("system", "factory_reset", "FACTORY-RESET-closed_factory_reset")]
+    [InlineData("ota", "remote_start", null)]
+    [InlineData("ota", "apply", "OTA-APPLY-closed_apply")]
+    public async Task The_other_flash_rows_stay_closed_even_for_a_master_admin(string type, string action, string? confirm)
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create($"closed-{action}-device", new OrganizationId(_factory.ChildOrganizationId));
+            device.Activate();
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.IDeviceMqttBindingStore>()
+                .Upsert(Hms.Server.Application.DeviceLink.DeviceMqttBinding.Create(device.Id, "hms_toan_lab", $"closed_{action}", null));
+            deviceId = device.Id.Value;
+        }
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+        var metadata = PinnedCatalogMetadata();
+        var correlationId = $"closed-{action}-1";
+
+        using var response = await PostAsync(admin, $"/api/v1/devices/{deviceId}/commands", new
+        {
+            type, action, payload = new { }, confirm, dryRun = false, correlationId,
+            catalogVersion = metadata.CatalogVersion, catalogHash = metadata.CatalogHash
+        });
+
+        Assert.Equal("DENIED_UNTIL_ACTION_CONTRACT", await CodeOfAsync(response));
+        // Refused before the audit reservation: nothing was reserved, so nothing was signed or sent.
+        using var check = _factory.Services.CreateScope();
+        Assert.Null(check.ServiceProvider.GetRequiredService<ICommandAuditStore>().FindPlan(new DeviceId(deviceId), correlationId));
     }
 
     [Fact]

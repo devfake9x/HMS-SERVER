@@ -84,6 +84,7 @@ const readAtText = computed(() => outputs.value ? formatReadTime(outputs.value.r
 const STALE_REASONS: Record<string, string> = {
   device_offline: 'thiết bị mất kết nối',
   device_rebooted: 'thiết bị vừa khởi động lại',
+  device_reboot_scheduled: 'thiết bị đang khởi động lại',
   output_command_executed: 'vừa có lệnh đổi relay, chưa đọc lại',
   output_command_outcome_unknown: 'một lệnh relay không rõ kết quả',
 }

@@ -51,6 +51,11 @@ public static partial class ConfigCommandPolicy
             // §6.1: no input; it only triggers a sync with the configured servers.
             ("system", "sync_ntp") => payload.Count == 0,
 
+            // §6.1: {delay_ms?: 0..60000}, default 2000. The server sends none: with the default it
+            // knows the deadline (DeviceRebootCodes.DeviceDelay), and delay_ms:0 could restart the
+            // device before its reply leaves, which would leave the command with no outcome.
+            ("system", "reboot") => payload.Count == 0,
+
             // §6.2: {ai:1..16, name?, type?, enabled?}. The name is required here: the UI renames,
             // and sends back the type and enabled state it read so an omitted field cannot reset.
             ("adc", "set_channel") =>

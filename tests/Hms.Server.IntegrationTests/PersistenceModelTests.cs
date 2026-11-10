@@ -1,3 +1,4 @@
+using Hms.Server.Application.DeviceLink;
 using Hms.Server.Infrastructure.Persistence;
 using Hms.Server.Infrastructure.Persistence.Migrations;
 using Hms.Server.Infrastructure;
@@ -147,7 +148,7 @@ public sealed class PersistenceModelTests
         db.SaveChanges();
 
         var store = new EfDeviceStore(db);
-        var handler = new RevokeDeviceHandler(store, new InMemoryAuthorizationEpochStore());
+        var handler = new RevokeDeviceHandler(store, new InMemoryAuthorizationEpochStore(), new InMemoryDeviceRebootTracker());
         handler.Handle(device.Id);
 
         Assert.Equal(nameof(DeviceLifecycleState.Revoked), db.Devices.Single(x => x.Id == device.Id.Value).State);
@@ -280,6 +281,105 @@ public sealed class PersistenceModelTests
         }
     }
 
+    private static readonly CommandDefinition RebootDefinition = new(
+        "system", "reboot", "sys.reboot", CommandAvailability.Enabled, true, false, 60_000, CommandClass.Flash,
+        ConfirmTemplate: "REBOOT-<DEVID>", DryRunSupported: true);
+
+    private static CommandExecutionPlan RebootPlan(string id, bool dryRun) => new(
+        new DeviceCommandRequest(DeviceId.New(), new UserId(Guid.NewGuid()), "system", "reboot",
+            new Dictionary<string, object?>(), id, DateTimeOffset.UtcNow, DryRun: dryRun),
+        RebootDefinition, 1, DateTimeOffset.UtcNow.AddSeconds(10));
+
+    [Fact]
+    public async Task Ef_command_audit_completes_a_reboot_only_from_the_codes_it_is_given_and_never_over_a_revoke()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(nameof(Ef_command_audit_completes_a_reboot_only_from_the_codes_it_is_given_and_never_over_a_revoke))
+            .Options;
+        var scheduled = RebootPlan("scheduled", dryRun: false);
+        var revoked = RebootPlan("revoked", dryRun: false);
+        CommandExecutionResult Result(CommandExecutionPlan plan, string code) =>
+            new(CommandExecutionStatus.Executed, code, plan.Request.CorrelationId, "detail");
+
+        await using var db = new ApplicationDbContext(options);
+        var store = new EfCommandAuditStore(db);
+        foreach (var plan in new[] { scheduled, revoked })
+        {
+            await store.ReserveAsync(plan, CommandRequestFingerprint.Compute(plan.Request));
+            await store.RecordAsync(plan, Result(plan, DeviceRebootCodes.Scheduled));
+        }
+
+        Assert.False(await store.TryCompleteAsync(scheduled, Result(scheduled, DeviceRebootCodes.Observed),
+            new HashSet<string> { DeviceRebootCodes.NotObserved }));
+        Assert.Equal(DeviceRebootCodes.Scheduled, store.Find(scheduled.Request.DeviceId, "scheduled")!.Code);
+        Assert.True(await store.TryCompleteAsync(scheduled, Result(scheduled, DeviceRebootCodes.Observed),
+            new HashSet<string> { DeviceRebootCodes.Scheduled }));
+        Assert.Equal(DeviceRebootCodes.Observed, store.Find(scheduled.Request.DeviceId, "scheduled")!.Code);
+        Assert.Equal("detail", store.Find(scheduled.Request.DeviceId, "scheduled")!.Detail);
+        // Observed is not in the set the sweep passes, so a late NOT_OBSERVED cannot replace it.
+        Assert.False(await store.TryCompleteAsync(scheduled, Result(scheduled, DeviceRebootCodes.NotObserved),
+            new HashSet<string> { DeviceRebootCodes.Scheduled }));
+
+        await store.RecordAsync(revoked, new CommandExecutionResult(CommandExecutionStatus.Failed, "DEVICE_REVOKED", "revoked"));
+        Assert.False(await store.TryCompleteAsync(revoked, Result(revoked, DeviceRebootCodes.OutcomeUnknown),
+            new HashSet<string> { "DEVICE_REVOKED", DeviceRebootCodes.Scheduled }));
+        Assert.Equal("DEVICE_REVOKED", store.Find(revoked.Request.DeviceId, "revoked")!.Code);
+        Assert.False(await store.TryCompleteAsync(RebootPlan("missing", false), Result(scheduled, DeviceRebootCodes.Observed),
+            new HashSet<string> { DeviceRebootCodes.Scheduled }));
+    }
+
+    [Fact]
+    public async Task Ef_command_audit_records_whether_a_flash_command_was_a_dry_run_at_reservation()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(nameof(Ef_command_audit_records_whether_a_flash_command_was_a_dry_run_at_reservation))
+            .Options;
+        var dry = RebootPlan("dry", dryRun: true);
+        var real = RebootPlan("real", dryRun: false);
+
+        await using var db = new ApplicationDbContext(options);
+        var store = new EfCommandAuditStore(db);
+        foreach (var plan in new[] { dry, real })
+        {
+            await store.ReserveAsync(plan, CommandRequestFingerprint.Compute(plan.Request));
+            // Whatever happens next, even a timeout, the row still says which one it was.
+            await store.RecordAsync(plan, new CommandExecutionResult(
+                CommandExecutionStatus.Failed, "DEVICE_RESPONSE_TIMEOUT", plan.Request.CorrelationId));
+        }
+
+        string? Summary(string id) => db.CommandAudits.AsNoTracking().Single(x => x.CorrelationId == id).PayloadSummary;
+        Assert.Equal("""{"dry_run":true,"payload":{}}""", Summary("dry"));
+        Assert.Equal("""{"dry_run":false,"payload":{}}""", Summary("real"));
+    }
+
+    [Fact]
+    public async Task Ef_command_audit_turns_a_scheduled_reboot_into_outcome_unknown_after_a_restart()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(nameof(Ef_command_audit_turns_a_scheduled_reboot_into_outcome_unknown_after_a_restart))
+            .Options;
+        var scheduled = RebootPlan("scheduled", dryRun: false);
+        var observed = RebootPlan("observed", dryRun: false);
+        var inFlight = RebootPlan("in-flight", dryRun: false);
+
+        await using var db = new ApplicationDbContext(options);
+        var store = new EfCommandAuditStore(db);
+        foreach (var plan in new[] { scheduled, observed, inFlight })
+            await store.ReserveAsync(plan, CommandRequestFingerprint.Compute(plan.Request));
+        await store.RecordAsync(scheduled, new CommandExecutionResult(CommandExecutionStatus.Executed, DeviceRebootCodes.Scheduled, "scheduled"));
+        await store.RecordAsync(observed, new CommandExecutionResult(CommandExecutionStatus.Executed, DeviceRebootCodes.Observed, "observed"));
+
+        Assert.Equal(2, store.FailUnfinished("OUTCOME_UNKNOWN_AFTER_RESTART"));
+
+        var row = store.Find(scheduled.Request.DeviceId, "scheduled")!;
+        Assert.Equal(DeviceRebootCodes.OutcomeUnknown, row.Code);
+        // The device did reply, so the row stays a success with an unknown tail, not a failure.
+        Assert.Equal(CommandExecutionStatus.Executed, row.Status);
+        Assert.Equal(CommandTransportOutcome.RebootWatchLostDetail, row.Detail);
+        Assert.Equal(DeviceRebootCodes.Observed, store.Find(observed.Request.DeviceId, "observed")!.Code);
+        Assert.Equal("OUTCOME_UNKNOWN_AFTER_RESTART", store.Find(inFlight.Request.DeviceId, "in-flight")!.Code);
+    }
+
     [Fact]
     public async Task Ef_command_audit_marks_expired_in_flight_reservation_as_outcome_unknown()
     {
@@ -346,7 +446,7 @@ public sealed class PersistenceModelTests
             CommandAuditReservationStatus.Claimed,
             (await audit.ReserveAsync(plan, CommandRequestFingerprint.Compute(request))).Status);
 
-        new RevokeDeviceHandler(new EfDeviceStore(db), new InMemoryAuthorizationEpochStore(), audit).Handle(device.Id);
+        new RevokeDeviceHandler(new EfDeviceStore(db), new InMemoryAuthorizationEpochStore(), new InMemoryDeviceRebootTracker(), audit).Handle(device.Id);
 
         await audit.RecordAsync(
             plan,

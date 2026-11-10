@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Text.Json;
+using Hms.Server.Application.Authorization;
 using Hms.Server.Application.Commands;
 using Hms.Server.Domain.Authorization;
 using Hms.Server.Domain.Commands;
@@ -16,6 +17,7 @@ public sealed class DeviceCommandAuthorizationTests
     private readonly DeviceAccessTestFixture _world = new();
     private readonly InMemoryCommandCatalog _catalog;
     private readonly RecordingDeviceCommandTransport _transport = new();
+    private readonly InMemoryCommandAuditStore _audit = new();
     private readonly SendDeviceCommandHandler _handler;
 
     public DeviceCommandAuthorizationTests()
@@ -26,7 +28,7 @@ public sealed class DeviceCommandAuthorizationTests
             _catalog,
             new PublishableTestProtocolAdapter(),
             _transport,
-            new InMemoryCommandAuditStore(),
+            _audit,
             id => _world.Devices.Find(id),
             _world.Resolver);
     }
@@ -208,9 +210,72 @@ public sealed class DeviceCommandAuthorizationTests
 
         Assert.Equal(24, rows.Length);
         Assert.Equal(24, _transport.Records.Count);
-        // Every command now expires on the device before the server stops waiting for its reply.
+        // Every command now expires on the device before the server stops waiting for its reply;
+        // a flash command (reboot) gets the tighter physical cap.
         Assert.All(_transport.Records, x =>
-            Assert.Equal(TimeSpan.FromMilliseconds(SendDeviceCommandHandler.MaxCommandTtlMs), x.Plan.ExpiresAt - x.Plan.Request.RequestedAt));
+            Assert.Equal(
+                TimeSpan.FromMilliseconds(x.Plan.Definition.Class == CommandClass.Flash
+                    ? SendDeviceCommandHandler.MaxPhysicalCommandTtlMs
+                    : SendDeviceCommandHandler.MaxCommandTtlMs),
+                x.Plan.ExpiresAt - x.Plan.Request.RequestedAt));
+    }
+
+    [Fact]
+    public async Task A_reboot_is_signed_for_ten_seconds_on_server_time_whatever_the_client_sends()
+    {
+        var actor = _world.MasterAdmin(new UserId(Guid.NewGuid()));
+        var request = Request(actor, "system", "reboot", confirm: "REBOOT-x") with
+        {
+            RequestedAt = DateTimeOffset.UtcNow.AddSeconds(50)
+        };
+
+        var result = await _handler.HandleAsync(request, actor);
+
+        Assert.Equal("COMMAND_RECORDED", result.Code);
+        var plan = Assert.Single(_transport.Records).Plan;
+        Assert.Equal(TimeSpan.FromMilliseconds(10_000), plan.ExpiresAt - plan.Request.RequestedAt);
+        Assert.True(plan.Request.RequestedAt < DateTimeOffset.UtcNow.AddSeconds(5));
+    }
+
+    [Fact]
+    public async Task A_flash_command_needs_a_master_admin_even_with_the_permission()
+    {
+        var holder = _world.Member(new UserId(Guid.NewGuid()), _world.Device, "sys.reboot");
+        var plain = _world.Member(new UserId(Guid.NewGuid()), _world.Device, "adc.view");
+        var master = _world.MasterAdmin(new UserId(Guid.NewGuid()));
+
+        var withPermission = await Send(holder, "system", "reboot", confirm: "REBOOT-x");
+        var withoutPermission = await Send(plain, "system", "reboot", confirm: "REBOOT-x");
+        var allowed = await Send(master, "system", "reboot", confirm: "REBOOT-x");
+
+        Assert.Equal(CommandExecutionStatus.Failed, withPermission.Status);
+        Assert.Equal(DeviceAccessOutcomeCodes.HighRiskRequiresMasterAdmin, withPermission.Code);
+        Assert.Equal(DeviceAccessCodes.PermissionRequired, withoutPermission.Code);
+        Assert.Equal("COMMAND_RECORDED", allowed.Code);
+        // Only the master-admin's command reached the transport: the others were refused before
+        // the audit reservation and before signing.
+        var recorded = Assert.Single(_transport.Records);
+        Assert.Equal(master.UserId, recorded.Plan.Request.UserId);
+    }
+
+    [Fact]
+    public async Task The_master_admin_rule_runs_before_the_confirm_check_and_leaves_no_audit_row()
+    {
+        var holder = _world.Member(new UserId(Guid.NewGuid()), _world.Device, "sys.reboot");
+        var request = Request(holder, "system", "reboot");
+
+        var result = await _handler.HandleAsync(request, holder);
+
+        Assert.Equal(DeviceAccessOutcomeCodes.HighRiskRequiresMasterAdmin, result.Code);
+        Assert.Null(_audit.FindPlan(_world.Device.Id, request.CorrelationId));
+        Assert.Empty(_transport.Records);
+    }
+
+    [Fact]
+    public void Only_flash_rows_require_a_master_admin()
+    {
+        Assert.All(_catalog.List(), x =>
+            Assert.Equal(x.Class == CommandClass.Flash, CommandPermissionResolver.RequiresMasterAdmin(x)));
     }
 
     [Fact]

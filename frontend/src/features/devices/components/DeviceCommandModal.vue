@@ -71,8 +71,12 @@ const PANEL_ONLY_ACTIONS = new Set([
   'adc.set_channel', 'adc.toggle_channel',
 ])
 
+// Class F (flash/reboot) commands go only through the reboot panel, which dry-runs, confirms with
+// the MQTT device id and follows the result. This filter is UI only; the server refuses class F
+// without a confirmation and for anyone but a master-admin. An action with no class is hidden too:
+// a catalog that does not say what an action is must not offer it.
 const catalogActions = computed<CatalogAction[]>(() =>
-  (props.catalog?.actions ?? []).filter(a => !PANEL_ONLY_ACTIONS.has(`${a.type}.${a.action}`)))
+  (props.catalog?.actions ?? []).filter(a => !!a.class && a.class !== 'Flash' && !PANEL_ONLY_ACTIONS.has(`${a.type}.${a.action}`)))
 
 const availableTypes = computed(() => {
   const types = new Set<string>()
@@ -135,13 +139,7 @@ watch([selectedType, selectedAction], () => {
     rawParamsJson.value = '{}'
     return
   }
-  if (t === 'system' && a === 'reboot') {
-    rawParamsJson.value = JSON.stringify({ confirm_token: `REBOOT-${props.deviceId}` }, null, 2)
-  } else if (t === 'system' && a === 'factory_reset') {
-    rawParamsJson.value = JSON.stringify({ confirm_token: `FACTORY-RESET-${props.deviceId}` }, null, 2)
-  } else if (t === 'ota' && a === 'apply') {
-    rawParamsJson.value = JSON.stringify({ confirm_token: `OTA-APPLY-${props.deviceId}` }, null, 2)
-  } else if (t === 'sms' && a === 'list') {
+  if (t === 'sms' && a === 'list') {
     rawParamsJson.value = JSON.stringify({ page: 1, limit: 10 }, null, 2)
   } else {
     rawParamsJson.value = '{}'

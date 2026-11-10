@@ -31,7 +31,7 @@ export function hostnameSpec(from: string, to: string): WriteSpec {
       return { status: replyOf(outcome).applied_immediately === false ? 'pending_apply' : 'mismatch', text: actual }
     },
     notes: outcome => replyOf(outcome).reboot_recommended === true
-      ? ['Thiết bị khuyên khởi động lại; reboot chưa mở trên server']
+      ? ['Thiết bị khuyên khởi động lại; master-admin dùng nút Khởi động lại trên trang']
       : [],
   }
 }

@@ -136,13 +136,14 @@ public sealed class CatalogTests
     }
 
     [Fact]
-    public void Pinned_catalog_opens_only_the_listed_reads_relay_outputs_and_config_writes()
+    public void Pinned_catalog_opens_only_the_listed_reads_relay_outputs_config_writes_and_reboot()
     {
         var catalog = new PinnedCommandCatalog();
         var enabled = catalog.List().Where(x => x.Availability == CommandAvailability.Enabled).ToArray();
         var expected = PinnedCommandCatalog.EnabledActions
             .Concat(PinnedCommandCatalog.PhysicalOutputActions)
-            .Concat(PinnedCommandCatalog.ConfigWriteActions);
+            .Concat(PinnedCommandCatalog.ConfigWriteActions)
+            .Concat(PinnedCommandCatalog.FlashActions);
 
         // Every allowlisted pair exists in the spec catalog, so a typo cannot silently open nothing.
         Assert.Equal(
@@ -152,12 +153,32 @@ public sealed class CatalogTests
         Assert.All(PinnedCommandCatalog.PhysicalOutputActions, x => Assert.Equal(CommandClass.Physical, catalog.Find(x.Type, x.Action)!.Class));
         Assert.All(PinnedCommandCatalog.ConfigWriteActions, x =>
             Assert.Contains(catalog.Find(x.Type, x.Action)!.Class, new[] { CommandClass.Write, CommandClass.Control }));
-        Assert.Equal(33, enabled.Length);
+        Assert.All(PinnedCommandCatalog.FlashActions, x => Assert.Equal(CommandClass.Flash, catalog.Find(x.Type, x.Action)!.Class));
+        Assert.Equal(34, enabled.Length);
         Assert.Equal(CommandAvailability.Enabled, catalog.Find("system", "get_info")!.Availability);
         Assert.Equal(CommandAvailability.Enabled, catalog.Find("control", "set_output")!.Availability);
         Assert.Equal(CommandAvailability.Enabled, catalog.Find("control", "pulse")!.Availability);
         Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("control", "set_all")!.Availability);
-        Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find("system", "reboot")!.Availability);
+        Assert.Equal(CommandAvailability.Enabled, catalog.Find("system", "reboot")!.Availability);
+    }
+
+    [Fact]
+    public void Only_reboot_opens_among_flash_rows()
+    {
+        var catalog = new PinnedCommandCatalog();
+
+        Assert.Equal([("system", "reboot")], PinnedCommandCatalog.FlashActions.ToArray());
+        // factory_reset erases the configuration and the key; ota.* lacks a download/apply/rollback
+        // contract. They stay closed even though they share the class with reboot.
+        foreach (var (type, action) in new[] { ("system", "factory_reset"), ("ota", "remote_start"), ("ota", "apply") })
+        {
+            var row = catalog.Find(type, action)!;
+            Assert.Equal(CommandClass.Flash, row.Class);
+            Assert.Equal(CommandAvailability.DeniedUntilActionContract, row.Availability);
+        }
+
+        // Opening a row changes no catalog content.
+        Assert.Equal(PinnedCatalogHash, catalog.Metadata.CatalogHash);
     }
 
     [Fact]
@@ -172,7 +193,7 @@ public sealed class CatalogTests
         // (spec §3), and the link-changing writes can cut the path that would undo them.
         string[] closed =
         [
-            "system.set_ntp_servers", "system.set_time", "system.reboot", "system.factory_reset", "config.set",
+            "system.set_ntp_servers", "system.set_time", "system.factory_reset", "config.set",
             "network.set_priority", "network.configure_ethernet", "network.wifi_sta_config_set", "mqtt.set_config",
             "mqtt.reconnect", "broker.create_signal", "modbus.set_rtu_config", "ota.remote_start", "ota.apply"
         ];
@@ -182,7 +203,8 @@ public sealed class CatalogTests
         Assert.All(open, x => Assert.True(Open(x), x));
         Assert.All(closed, x => Assert.False(Open(x), x));
         Assert.Equal(open.Length, PinnedCommandCatalog.ConfigWriteActions.Count);
-        Assert.All(catalog.List().Where(x => x.Class is CommandClass.Destructive or CommandClass.Flash),
+        // Every D and F row except system.reboot (opened by its own list).
+        Assert.All(catalog.List().Where(x => x.Class is CommandClass.Destructive or CommandClass.Flash && (x.Type, x.Action) != ("system", "reboot")),
             x => Assert.Equal(CommandAvailability.DeniedUntilActionContract, x.Availability));
     }
 

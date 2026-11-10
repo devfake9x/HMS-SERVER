@@ -291,7 +291,7 @@ public sealed class MqttDeviceLinkService : BackgroundService, IDeviceLinkTransp
     {
         using var scope = _scopes.CreateScope();
         await scope.ServiceProvider.GetRequiredService<DeviceCommandResponseCorrelator>()
-            .SweepExpiredAsync(DateTimeOffset.UtcNow, cancellationToken);
+            .SweepExpiredAsync(DateTimeOffset.UtcNow, _client.IsConnected, cancellationToken);
     }
 
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)

@@ -4,6 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import DeviceDetailView from './DeviceDetailView.vue'
 import { adminApi } from '@/core/api/adminApi'
 import { runDeviceWrite } from '@/core/commands/useDeviceWrite'
+import DeviceRebootPanel from '../components/reboot/DeviceRebootPanel.vue'
 
 const hubHandlers = vi.hoisted(() => new Map<string, (payload: unknown) => void>())
 // Reactive so a test can move the page to another device, as the router does for /devices/:id.
@@ -246,6 +247,122 @@ describe('DeviceDetailView', () => {
     send('theirs-2', 'adc', 'toggle_channel')
     await flushPromises()
     expect(banners()).toEqual([true, false, true])
+  })
+
+  describe('the reboot panel', () => {
+    const REBOOT_ALLOWED = ['system.reboot', 'system.get_info', 'control.get_status', 'system.get_time', 'adc.get_values']
+    const mountWithReboot = async () => {
+      vi.mocked(adminApi.allowedCommands).mockResolvedValueOnce({ actions: REBOOT_ALLOWED })
+      const wrapper = mount(DeviceDetailView)
+      await flushPromises()
+      return wrapper
+    }
+    const rebootEvent = (code: string, correlationId = 'rb-1') => hubHandlers.get('DeviceEvent')?.({
+      deviceId: 'dev-101', authorizationEpoch: 9, policyVersion: 1, eventType: 'command_result',
+      payload: { correlationId, type: 'system', action: 'reboot', status: 'Executed', code },
+    })
+    const banners = (wrapper: ReturnType<typeof mount>) =>
+      wrapper.findAll('[data-test="read-card"]').map(card => card.find('[data-test="read-config-changed"]').exists())
+
+    it('is offered for a bound device when system.reboot is allowed, and not otherwise', async () => {
+      const without = mount(DeviceDetailView)
+      await flushPromises()
+      expect(without.find('[data-test="reboot-panel"]').exists()).toBe(false)
+      without.unmount()
+
+      const wrapper = await mountWithReboot()
+      expect(wrapper.find('[data-test="reboot-panel"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="reboot-btn"]').exists()).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('hands the panel the realtime result of a reboot, whoever sent it', async () => {
+      const wrapper = await mountWithReboot()
+      const panel = () => wrapper.findComponent(DeviceRebootPanel)
+      expect(panel().props('commandEvent')).toBeNull()
+
+      rebootEvent('DEVICE_REBOOT_SCHEDULED', 'rb-7')
+      await flushPromises()
+
+      expect(panel().props('commandEvent')).toEqual({ correlationId: 'rb-7' })
+      wrapper.unmount()
+    })
+
+    it('does not hand the panel the results of other commands', async () => {
+      const wrapper = await mountWithReboot()
+
+      hubHandlers.get('DeviceEvent')?.({
+        deviceId: 'dev-101', authorizationEpoch: 9, policyVersion: 1, eventType: 'command_result',
+        payload: { correlationId: 'x', type: 'system', action: 'set_hostname', status: 'Executed', code: 'DEVICE_EXECUTED' },
+      })
+      await flushPromises()
+
+      expect(wrapper.findComponent(DeviceRebootPanel).props('commandEvent')).toBeNull()
+      wrapper.unmount()
+    })
+
+    it('refreshes the link and marks the two config cards stale once a reboot is observed, even for its own command', async () => {
+      const wrapper = await mountWithReboot()
+      const links = vi.mocked(adminApi.deviceLink)
+      const before = links.mock.calls.length
+      vi.mocked(adminApi.sendCommand).mockResolvedValueOnce({ status: 'ContractUnavailable', code: 'DEVICE_WRITE_BUSY', correlationId: 'own-rb' })
+      await runDeviceWrite('dev-101', { type: 'system', action: 'reboot', correlationId: 'own-rb' }, {})
+      expect(banners(wrapper)).toEqual([false, false, false])
+
+      rebootEvent('DEVICE_REBOOT_SCHEDULED', 'own-rb')
+      await flushPromises()
+      expect(banners(wrapper)).toEqual([false, false, false])
+      expect(links.mock.calls.length).toBe(before)
+
+      rebootEvent('DEVICE_REBOOT_OBSERVED', 'own-rb')
+      await flushPromises()
+      expect(banners(wrapper)).toEqual([true, false, true])
+      expect(links.mock.calls.length).toBe(before + 1)
+      wrapper.unmount()
+    })
+
+    it('passes an outputs event on to the panel, which closes a stale dialog', async () => {
+      const wrapper = await mountWithReboot()
+      const panel = () => wrapper.findComponent(DeviceRebootPanel)
+      const before = panel().props('outputsKey') as number
+
+      hubHandlers.get('DeviceEvent')?.({
+        deviceId: 'dev-101', authorizationEpoch: 10, policyVersion: 1, eventType: 'outputs',
+        payload: { readAt: '2026-09-30T16:01:00Z', stale: true, staleReason: 'device_reboot_scheduled' },
+      })
+      await flushPromises()
+
+      expect(panel().props('outputsKey')).toBe(before + 1)
+      wrapper.unmount()
+    })
+
+    it('keeps one reboot run for the page, so leaving the telemetry tab does not end it', async () => {
+      const wrapper = await mountWithReboot()
+      const run = wrapper.findComponent(DeviceRebootPanel).props('reboot')
+
+      await wrapper.find('[data-test="tab-commands"]').trigger('click')
+      expect(wrapper.find('[data-test="reboot-panel"]').exists()).toBe(false)
+      await wrapper.find('[data-test="tab-telemetry"]').trigger('click')
+
+      expect(wrapper.findComponent(DeviceRebootPanel).props('reboot')).toBe(run)
+      wrapper.unmount()
+    })
+
+    it('drops the reboot event when the page moves to another device', async () => {
+      const wrapper = await mountWithReboot()
+      rebootEvent('DEVICE_REBOOT_SCHEDULED', 'rb-8')
+      await flushPromises()
+      expect(wrapper.findComponent(DeviceRebootPanel).props('commandEvent')).not.toBeNull()
+
+      vi.mocked(adminApi.allowedCommands).mockResolvedValueOnce({ actions: REBOOT_ALLOWED })
+      mockRoute.value!.params.id = 'dev-102'
+      await flushPromises()
+
+      expect(wrapper.findComponent(DeviceRebootPanel).props('commandEvent')).toBeNull()
+      mockRoute.value!.params.id = 'dev-101'
+      await flushPromises()
+      wrapper.unmount()
+    })
   })
 
   it('reloads everything when the route moves to another device', async () => {

@@ -35,7 +35,7 @@ public sealed class DeviceLaneSafetyTests
     {
         var pending = new InMemoryPendingDeviceCommandRegistry();
         var publisher = new CountingPublisher();
-        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4));
+        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker());
         var deviceA = DeviceId.New();
         var first = Plan(deviceA, SetHostname);
 
@@ -66,7 +66,7 @@ public sealed class DeviceLaneSafetyTests
     public async Task Waiting_reads_and_relay_commands_do_not_block_a_config_write()
     {
         var pending = new InMemoryPendingDeviceCommandRegistry();
-        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4));
+        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker());
         var device = DeviceId.New();
         foreach (var definition in new[] { GetInfo, GetInfo, SetOutput })
         {
@@ -140,13 +140,13 @@ public sealed class DeviceLaneSafetyTests
         var device = DeviceId.New();
         var notSent = Plan(device, SetHostname);
 
-        var result = await new MqttDeviceCommandTransport(new CountingPublisher("MQTT_NOT_CONNECTED"), pending, Options(maxReads: 4))
+        var result = await new MqttDeviceCommandTransport(new CountingPublisher("MQTT_NOT_CONNECTED"), pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker())
             .SendAsync(notSent, Prepared(notSent));
 
         Assert.Equal("MQTT_NOT_CONNECTED", result.Code);
         var next = Plan(device, SetHostname);
         Assert.Equal(CommandExecutionStatus.Published,
-            (await new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4)).SendAsync(next, Prepared(next))).Status);
+            (await new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker()).SendAsync(next, Prepared(next))).Status);
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed class DeviceLaneSafetyTests
     {
         var pending = new InMemoryPendingDeviceCommandRegistry();
         var publisher = new CountingPublisher();
-        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4));
+        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker());
         var device = DeviceId.New();
 
         var results = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Task.Run(async () =>
@@ -193,7 +193,7 @@ public sealed class DeviceLaneSafetyTests
         var pending = new InMemoryPendingDeviceCommandRegistry();
         var publisher = new CountingPublisher();
         var audit = new InMemoryCommandAuditStore();
-        var handler = setup.Handler(SyncNtp, new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4)), audit);
+        var handler = setup.Handler(SyncNtp, new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker()), audit);
         var actor = setup.Actor("sys.time_edit");
 
         var first = await handler.HandleAsync(setup.Request(SyncNtp), actor);
@@ -229,7 +229,7 @@ public sealed class DeviceLaneSafetyTests
     {
         var pending = new InMemoryPendingDeviceCommandRegistry();
         var publisher = new CountingPublisher();
-        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4));
+        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker());
         var deviceA = DeviceId.New();
         var deviceB = DeviceId.New();
         var first = Plan(deviceA, GetInfo);
@@ -265,7 +265,7 @@ public sealed class DeviceLaneSafetyTests
     public async Task One_user_gets_half_of_the_read_slots()
     {
         var pending = new InMemoryPendingDeviceCommandRegistry();
-        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4));
+        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker());
         var device = DeviceId.New();
         var user = new UserId(Guid.NewGuid());
 
@@ -286,7 +286,7 @@ public sealed class DeviceLaneSafetyTests
     public async Task A_relay_read_back_still_fits_when_reads_fill_the_cap()
     {
         var pending = new InMemoryPendingDeviceCommandRegistry();
-        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4));
+        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker());
         var device = DeviceId.New();
         for (var i = 0; i < 4; i++)
         {
@@ -305,7 +305,7 @@ public sealed class DeviceLaneSafetyTests
     public async Task A_read_past_its_expiry_no_longer_holds_a_slot()
     {
         var pending = new InMemoryPendingDeviceCommandRegistry();
-        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4));
+        var transport = new MqttDeviceCommandTransport(new CountingPublisher(), pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker());
         var device = DeviceId.New();
         for (var i = 0; i < 4; i++)
         {
@@ -326,7 +326,7 @@ public sealed class DeviceLaneSafetyTests
         var pending = new InMemoryPendingDeviceCommandRegistry();
         var publisher = new CountingPublisher();
         var audit = new InMemoryCommandAuditStore();
-        var handler = setup.Handler(GetInfo, new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 1)), audit);
+        var handler = setup.Handler(GetInfo, new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 1), new InMemoryDeviceRebootTracker()), audit);
         var actor = setup.Actor("sys.info_view");
 
         var first = await handler.HandleAsync(setup.Request(GetInfo), actor);

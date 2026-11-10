@@ -138,7 +138,9 @@ public sealed class ConfigCommandPolicyTests
     [InlineData("network", "set_priority", CommandClass.Write)]
     [InlineData("config", "set", CommandClass.Write)]
     [InlineData("network", "wifi_known_remove", CommandClass.Destructive)]
-    [InlineData("system", "reboot", CommandClass.Flash)]
+    [InlineData("system", "factory_reset", CommandClass.Flash)]
+    [InlineData("ota", "apply", CommandClass.Flash)]
+    [InlineData("ota", "remote_start", CommandClass.Flash)]
     public void Writes_without_a_payload_rule_fail_closed(string type, string action, CommandClass commandClass)
     {
         Assert.Equal(ConfigCommandPolicy.ActionUnsupported,
@@ -153,10 +155,53 @@ public sealed class ConfigCommandPolicyTests
     }
 
     [Fact]
+    public void Reboot_takes_an_empty_payload_only()
+    {
+        var reboot = Definition("system", "reboot", "sys.reboot", CommandClass.Flash);
+
+        Assert.Null(ConfigCommandPolicy.Check(reboot, Payload("{}")));
+        // delay_ms is left out: the device default (2000 ms) gives the server a known deadline, and
+        // delay_ms:0 could restart before the reply leaves the device.
+        foreach (var json in new[]
+                 {
+                     """{"delay_ms":2000}""", """{"delay_ms":0}""", """{"confirm":"REBOOT-gateway_870c"}""",
+                     """{"confirm_token":"REBOOT-gateway_870c"}"""
+                 })
+            Assert.Equal(ConfigCommandPolicy.PayloadInvalid, ConfigCommandPolicy.Check(reboot, Payload(json)));
+    }
+
+    [Fact]
+    public async Task A_reboot_with_a_payload_is_refused_before_the_key_is_read()
+    {
+        var device = Device.Create("RTU", Organization.Create("Lab").Id);
+        var bindings = new InMemoryDeviceMqttBindingStore();
+        bindings.Upsert(DeviceMqttBinding.Create(device.Id, "hms_toan_lab", "gateway_870c", null));
+        var secrets = new CountingSecrets();
+        secrets.Inner.Import(device.Id, device.KeyGeneration, RandomNumberGenerator.GetBytes(32));
+        var adapter = new HmsIdfCommandProtocolAdapter(bindings, secrets, new InMemoryDeviceLinkStateStore());
+        var reboot = new CommandDefinition("system", "reboot", "sys.reboot", CommandAvailability.Enabled, true, false, 60_000,
+            CommandClass.Flash, ConfirmTemplate: "REBOOT-<DEVID>", DryRunSupported: true);
+        var plan = Plan(device, reboot, """{"delay_ms":2000}""");
+        plan = plan with { Request = plan.Request with { Confirm = "REBOOT-gateway_870c" } };
+
+        var prepared = await adapter.PrepareAsync(plan);
+
+        Assert.False(prepared.CanPublish);
+        Assert.Equal(ConfigCommandPolicy.PayloadInvalid, prepared.FailureCode);
+        Assert.Equal(0, secrets.FindCalls);
+    }
+
+    [Fact]
     public void Every_opened_config_write_has_a_payload_rule()
     {
         var catalog = new PinnedCommandCatalog();
         var valid = ValidPayloads.Select(x => ((string)x[0], (string)x[1])).ToHashSet();
+
+        // The opened flash row (reboot) has its own rule and test above; it must not fall to
+        // the fail-closed default.
+        Assert.All(PinnedCommandCatalog.FlashActions, pair =>
+            Assert.NotEqual(ConfigCommandPolicy.ActionUnsupported,
+                ConfigCommandPolicy.Check(catalog.Find(pair.Type, pair.Action)!, new Dictionary<string, object?>())));
 
         Assert.All(PinnedCommandCatalog.ConfigWriteActions, pair =>
         {

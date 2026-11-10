@@ -1,3 +1,4 @@
+using Hms.Server.Application.DeviceLink;
 using System.Collections.Frozen;
 using System.Security.Claims;
 using Hms.Server.Application.Authorization;
@@ -47,7 +48,7 @@ public sealed class PermissionTests
         devices.Add(device);
         var epochs = new InMemoryAuthorizationEpochStore();
 
-        new RevokeDeviceHandler(devices, epochs).Handle(device.Id);
+        new RevokeDeviceHandler(devices, epochs, new InMemoryDeviceRebootTracker()).Handle(device.Id);
 
         Assert.Equal(DeviceLifecycleState.Revoked, device.State);
         Assert.Equal(DeviceLifecycleState.Revoked, devices.Find(device.Id)!.State);
@@ -81,7 +82,7 @@ public sealed class PermissionTests
         var reservation = await audit.ReserveAsync(plan, CommandRequestFingerprint.Compute(request));
         Assert.Equal(CommandAuditReservationStatus.Claimed, reservation.Status);
 
-        new RevokeDeviceHandler(devices, new InMemoryAuthorizationEpochStore(), audit).Handle(device.Id);
+        new RevokeDeviceHandler(devices, new InMemoryAuthorizationEpochStore(), new InMemoryDeviceRebootTracker(), audit).Handle(device.Id);
 
         await audit.RecordAsync(
             plan,

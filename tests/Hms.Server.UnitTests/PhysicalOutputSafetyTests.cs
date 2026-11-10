@@ -154,7 +154,7 @@ public sealed class PhysicalOutputSafetyTests
     {
         var setup = new Setup(allowed: [1, 3]);
 
-        new ConfigureDeviceMqttBindingHandler(setup.Devices, setup.Bindings)
+        new ConfigureDeviceMqttBindingHandler(setup.Devices, setup.Bindings, new InMemoryDeviceRebootTracker())
             .Handle(setup.Device.Id, "hms_toan_lab", "gateway_870c", 12);
 
         Assert.Equal([1, 3], setup.Bindings.Find(setup.Device.Id)!.AllowedOutputChannels);
@@ -167,7 +167,7 @@ public sealed class PhysicalOutputSafetyTests
         var outputs = new InMemoryDeviceOutputStateStore();
         outputs.Set(setup.Device.Id, [new(1, true, "toggle", false)], DateTimeOffset.UtcNow);
 
-        new ConfigureDeviceMqttBindingHandler(setup.Devices, setup.Bindings, outputs)
+        new ConfigureDeviceMqttBindingHandler(setup.Devices, setup.Bindings, new InMemoryDeviceRebootTracker(), outputs)
             .Handle(setup.Device.Id, "hms_toan_lab", "gateway_other", null);
 
         Assert.Null(setup.Bindings.Find(setup.Device.Id)!.AllowedOutputChannels);
@@ -226,9 +226,9 @@ public sealed class PhysicalOutputSafetyTests
         var plan = setup.Plan(SetOutput, """{"channel":1,"value":true}""");
         var prepared = new PreparedDeviceCommand(plan.Request.DeviceId, "hms_toan_lab/gateway_870c/cmd/control", "{}"u8.ToArray(), 1, true);
 
-        var unconfirmed = await new MqttDeviceCommandTransport(new FakePublisher(throws: true), pending, Options())
+        var unconfirmed = await new MqttDeviceCommandTransport(new FakePublisher(throws: true), pending, Options(), new InMemoryDeviceRebootTracker())
             .SendAsync(plan, prepared);
-        var notSent = await new MqttDeviceCommandTransport(new FakePublisher(result: "MQTT_NOT_CONNECTED"), pending, Options())
+        var notSent = await new MqttDeviceCommandTransport(new FakePublisher(result: "MQTT_NOT_CONNECTED"), pending, Options(), new InMemoryDeviceRebootTracker())
             .SendAsync(setup.Plan(SetOutput, """{"channel":1,"value":false}"""), prepared);
 
         Assert.Equal("MQTT_PUBLISH_UNCONFIRMED", unconfirmed.Code);

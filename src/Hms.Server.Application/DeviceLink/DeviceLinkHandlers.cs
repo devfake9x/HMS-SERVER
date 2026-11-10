@@ -32,6 +32,7 @@ public sealed class DeviceCommandResponseCorrelator(
     IAuthorizedEventPublisher events,
     IAuthorizationEpochStore epochs,
     IPermissionStore permissions,
+    IDeviceRebootTracker reboots,
     ILogger<DeviceCommandResponseCorrelator> logger,
     DeviceReplyProjection? projection = null)
 {
@@ -86,6 +87,12 @@ public sealed class DeviceCommandResponseCorrelator(
         if (!pending.Remove(deviceId, id))
             return DeviceResponseOutcome.Ignored;
 
+        // A reboot's hold changes only now, after this reply won the removal: a reply the sweep
+        // already took must neither start the watch nor release the hold. The hold itself has been
+        // in place since the publish, so the lane freeing above opened no gap.
+        if (DeviceRebootCodes.IsReboot(plan.Request.Type, plan.Request.Action) && !plan.Request.DryRun)
+            result = ApplyRebootReply(plan, result, receivedAt);
+
         // First, and guarded: whether the outputs may have changed must not depend on the audit
         // write below succeeding, and an unreadable reply must not stop the steps below.
         if (projection is not null)
@@ -98,6 +105,10 @@ public sealed class DeviceCommandResponseCorrelator(
             {
                 logger.LogWarning("Reply {CorrelationId} from device {DeviceId} not projected: {Error}", id, deviceId.Value, ex.Message);
             }
+
+            // Relays restart with the device (spec §6.4): the state read before is not true any more.
+            if (string.Equals(result.Code, DeviceRebootCodes.Scheduled, StringComparison.Ordinal))
+                await projection.MarkStaleAsync(deviceId, OutputStaleReasons.DeviceRebootScheduled, cancellationToken);
         }
 
         // Reply data first: a poll that sees the final status must also find the data.
@@ -115,7 +126,8 @@ public sealed class DeviceCommandResponseCorrelator(
         return DeviceResponseOutcome.Completed;
     }
 
-    public async ValueTask<int> SweepExpiredAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
+    public async ValueTask<int> SweepExpiredAsync(
+        DateTimeOffset now, bool brokerConnected = true, CancellationToken cancellationToken = default)
     {
         var expired = pending.TakeExpired(now);
         foreach (var command in expired)
@@ -142,7 +154,92 @@ public sealed class DeviceCommandResponseCorrelator(
             }
         }
 
+        // After the timeouts: a reboot hold that ends with a drop in uptime raises the timeout row
+        // written just above, never the other way round.
+        foreach (var completion in reboots.TakeDue(now, brokerConnected))
+            await CompleteRebootAsync(completion, cancellationToken);
+
         return expired.Count;
+    }
+
+    /// <summary>
+    /// Writes what the reboot tracker decided into the audit row, but only while the row still has
+    /// one of the codes the decision was based on, so a settled row is never overwritten. A failed
+    /// write is handed back to the tracker for the next sweep.
+    /// </summary>
+    public async ValueTask CompleteRebootAsync(RebootCompletion completion, CancellationToken cancellationToken = default)
+    {
+        var plan = completion.Plan;
+        var result = new CommandExecutionResult(
+            CommandExecutionStatus.Executed, completion.Code, plan.Request.CorrelationId, completion.Detail, plan.KeyGeneration);
+        try
+        {
+            if (!await audit.TryCompleteAsync(plan, result, completion.FromCodes, cancellationToken))
+            {
+                // The reply that makes the tracker watch is recorded a moment after it starts the
+                // watch. A decision that lands in that gap (a rebind, a revoke) finds the row still
+                // at its publish code: it is not obsolete, only early, so offer it again.
+                var current = audit.Find(plan.Request.DeviceId, plan.Request.CorrelationId);
+                if (current is null || current.Code == "MQTT_PUBLISHED")
+                {
+                    reboots.Retry(completion);
+                    return;
+                }
+
+                logger.LogInformation("Reboot {CorrelationId} of device {DeviceId} already moved past {FromCodes}; {Code} not written",
+                    plan.Request.CorrelationId, plan.Request.DeviceId.Value, string.Join('|', completion.FromCodes), completion.Code);
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Audit write {Code} of reboot {CorrelationId} on device {DeviceId} failed; will retry",
+                completion.Code, plan.Request.CorrelationId, plan.Request.DeviceId.Value);
+            reboots.Retry(completion);
+            return;
+        }
+
+        try
+        {
+            await PublishResultAsync(plan, result, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Result {Code} of reboot {CorrelationId} recorded but not pushed", completion.Code, plan.Request.CorrelationId);
+        }
+    }
+
+    private CommandExecutionResult ApplyRebootReply(CommandExecutionPlan plan, CommandExecutionResult result, DateTimeOffset repliedAt)
+    {
+        switch (result.Status)
+        {
+            case CommandExecutionStatus.Executed:
+                // The device will restart: the hold becomes a watch. Without a hold to upgrade the
+                // reboot cannot be watched, which the row says rather than claiming a schedule.
+                return reboots.Upgrade(plan, repliedAt) is { } tracking
+                    ? result with
+                    {
+                        Code = DeviceRebootCodes.Scheduled,
+                        Detail = tracking.UptimeBefore is { } before
+                            ? $"uptime_before={before.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+                            : "uptime_before=unknown"
+                    }
+                    : result with { Code = DeviceRebootCodes.OutcomeUnknown, Detail = "tracking=unavailable" };
+
+            case CommandExecutionStatus.Acknowledged:
+                // Still running on the device: the hold stays, and a later "observed" is not "no reply".
+                reboots.NoteReplyAccepted(plan.Request.DeviceId, plan.Request.CorrelationId);
+                return result;
+
+            case CommandExecutionStatus.Failed when result.Code == "DEVICE_REJECTED":
+                // The device refused it outright: it will not restart. (Acknowledged keeps the
+                // hold: the device may still be running it.)
+                reboots.Disarm(plan.Request.DeviceId, plan.Request.CorrelationId);
+                return result;
+
+            default:
+                return result;
+        }
     }
 
     public static CommandExecutionResult ToResult(DeviceCommandResponse response, CommandExecutionPlan plan)
@@ -220,6 +317,7 @@ public sealed class DeviceInboundMessageHandler(
     IAuthorizationEpochStore epochs,
     IPermissionStore permissions,
     DeviceCommandResponseCorrelator correlator,
+    IDeviceRebootTracker reboots,
     ILogger<DeviceInboundMessageHandler> logger,
     DeviceReplyProjection? projection = null)
 {
@@ -251,6 +349,10 @@ public sealed class DeviceInboundMessageHandler(
                 if (projection is not null && previousUptime is { } before &&
                     telemetry.GetLatest(deviceId)?.UptimeSeconds is { } after && after < before)
                     await projection.MarkStaleAsync(deviceId, OutputStaleReasons.DeviceRebooted, cancellationToken);
+                // The reboot watch reads the uptime from this message, never from the store above:
+                // POST /devices/{id}/telemetry and the broker bridge write that store too.
+                if (reboots.ObserveHeartbeat(deviceId, DeviceTelemetryParsing.UptimeSeconds(status), receivedAt) is { } rebootDone)
+                    await correlator.CompleteRebootAsync(rebootDone, cancellationToken);
                 await PublishAsync(deviceId, "status", status, cancellationToken);
                 break;
 
@@ -259,6 +361,7 @@ public sealed class DeviceInboundMessageHandler(
                 if (connectivity?.GetValueOrDefault("state") is not string state)
                     return;
                 linkState.RecordConnectivity(deviceId, state, receivedAt);
+                reboots.ObserveConnectivity(deviceId, state, receivedAt);
                 if (projection is not null && state == "offline")
                     await projection.MarkStaleAsync(deviceId, OutputStaleReasons.DeviceOffline, cancellationToken);
                 await PublishAsync(deviceId, "connectivity", new Dictionary<string, object?>
@@ -320,6 +423,7 @@ public sealed class DeviceInboundMessageHandler(
 public sealed class ConfigureDeviceMqttBindingHandler(
     IDeviceStore devices,
     IDeviceMqttBindingStore bindings,
+    IDeviceRebootTracker reboots,
     IDeviceOutputStateStore? outputs = null)
 {
     public DeviceMqttBinding Handle(DeviceId deviceId, string topicPrefix, string mqttDeviceId, uint? keyVersion)
@@ -338,6 +442,8 @@ public sealed class ConfigureDeviceMqttBindingHandler(
         {
             bindings.SetAllowedOutputChannels(device.Id, null);
             outputs?.Clear(device.Id);
+            // The uptime heard and any reboot being watched belong to the old topic's device.
+            reboots.Abandon(device.Id, "rebind");
             return binding;
         }
 

@@ -66,6 +66,9 @@ public sealed class DeviceCommandsController(
 
         var actions = catalog.List()
             .Where(x => x.Availability == Domain.Commands.CommandAvailability.Enabled &&
+                        // Same rule as sending (a flash command is master-admin only), so the UI never
+                        // offers what the server would refuse.
+                        (!CommandPermissionResolver.RequiresMasterAdmin(x) || access!.IsMasterAdmin) &&
                         StaticPermission(x) is { } permission && DeviceAccessChecks.Allows(access, device, permission))
             .Select(x => $"{x.Type}.{x.Action}")
             .Order(StringComparer.Ordinal)

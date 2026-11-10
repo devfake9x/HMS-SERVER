@@ -15,11 +15,21 @@ const props = withDefaults(
     message: string
     confirmPhrase?: string
     dangerActionText?: string
+    cancelText?: string
+    promptText?: string
+    promptSuffix?: string
+    inputPlaceholder?: string
     loading?: boolean
+    /** Runs when the phrase matches and the operator confirms; false keeps the dialog from emitting `confirm`. */
+    beforeConfirm?: () => Promise<boolean> | boolean
   }>(),
   {
     confirmPhrase: '',
     dangerActionText: 'Confirm Delete',
+    cancelText: 'Cancel',
+    promptText: 'Please type',
+    promptSuffix: 'to confirm:',
+    inputPlaceholder: 'Type confirmation phrase...',
     loading: false,
   }
 )
@@ -51,10 +61,19 @@ function onCancel() {
   emit('cancel')
 }
 
-function onConfirm() {
-  if (isConfirmedValid.value && !props.loading) {
-    emit('confirm')
+const checking = ref(false)
+
+async function onConfirm() {
+  if (!isConfirmedValid.value || props.loading || checking.value) return
+  if (props.beforeConfirm) {
+    checking.value = true
+    try {
+      if (!(await props.beforeConfirm())) return
+    } finally {
+      checking.value = false
+    }
   }
+  emit('confirm')
 }
 </script>
 
@@ -76,16 +95,17 @@ function onConfirm() {
         <p class="mt-2 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
           {{ message }}
         </p>
+        <slot />
 
         <div v-if="confirmPhrase" class="mt-4 p-3 bg-zinc-100/80 dark:bg-zinc-800/60 rounded-lg border border-zinc-200 dark:border-zinc-700/60 text-xs">
           <p class="text-zinc-600 dark:text-zinc-400 font-medium">
-            Please type <span class="font-mono font-bold text-rose-600 dark:text-rose-400 select-all">{{ confirmPhrase }}</span> to confirm:
+            {{ promptText }} <span class="font-mono font-bold text-rose-600 dark:text-rose-400 select-all">{{ confirmPhrase }}</span> {{ promptSuffix }}
           </p>
           <input
             v-model="userInput"
             type="text"
             class="mt-2 w-full px-3 py-1.5 text-xs rounded-md bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-rose-500/40 font-mono text-zinc-900 dark:text-zinc-100"
-            placeholder="Type confirmation phrase..."
+            :placeholder="inputPlaceholder"
             data-test="danger-confirm-input"
             @keydown.enter.prevent="onConfirm"
           />
@@ -100,7 +120,7 @@ function onConfirm() {
         :disabled="loading"
         data-test="danger-cancel-btn"
       >
-        Cancel
+        {{ cancelText }}
       </Button>
       <Button
         variant="danger"

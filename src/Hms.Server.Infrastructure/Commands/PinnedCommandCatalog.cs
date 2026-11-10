@@ -105,6 +105,19 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             ("adc", "toggle_channel")
         }.ToFrozenSet();
 
+    // Flash-class rows (class F) opened by owner decision (2026-11-09): only system.reboot. It changes
+    // no stored data and the device itself checks a confirm token, a throttle and a dry-run (spec §3,
+    // §4.2, §7). Only a master-admin may send it (CommandPermissionResolver.RequiresMasterAdmin),
+    // ConfigCommandPolicy allows an empty payload only, and the transport holds the device's lane
+    // from the publish until the restart is settled (DeviceRebootTracker). system.factory_reset
+    // erases the configuration and the command key, and ota.remote_start and ota.apply lack a
+    // download, apply and rollback contract: they stay closed.
+    public static readonly FrozenSet<(string Type, string Action)> FlashActions =
+        new HashSet<(string Type, string Action)>
+        {
+            ("system", "reboot")
+        }.ToFrozenSet();
+
     private readonly IReadOnlyDictionary<(string Type, string Action), CommandDefinition> _definitions;
 
     public PinnedCommandCatalog() : this(ReadEmbeddedCatalog())
@@ -238,6 +251,7 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             CommandClass.Read => EnabledActions.Contains((row.Type, row.Action)),
             CommandClass.Physical => PhysicalOutputActions.Contains((row.Type, row.Action)),
             CommandClass.Write or CommandClass.Control => ConfigWriteActions.Contains((row.Type, row.Action)),
+            CommandClass.Flash => FlashActions.Contains((row.Type, row.Action)),
             _ => false
         };
         var availability = opened ? CommandAvailability.Enabled : CommandAvailability.DeniedUntilActionContract;
