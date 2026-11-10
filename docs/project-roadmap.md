@@ -99,7 +99,7 @@ Phase 03 (Core: DO Relay, ADC, System)                            Phase 04 (Adva
 
 ---
 
-## 5. Tiến Độ MQTT Device (cập nhật 2026-11-06)
+## 5. Tiến Độ MQTT Device (cập nhật 2026-11-10)
 
 Milestone 4 đang triển khai theo từng nhóm lệnh. Mỗi nhóm có plan riêng và đã kiểm trên gateway thật `gateway_870c` (firmware 1.0.108) trừ khi ghi khác.
 
@@ -109,7 +109,8 @@ Milestone 4 đang triển khai theo từng nhóm lệnh. Mỗi nhóm có plan ri
 | Điều khiển relay DO (`control.set_output`, `control.pulse`) | Đã triển khai; kiểm live trên DO1 | `plans/261106-0735-do-relay-control/` |
 | Lệnh đọc giám sát (15 action, 3 thẻ) | Đã triển khai; 15/15 `Executed` live | `plans/261106-1040-monitoring-read-actions/` |
 | Cấu hình Hệ thống & ADC (5 lệnh ghi) | Đã triển khai; 5/5 `Executed` live, đã đặt lại giá trị gốc | `plans/261106-2033-remote-config-system-adc/` |
-| Còn đóng | Modbus, tags, lệnh ghi mạng/Wi-Fi/MQTT, reboot/OTA, `set_time`, `set_ntp_servers`; chờ team firmware | `docs/architecture-device-mqtt-api-catalog.md` |
+| Khởi động lại an toàn (`system.reboot`, class F, chỉ master-admin) | Đã triển khai (server, UI, simulator); kiểm trên simulator. **Gateway thật hoãn**: không có người ở lab, bàn thử đang chạy HIL; chạy khi có người ở lab, bàn thử rảnh và user nói "go". ACL broker bắt buộc trước production | `plans/261109-2250-safe-reboot/` |
+| Còn đóng | Modbus, tags, lệnh ghi mạng/Wi-Fi/MQTT, `system.factory_reset`, `ota.*`, `set_time`, `set_ntp_servers`; chờ team firmware | `docs/architecture-device-mqtt-api-catalog.md` |
 
-- Tổng 33 action đang mở trong catalog ghim: 26 đọc, 2 relay, 5 ghi cấu hình.
+- Tổng 34 action đang mở trong catalog ghim: 26 đọc, 2 relay, 5 ghi cấu hình, 1 class F (`system.reboot`).
 - Việc chờ: team firmware trả lời các spec gap của nhóm cấu hình, liệt kê trong `docs/architecture-mqtt-device-link.md`, mục "Cấu hình từ xa".

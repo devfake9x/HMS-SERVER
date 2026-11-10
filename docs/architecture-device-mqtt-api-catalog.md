@@ -134,7 +134,7 @@ flowchart TD
 
 > **Đã thay thế (2026-10-05):** bảng dưới được chép từ code firmware và có chỗ khác đặc tả. Nguồn có hiệu lực cho class, permission, TTL, dry run và confirm là §11 của đặc tả MQTT `HMS-IDF/engineering-docs/api/mqtt-api.md`; server không đọc code firmware (plan `261005-0556-device-permissions-what-where`, design contract Q14). Bảng giữ lại làm lịch sử.
 
-> **Trạng thái mở (2026-11-06):** các bảng bên dưới giữ nguyên cấu trúc; trạng thái được ghi ở đây và đánh dấu **(mở)** / **(đóng)** trong từng bảng. Tổng **33 action mở**: 26 đọc, 2 relay, 5 ghi cấu hình.
+> **Trạng thái mở (2026-11-06):** các bảng bên dưới giữ nguyên cấu trúc; trạng thái được ghi ở đây và đánh dấu **(mở)** / **(đóng)** trong từng bảng. Tổng **34 action mở** (cập nhật 2026-11-10): 26 đọc, 2 relay, 5 ghi cấu hình, 1 class F (`system.reboot`, chỉ master-admin).
 >
 > - **Đọc (26):** 11 action đọc gốc và 15 action đọc giám sát, gồm `system.get_time`, `system.get_hostname`, `system.get_device_id`, `ota.get_status`, `network.get_priority`, `network.get_ethernet`, `network.get_modem`, `network.wifi_sta_status`, `network.wifi_ap_status` (`network`), `battery.get_status`, `battery.get_alerts` (`battery`) và `adc.get_config`, `adc.get_channels`, `adc.get_status`, `adc.get_values` (`adc`). Các read còn lại (ví dụ `network.wifi_ap_clients`, `network.wifi_scan_results`, `sms.*`, `config.get`, `ota.remote_config_get`, `broker.*`, Modbus, tags) vẫn đóng.
 > - **Relay (class B):** `control.set_output`, `control.pulse` mở có điều kiện. `control.set_all` vẫn đóng.
@@ -159,7 +159,7 @@ Dưới đây là đặc tả chi tiết 100% của 94 actions trích xuất tr�
 | `sync_ntp` (**mở**) | C | `sys.time_edit` | — | 0 | None | Kích hoạt đồng bộ NTP tức thì |
 | `set_timezone` (**mở**) | W | `sys.time_edit` | — | 0 | `{"timezone": "ICT-7"}` | Cài đặt múi giờ POSIX. Server chỉ nhận `ICT-7` và `UTC0` |
 | `set_ntp_servers` (**đóng**) | C | `sys.time_edit` | — | 0 | `{"servers": ["pool.ntp.org"]}` | Đặt danh sách tối đa 3 máy chủ NTP |
-| `reboot` | F | `sys.reboot` | `REBOOT-<DEVID>` | 60000ms | `{"delay_ms": 2000}` | Khởi động lại thiết bị an toàn |
+| `reboot` (**mở**, chỉ master-admin) | F | `sys.reboot` | `REBOOT-<DEVID>` | 60000ms (`/me/command-catalog` vẫn báo 60000; server ký 10000) | `{}` (server không nhận `delay_ms`; thiết bị dùng mặc định 2000 ms) | Khởi động lại thiết bị an toàn; xem `docs/architecture-mqtt-device-link.md`, mục "Khởi động lại an toàn" |
 | `factory_reset`| F | `sys.factory_reset` | `FACTORY-RESET-<DEVID>` | 60000ms | `{"confirmed": true, "level": 1}` | Khôi phục cấu hình xuất xưởng (level 1..3) |
 
 ### 3.2 Subsystem `control` (4 Actions - Digital Output Relay)
@@ -305,8 +305,7 @@ Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/archi
      - `config.get` / `config.set`: Domain selector (`system`, `network`, `wifi_sta`...).
      - `sms.list`: Page (1..n), Limit (1..10).
 2. **Hộp Thoại Xác Nhận An Toàn (Danger Confirmation Dialog)**:
-   - Khi chọn lệnh Class F/D (`system.reboot`, `system.factory_reset`, `ota.apply`), hiển thị modal đỏ cảnh báo.
-   - Bắt buộc người dùng gõ chính xác `REBOOT-<DEVID>` hoặc `OTA-APPLY-<DEVID>` mới kích hoạt nút thực thi.
+   - **Đã thay (2026-11-10):** modal C2 không còn lệnh class F (`class` lấy từ `/me/command-catalog`; action thiếu `class` cũng bị ẩn, fail closed) và không còn chuỗi `confirm_token`. `system.reboot` có nút riêng trên trang thiết bị (`DeviceRebootPanel.vue`) với hộp xác nhận gõ `REBOOT-<mqttDeviceId>`; `system.factory_reset`, `ota.apply`, `ota.remote_start` vẫn đóng.
 3. **Bảo Tồn Bản Sắc Giao Diện**:
    - Giữ nguyên màu cam `#f97316` ở nút Dispatch chính theo quy chuẩn nhận diện thương hiệu.
 

@@ -58,12 +58,13 @@ MQTT chỉ nằm trong Infrastructure, theo ADR modular monolith 260927. Service
   - Chữ ký sai thì command vẫn giữ trạng thái pending.
 - **Timeout** (R4): sau 30 giây không có reply thì `Failed/DEVICE_RESPONSE_TIMEOUT`, nghĩa là *không rõ outcome*: phải đọc lại trạng thái trước khi gửi lại với id mới.
 - **Audit**: `Published` đến muộn không bao giờ ghi đè outcome của thiết bị.
-- **Action mở** (`PinnedCommandCatalog.EnabledActions`, `PhysicalOutputActions`, `ConfigWriteActions`): 33 action.
+- **Action mở** (`PinnedCommandCatalog.EnabledActions`, `PhysicalOutputActions`, `ConfigWriteActions`, `FlashActions`): 34 action.
   - 11 action đọc gốc: 9 action read `SLICE_PASS` của snapshot spec, cộng `system.ping` và `system.get_operations`.
   - 15 action đọc giám sát (xem [Lệnh đọc giám sát](#lệnh-đọc-giám-sát)).
   - `control.set_output` và `control.pulse` mở có điều kiện (xem [DO relay control](#do-relay-control)).
   - 5 action ghi cấu hình: `system.set_hostname`, `system.set_timezone`, `system.sync_ntp`, `adc.set_channel`, `adc.toggle_channel` (xem [Cấu hình từ xa](#cấu-hình-từ-xa--hệ-thống--adc)).
-  - Mọi action khác ngoài các danh sách trên vẫn ở `DENIED_UNTIL_ACTION_CONTRACT`, gồm `system.set_time` và `system.set_ntp_servers` (đồng hồ thiết bị), `system.reboot`, `system.factory_reset`, `config.set`, `control.set_all` (không atomic), mọi `network.*`, `mqtt.*`, `broker.*`, `ota.*` chưa mở, Modbus, tags, `sms.*`, `config.get`, `ota.remote_config_get`.
+  - 1 action class F: `system.reboot`, chỉ master-admin (xem [Khởi động lại an toàn](#khởi-động-lại-an-toàn)).
+  - Mọi action khác ngoài các danh sách trên vẫn ở `DENIED_UNTIL_ACTION_CONTRACT`, gồm `system.set_time` và `system.set_ntp_servers` (đồng hồ thiết bị), `system.factory_reset`, `config.set`, `control.set_all` (không atomic), mọi `network.*`, `mqtt.*`, `broker.*`, `ota.*` chưa mở, Modbus, tags, `sms.*`, `config.get`, `ota.remote_config_get`.
 - **Inbound**: không bao giờ đổi lifecycle thiết bị. Broker lab cho phép anonymous, nên identity trên broker không phải bằng chứng.
 
 ## API
@@ -96,6 +97,8 @@ SignalR có thêm các event `connectivity`, `capabilities`, `device_event`, `co
 - `MaxPendingReadsPerDevice` (mặc định 4, hợp lệ 1..16, ngoài khoảng → `MQTT_READ_LIMIT_INVALID`): số lệnh đọc đang chờ tối đa trên mỗi thiết bị. Chi tiết xem [Lệnh đọc giám sát](#lệnh-đọc-giám-sát).
 - `Devices[]` chỉ seed trong Development. `CommandKeyHex` chỉ đặt qua user-secrets hoặc env, không commit.
 - Máy dev đã có user-secrets `hms-server-api-dev` cho broker lab. Chạy server bằng cấu hình `hms-api` trong `.claude/launch.json`.
+- Broker dev: `tools/mqtt-broker/broker.js` (Aedes) bị server từ chối (`MQTT connect refused: 1`) vì MQTTnet 5 của server nói MQTT 5.0. Khi chạy simulator với server, dùng Mosquitto loopback (`listener 8088 127.0.0.1`, anonymous); chưa sửa Aedes trong `src/`.
+- Test tích hợp cần `Mqtt__Enabled=false` trong môi trường này, vì user-secrets Development trỏ tới CA path cũ và nhiều test nền thất bại nếu thiếu. Đặt bằng biến môi trường; không sửa user-secrets.
 
 ## Lab (quan sát 2026-11-06)
 
@@ -164,6 +167,7 @@ Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan:
 | `output_command_executed` | Lệnh DO trả `Executed`, chưa đọc lại |
 | `output_command_outcome_unknown` | Lệnh DO không `Executed` và không bị từ chối trước handler; hoặc hết thời gian chờ (`DEVICE_RESPONSE_TIMEOUT`) |
 | `device_rebooted` | Heartbeat có uptime nhỏ hơn lần trước |
+| `device_reboot_scheduled` | `system.reboot` thật được thiết bị nhận (reply thành công); relay sẽ về TẮT lúc khởi động |
 | `device_offline` | Connectivity `offline` |
 
 - Spec R3: chỉ các lỗi từ chối trước handler giữ nguyên state: `expired`, `future_timestamp`, `LANE_FULL`, `unknown_action`, `confirm_required`, `permission_unmapped`, `schema:*`. `UNAUTHORIZED` (dedup) vẫn là unknown, vì lần gửi đầu có thể đã chạy.
@@ -207,6 +211,7 @@ node tools/mqtt-broker/spec-device-simulator.js
 - `SIM_SILENT`: danh sách `type.action` bị bỏ qua. Dùng để kiểm timeout `DEVICE_RESPONSE_TIMEOUT` sau 30 s.
 - `SIM_HEARTBEAT_SECONDS` (mặc định 5): simulator gửi `<base>/status` định kỳ. Với `0`, không có heartbeat nào và server coi thiết bị là offline (heartbeat cũ hơn 15 s không còn tính là online).
 - Các biến khác: `SIM_SECONDS`, `SIM_CHANNELS` (mặc định 6), `SIM_PULSE_CHANNELS` (mặc định 6).
+- Các biến cho `system.reboot` (`SIM_FORCED`, `SIM_BOOT_SECONDS`, `SIM_THROTTLE_S`, `SIM_REBOOT_NO_RETURN`, ...): xem [Khởi động lại an toàn](#khởi-động-lại-an-toàn).
 
 ### Kết quả kiểm chứng
 
@@ -238,7 +243,7 @@ Simulator (`hms_server_selftest/sim_001`):
 
 ### Rủi ro còn lại
 
-- **Broker lab cho anonymous:** lệnh đã ký có thể bị bắt và replay. Sau khi thiết bị reboot, dedup mất; khi đồng hồ thiết bị chưa sync, không có kiểm tra tuổi lệnh. Cách khắc phục thật là ACL và xác thực trên broker (xem mục Gap, dòng về danh tính/ACL).
+- **Broker lab cho anonymous:** lệnh đã ký có thể bị bắt và replay. Sau khi thiết bị reboot, dedup mất; khi đồng hồ thiết bị chưa sync, không có kiểm tra tuổi lệnh. Cách khắc phục thật là ACL và xác thực trên broker (xem mục Gap, dòng về danh tính/ACL). Hệ quả với `system.reboot`: một lệnh reboot đã ký bị bắt có thể phát lại và làm thiết bị khởi động lại lặp; điều kiện lab và ACL bắt buộc trước production nằm ở [Khởi động lại an toàn](#khởi-động-lại-an-toàn).
 - **Store DO in-memory:** sau restart phải đọc lại. Hành vi restart chỉ kiểm bằng test.
 - **Client gửi `RequestedAt` lệch tới +60 s** (`SendDeviceCommandHandler`): với lệnh đọc, lệnh đã ký có thể còn hiệu lực tới khoảng +80 s (+60 s và TTL tối đa 20 s), vượt timeout 30 s. Lệnh ghi cấu hình đã dùng giờ server (xem [Cấu hình từ xa](#cấu-hình-từ-xa--hệ-thống--adc)), nên không còn rủi ro này. UI không gửi trường này; script API thì có thể.
 - **Dev seed áp lại allowlist mỗi lần khởi động** (`Program.cs`, chưa sửa): khởi động lại sẽ mở lại kênh đã bị đóng qua API. Chỉ dev, nhưng dev đang điều khiển relay lab thật.
@@ -458,7 +463,7 @@ Quy tắc dùng chung với DO panel (`mayHaveRun` trong `useDeviceCommand.ts`, 
 |---|---|
 | `system.set_time` | Đặt đồng hồ thiết bị. Giờ sai làm mọi lệnh sau bị `expired` hoặc `future_timestamp`. |
 | `system.set_ntp_servers` | Trỏ NTP tới server sai giờ có cùng hậu quả. Nếu đồng hồ lùi về trước 2020, thiết bị bỏ kiểm tra tuổi lệnh và lệnh cũ có thể bị phát lại (spec §2, §3). Đóng sau red-team. `system.sync_ntp` vẫn mở vì chỉ đồng bộ với server đã cấu hình. |
-| `system.reboot`, `system.factory_reset`, `ota.remote_start`, `ota.apply` | Class F, chưa mở. |
+| `system.factory_reset`, `ota.remote_start`, `ota.apply` | Class F, chưa mở: xoá cấu hình hoặc ghi firmware, chưa có hợp đồng action và đường hoàn tác. Có test giữ chúng ở `DENIED_UNTIL_ACTION_CONTRACT` kể cả khi master-admin gửi. `system.reboot` đã mở riêng, xem [Khởi động lại an toàn](#khởi-động-lại-an-toàn). |
 | `config.set`, `network.*` ghi, Wi-Fi, `mqtt.set_config`, `mqtt.reconnect`, `broker.*`, Modbus | Có thể làm mất đường mạng hoặc MQTT. Spec chưa có commit-confirm hay rollback. |
 | `control.set_all` | Không atomic. |
 
@@ -516,6 +521,129 @@ node tools/device-config-check.js --device <deviceId> --confirm-live --restore <
 - **`sys.time_edit` dùng chung** với `set_time` và `set_ntp_servers`. Hai lệnh đó đóng nhờ catalog, không nhờ quyền.
 - **Lane giả định đồng hồ thiết bị lệch ≤ 2 s so với server.** Spec cho `ts` lệch tới +60 s. Thiết bị có đồng hồ chậm có thể chạy lệnh cũ sau khi lane đã mở lại. Hiếm: cần hàng đợi đầy và đồng hồ lệch.
 - **`command_result` gửi tới mọi người xem thiết bị:** event chỉ có `operation_id` và mã lỗi thiết bị, không có payload.
+
+## Khởi động lại an toàn
+
+Trạng thái: **đã triển khai (server, UI, simulator); kiểm trên simulator 2026-11-10. Gateway thật `gateway_870c` chưa kiểm: hoãn.** Plan: `plans/261109-2250-safe-reboot/`. Kết quả: `plans/261109-2250-safe-reboot/reports/live-verification.md`.
+
+Mở đúng một lệnh class F, `system.reboot`, **chỉ cho master-admin**. Server kiểm chặt trước khi ký, giữ cổng từ lúc publish, theo dõi thiết bị lên lại để audit có kết quả cuối, và không bao giờ tự gửi lại. Ba row F còn lại (`system.factory_reset`, `ota.remote_start`, `ota.apply`) vẫn `DENIED_UNTIL_ACTION_CONTRACT`, có test, kể cả khi master-admin gửi.
+
+### Kiểm trước khi ký
+
+| Kiểm | Kết quả khi sai |
+|---|---|
+| Thiếu `sys.reboot` | `DEVICE_PERMISSION_REQUIRED` (như mọi lệnh) |
+| Không phải master-admin (class F) | HTTP 200, `Failed`/`HIGH_RISK_REQUIRES_MASTER_ADMIN`, trước khi giữ chỗ audit và trước khi ký. `allowed-commands` chỉ liệt kê `system.reboot` cho master-admin |
+| Thiếu `confirm` | `CONFIRM_REQUIRED` |
+| `confirm` khác `REBOOT-<mqttDeviceId>` (dựng từ `binding.MqttDeviceId`, không phải id của server) | `CONFIRM_MISMATCH` |
+| Payload khác `{}` | `COMMAND_PAYLOAD_INVALID`. Server không nhận `delay_ms`; thiết bị dùng mặc định 2000 ms |
+| `dryRun:true` | Thiết bị trả `would_apply:true` (spec §4.2 L551); chạy trước confirm, dedup, safe mode và throttle của thiết bị, nên chỉ chứng minh chữ ký, khoá, đồng hồ và lệnh được thiết bị nhận |
+
+- Lý do master-admin: chưa có endpoint HTTP tạo role hay membership, nên quy tắc không tốn gì lúc này. K8s RBAC, AWS IAM, GCP IAM và Azure RBAC giới hạn ai được *cấp* quyền, không bắt admin lúc chạy; đây là quy tắc sản phẩm chặt hơn chuẩn, user đã duyệt. Muốn nới phải có quyết định riêng.
+- **TTL ký 10000 ms** (như class B), dù row catalog là 60000 (`/me/command-catalog` vẫn báo 60000). Lý do duy nhất: một lệnh reboot đến trễ tệ hơn một lệnh bị từ chối. Trần này **không** chặn phát lại khi đồng hồ thiết bị chậm hay chưa hợp lệ, cũng không chặn broker giao lại khi `clean_session` tắt.
+
+### Cổng: giữ từ lúc publish
+
+`TryRegisterWrite` nhận hàm `admit`, chạy trong cùng bước atomic của registry, sau các kiểm "bận" và đếm tần suất, trước khi ghi slot. Lệnh bị từ chối không tốn slot 10 lệnh/phút.
+
+| Tình huống | Mã |
+|---|---|
+| Thiết bị đang bị giữ hoặc đang theo dõi (mọi `system.reboot`, thật hay dry-run) | `DEVICE_REBOOT_IN_PROGRESS` |
+| Reboot thật trong 60 s kể từ reboot thật trước được nhận, bất kể kết quả lần trước | `DEVICE_REBOOT_TOO_SOON` |
+
+- Reboot thật được nhận thì giữ tới max(lúc nhận + 2 s + 120 s; hạn chờ reply + 2 s). Hạn chờ reply là `ResponseTimeoutSeconds` (mặc định 30 s, nên thường là 122 s); khi cấu hình lớn hơn 120 s, giữ dài hơn để reply đến trong hạn vẫn gặp giữ. Reply thành công chuyển giữ sang theo dõi, hạn đặt lại thành reply + 2 s + 120 s.
+- Nhả sớm chỉ khi thiết bị từ chối rõ (`DEVICE_REJECTED`), chắc chắn chưa gửi (`MQTT_NOT_CONNECTED`, ...), hoặc đổi binding sang topic khác / revoke thiết bị (bản ghi đang giữ chưa có reply bị bỏ, không ghi audit). Reply mất, trễ, `Acknowledged`, publish không xác nhận: vẫn giữ tới hết hạn.
+- Lệnh khác (ghi cấu hình, relay, đọc) không bị chặn; chúng có lane và quy tắc đọc lại riêng.
+
+### Theo dõi phía server (`IDeviceRebootTracker`, trong bộ nhớ)
+
+- **Bằng chứng chính:** heartbeat MQTT có `uptime_seconds` nhỏ hơn heartbeat trước, đọc từ chính message (không từ `IDeviceTelemetryStore`, vì `POST /devices/{id}/telemetry` và `tools/mqtt-broker/hms-telemetry-bridge.js` cũng ghi store đó). Heartbeat không ký (§10 L1333), nên audit ghi `evidence=heartbeat`; UI xác minh bằng uptime đã ký. **Bằng chứng phụ:** connectivity `offline` rồi `online`, chỉ ghi vào detail.
+- **Hạn:** reply + 2 s + 120 s thì `DEVICE_REBOOT_NOT_OBSERVED`. Khi link broker của server đang mất, sweep không kết luận; có lại link thì hạn lùi tới ít nhất lúc đó + 30 s.
+- **Đuôi 10 phút:** sau `NOT_OBSERVED`, heartbeat có uptime giảm nâng row lên `OBSERVED` (detail `late_s`). Chỉ nâng từ `NOT_OBSERVED`.
+- **Mất reply:** đang giữ mà chưa có reply thành công, nếu thấy uptime giảm thì khi hết hạn giữ row ở mã "chưa rõ" (`MQTT_PUBLISHED`, `DEVICE_RESPONSE_TIMEOUT`, `MQTT_PUBLISH_UNCONFIRMED`, `DEVICE_ACCEPTED`) được nâng lên `OBSERVED` (detail `reply=none`). Không thấy thì để nguyên row. Nếu thiết bị đã trả `Acknowledged` (vẫn đang chạy), detail là `reply=accepted`.
+- **Uptime giảm trước khi reply tới** (đang giữ): mốc uptime trước lần giảm được giữ. Khi reply tới, row vào `SCHEDULED` với `uptime_before` là mốc đó, và được nâng lên `OBSERVED` ở sweep kế tiếp, không đợi hạn theo dõi.
+- **Ghi audit không thành** (hoặc row còn ở `MQTT_PUBLISHED` vì reply chưa ghi kịp): việc ghi được trả lại cho sweep sau, tối đa 3 lần. Row đã sang mã khác thì không ghi đè.
+- **Đổi binding sang topic khác, revoke:** xoá mốc uptime; bản ghi đang theo dõi (đã có reply) kết thúc `DEVICE_REBOOT_OUTCOME_UNKNOWN` (`abandoned=rebind|revoked`). Bản ghi đang giữ chưa có reply, hoặc đang trong đuôi, kết thúc không ghi audit.
+- **Server khởi động lại:** mất cổng và theo dõi. Với Postgres, `FailUnfinished` đổi row `SCHEDULED` thành `DEVICE_REBOOT_OUTCOME_UNKNOWN` (status `Executed` giữ nguyên, vì thiết bị đã reply); lệnh đã publish nhưng chưa có kết quả thành `OUTCOME_UNKNOWN_AFTER_RESTART`. Log khởi động đếm các row này. Với audit in-memory (dev) row mất hẳn và `GET /commands/{id}` trả 404 `COMMAND_NOT_FOUND`.
+
+### Audit và realtime
+
+- **Lưu ý cho người đọc audit:** một row `Failed` của `system.reboot` (ví dụ `DEVICE_RESPONSE_TIMEOUT`) trước đây là kết quả cuối, nay có thể về sau thành `Executed`/`DEVICE_REBOOT_OBSERVED` với `reply=none` (khi hết hạn giữ mà thấy uptime giảm). Đừng coi `Failed` của reboot là cuối cùng trước khi hết hạn giữ (122 s với timeout reply mặc định, lâu hơn nếu `ResponseTimeoutSeconds` lớn hơn) và đuôi 10 phút.
+- Không thêm status, không migration. `Code` mang kết quả: `DEVICE_REBOOT_SCHEDULED` (`uptime_before`), `DEVICE_REBOOT_OBSERVED`, `DEVICE_REBOOT_NOT_OBSERVED`, `DEVICE_REBOOT_OUTCOME_UNKNOWN`. `Detail` có thể chứa: `evidence=heartbeat` cùng `uptime_before`, `uptime_after`, `after_s` hoặc `late_s`; `reply=none` hoặc `reply=accepted`; `connectivity=offline>online`; `link_down=true`; `abandoned=rebind` hoặc `revoked`.
+- `ICommandAuditStore.TryCompleteAsync(plan, result, fromCodes)` chỉ ghi khi `Code` hiện tại nằm trong `fromCodes`, nên một kết quả muộn không ghi đè row đã sang mã khác.
+- Với class F, `PayloadSummary` = `{"dry_run":<bool>,"payload":{...}}` ghi lúc giữ chỗ, nên mọi kết quả (kể cả timeout) phân biệt được dry-run với lệnh thật.
+- Realtime dùng lại `command_result` (cùng `correlationId`, phát mỗi lần code đổi). Lệnh được lên lịch đánh dấu DO cũ với lý do `device_reboot_scheduled`. UI vẫn poll vì event có thể rơi.
+
+### UI
+
+- Nút riêng trên trang thiết bị (`DeviceRebootPanel.vue`), chỉ hiện khi `allowed-commands` có `system.reboot`; khoá khi catalog chưa xác minh, link offline, thiếu `mqttDeviceId` hoặc đang chạy. Modal C2 không còn lệnh class F.
+- Hộp xác nhận nói đúng §6.4: kênh không force sẽ TẮT; kênh force TẮT giữ TẮT; kênh force BẬT có thể TẮT trong lúc khởi động rồi BẬT lại ở lần ghi line đầu tiên; luật DO `SET_HIGH`/`SET_LOW` có thể BẬT một relay. Nút xác nhận chỉ bật khi gõ đúng `REBOOT-<mqttDeviceId>`. Hộp xác nhận chỉ đóng khi bảng relay thật sự khác bảng đã hiển thị ("Trạng thái relay vừa đổi…"), hoặc khi danh sách không còn đáng tin (trạng thái cũ, hoặc không đọc được). Đọc trùng trạng thái, kể cả sự kiện trễ từ lần đọc preflight, thì giữ mở.
+- Luồng: dry-run, rồi lệnh thật, rồi "Đang khởi động lại…", rồi theo dõi bản ghi server, rồi đọc lại `system.get_info`, `control.get_status`, `system.get_time`. **"Đã khởi động lại" chỉ khi uptime đã ký sau nhỏ hơn trước**; nếu không: "Thiết bị báo đã lên lại (chưa xác minh)". Không bao giờ gửi lại reboot.
+- Trạng thái lần chạy nằm ở trang thiết bị (`useDeviceReboot` tạo trong `DeviceDetailView`), nên chuyển tab không làm mất; đổi thiết bị thì huỷ.
+- Đọc lại bảng relay sau reboot không được: kết quả là `relay_unchecked`, hiện "Đã khởi động lại" (hoặc "chưa xác minh") kèm "Chưa kiểm được trạng thái relay".
+- Hỏi kết quả nhận 404: chỉ coi là "server đã khởi động lại" khi server đã nhận lệnh gửi hoặc đã trả một lần hỏi trước đó; nếu không thì `REBOOT_SEND_UNCONFIRMED` ("Không rõ lệnh có tới server không").
+- Đọc lại sau reboot: thử lại khi thiết bị báo `busy` (`ESP_ERR_INVALID_STATE: busy`), trong 30 s, theo `retry_after_ms`.
+
+### Công cụ kiểm và simulator
+
+```powershell
+$env:HMS_ADMIN_EMAIL    = "<email master-admin>"
+$env:HMS_ADMIN_PASSWORD = "<mật khẩu>"
+node tools/device-reboot-check.js --plan
+node tools/device-reboot-check.js --self-check
+node tools/device-reboot-check.js --device <deviceId> --confirm-live --preflight
+node tools/device-reboot-check.js --device <deviceId> --confirm-live --reboot [--sim] [--expect observed|observed_reply_none|not_observed|open|rejected|server_restarted]
+```
+
+- Chế độ: `--preflight`, `--checks`, `--dry-run`, `--reboot`, `--probe-in-progress --watch <correlationId>`, `--after <before.json>`, `--restore-do <before.json>`. Tool không bao giờ gửi lại `system.reboot`. Trước mọi chế độ có gửi lệnh, tool đọc `/me/command-catalog`: `factory_reset`, `ota.apply`, `ota.remote_start` phải `available:false`.
+- Mọi probe mong bị từ chối trước khi ký đều gửi `dryRun:true`; probe live không có `confirm` và payload `{}` (`--self-check` kiểm bảng này). Hai probe `CONFIRM_MISMATCH` và `COMMAND_PAYLOAD_INVALID` chỉ chạy với `--sim`. `--checks`, và `--reboot` trước khi gửi, đều chạy các probe.
+- Tool chỉ coi một lần từ chối là "chưa gửi" khi server chắc chắn chưa ký hoặc chưa publish (HTTP 4xx, `ContractUnavailable`, `MQTT_NOT_CONNECTED` và các mã tương tự, hoặc mã từ chối trước khi ký). `MQTT_PUBLISH_UNCONFIRMED`, `DEVICE_RESPONSE_TIMEOUT` và mọi kết quả khác vẫn được theo dõi trên dòng audit; tool không gửi lại.
+- `--preflight` PASS chỉ khi `clean_session === true`, đồng hồ thiết bị lệch ≤ 5 s, `config_trial.state === "none"`, `ota.get_status` không cho thấy image đang chờ. Shape `ota.get_status` chưa có trong spec: không đọc chắc được thì FAIL.
+- Simulator (`tools/mqtt-broker/spec-device-simulator.js`): `dry_run` trả `would_apply:true` trước mọi kiểm; `confirm_required`; throttle `UNAUTHORIZED`; reply rồi rớt kết nối như reset chip (last will `offline`), `SIM_BOOT_SECONDS`, uptime về 0, DO theo §6.4. Biến: `SIM_FORCED=2:on,4:off`, `SIM_BOOT_SECONDS`, `SIM_THROTTLE_S`, `SIM_THROTTLE_SURVIVES`, `SIM_DO_WARMUP_S`, `SIM_REBOOT_NO_RETURN`, `SIM_REBOOT_NO_REPLY`, `SIM_SILENT_REAL`.
+- Broker cho simulator: `tools/mqtt-broker/broker.js` (Aedes) chỉ nói MQTT 3.1.1, còn client MQTTnet 5 của server kết nối bằng MQTT 5.0 nên bị từ chối (`MQTT connect refused: 1`). Các lần kiểm này chạy Mosquitto loopback (`listener 8088 127.0.0.1`, anonymous) thay cho Aedes.
+
+### Kết quả kiểm (simulator, 2026-11-10)
+
+| Kịch bản | Kết quả |
+|---|---|
+| Đỏ trước: tool chạy trên simulator chưa sửa | Dry-run `DEVICE_REJECTED` (`unknown_action`) |
+| Thường | `SCHEDULED` tại 0 s, `OBSERVED` tại 10 s (`evidence=heartbeat`, `connectivity=offline>online`); uptime 53 → 0; probe trong lúc giữ: `DEVICE_REBOOT_IN_PROGRESS` |
+| Không lên lại (`SIM_REBOOT_NO_RETURN`) | `NOT_OBSERVED` tại 124 s; không lệnh nào gửi lại; sau khi simulator lên lại, row nâng lên `OBSERVED` (`late_s=48`) |
+| Reboot không reply (`SIM_REBOOT_NO_REPLY`) | `DEVICE_RESPONSE_TIMEOUT` tại 31 s; probe tại 35 s: `IN_PROGRESS`; tại 124 s `OBSERVED` (`reply=none`) |
+| Không reply, không reboot (`SIM_SILENT_REAL`) | `DEVICE_RESPONSE_TIMEOUT` tại 33 s; row giữ nguyên tới hết hạn giữ; uptime không giảm |
+| Kênh force (`SIM_FORCED=2:on,4:off`, DO1 BẬT trước) | Sau reboot: DO1 TẮT, DO2 BẬT, DO4 TẮT |
+| Throttle (`SIM_THROTTLE_S=90`, `SIM_THROTTLE_SURVIVES=1`) | Reboot lần hai sau 81 s: server cho qua (đã quá 60 s), thiết bị vẫn từ chối `DEVICE_REJECTED`/`UNAUTHORIZED` vì throttle 90 s; cổng nhả ngay |
+| Server khởi động lại giữa lúc theo dõi (audit in-memory) | `GET /commands/{id}` trả 404 `COMMAND_NOT_FOUND`; nhánh Postgres (`OUTCOME_UNKNOWN`) chỉ review code, dev không có Postgres |
+
+- Thời gian "boot" của simulator (8 s cộng 2 s delay) và thời điểm `offline` **không chuyển sang gateway**: simulator đóng socket nên broker phát last will ngay, còn chip thật có thể để TCP treo tới 1,5 × keepalive.
+- Thời gian từ reply tới heartbeat đầu của gateway chưa đo (bước hoãn).
+
+### Gateway thật: hoãn
+
+Hoãn theo Validation Session 1 (2026-11-10): không có người ở lab, và một session khác đang dùng bàn thử để chạy HIL. Việc tiếp theo, chỉ chạy khi có người ở lab, bàn thử rảnh và user nói "go" (gateway mất kết nối, DO1 về OFF). Điều kiện: `--preflight` PASS (kèm ghi lại phiên bản firmware từ `system.get_info`; "kênh force TẮT giữ TẮT" chỉ đúng với firmware có thay đổi 2026-11-08, spec L850: trước đó relay force TẮT có thể BẬT khoảng 0,14 s mỗi lần khởi động, nên hỏi team firmware phiên bản đó trước khi chạy); chỉ một HMS-SERVER nói chuyện với gateway và `hms-telemetry-bridge.js` đã tắt; user xác nhận không có luật DO `SET_HIGH`/`SET_LOW`; sniffer đã lược (chỉ `id`, `type.action`, `ttl_ms`, `dry_run`, có `confirm` hay không, xoá log sau khi đếm); quá T+180 s sau reply mà chưa lên lại thì người ở lab xử lý, không gửi thêm reboot; cuối phiên `--restore-do`.
+
+### Spec gap (đưa user chuyển cho team firmware, không tự gửi)
+
+- Reply dry-run: L551 chỉ nói có `would_apply:true`, các field khác chưa mô tả.
+- Reply trước reboot: §6.1 nói "lập lịch reboot", chưa nói reply luôn đi trước khi khởi động lại.
+- Throttle 60 s có giữ qua reboot không (dedup thì mất, §2 L455).
+- Force BẬT qua `esp_restart`: có tắt trong lúc khởi động lại không, và bao lâu.
+- Thứ tự heartbeat và connectivity khi lên lại (graceful `offline` hay chỉ last will), thời gian tối đa để kết nối lại.
+- Tín hiệu xác nhận reboot: chỉ có `uptime_seconds`; không có boot count hay reset reason trong `system.get_info`.
+- `ota.get_status`: field nào cho biết có image đang chờ hay chờ xác minh.
+- `<device_id>` của confirm có luôn trùng segment topic không.
+- `UNAUTHORIZED` dùng chung cho dedup, safe mode và throttle (§5 L571): server không phân biệt được.
+
+### Rủi ro còn lại
+
+- **ACL broker là điều kiện bắt buộc trước production.** Broker lab cho anonymous: ai bắt được một lệnh reboot đã ký có thể phát lại. Sau reboot thiết bị quên dedup; đồng hồ chưa hợp lệ thì bỏ kiểm tuổi lệnh (§3 L481); `clean_session` tắt thì broker có thể giao lại lệnh (R10). Với lab, giảm bằng điều kiện live (`clean_session: true`, đồng hồ lệch ≤ 5 s) và sniffer không lưu chữ ký.
+- **Trạng thái trong bộ nhớ:** server khởi động lại thì mất cổng và theo dõi. Throttle 60 s của thiết bị là lớp thứ hai, nếu còn sau reboot (spec gap). Giả định một instance.
+- **Heartbeat không ký:** client lạ trên broker có thể gửi uptime thấp, làm audit ghi `OBSERVED` và nhả cổng sớm. Cổng vẫn còn mốc 60 s; UI chỉ báo "Đã khởi động lại" khi uptime đã ký xác nhận.
+- **Uptime không giảm:** thiết bị vừa khởi động vài giây trước khi reboot, hoặc reboot chỉ được thấy muộn (mất reply), có thể có uptime sau lớn hơn lần trước. Audit vẫn `OBSERVED`, UI báo "chưa xác minh". Simulator tái hiện: uptime 4 → 113.
+- **Relay:** kênh không force TẮT, kênh force BẬT có thể chập TẮT, luật DO có thể BẬT relay.
+- **Mất link broker ngắn không được sweep thấy:** link service kết nối lại trước khi sweep, nên một lần mất link ngắn hơn một vòng không làm hạn lùi; "không kết luận khi link mất" đúng theo từng sweep, không theo từng lần mất. Heartbeat trong khoảng đó mất (clean session), nhưng heartbeat sau vẫn cho thấy uptime giảm.
+- **Reboot mới trong đuôi 10 phút thay bản ghi đuôi cũ:** `NOT_OBSERVED` của lần reboot trước không còn nâng lên `OBSERVED` được nữa.
+- **Nhánh Postgres của audit** (`TryCompleteAsync`, `FailUnfinished` cho `Scheduled`) chưa có test chạy, chỉ được review.
 
 ## Gap của spec (giữ cho user, không gửi firmware nếu chưa được yêu cầu)
 

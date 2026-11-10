@@ -7,7 +7,10 @@ blockedBy: [261005-0556-device-permissions-what-where]
 # read activation of phase-01 (15 monitoring reads) replaced by 261106-1040-monitoring-read-actions; catalog pin unchanged.
 # system/ADC write activation (set_hostname, set_timezone, sync_ntp, adc.set_channel, adc.toggle_channel)
 # replaced by 261106-2033-remote-config-system-adc; set_ntp_servers and set_time stay closed (device clock).
-supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control, phase-01-catalog-activation#reads, phase-01-catalog-activation#system-adc-writes, phase-03-control-telemetry-subsystems#adc-toggle]
+# 2026-11-09: system.reboot (phase-03 confirm_token in params, phase-05 REBOOT/OTA-APPLY token autofill and class F
+# confirm dialog in the C2 modal, phase-06 reboot HIL) replaced by 261109-2250-safe-reboot (pending): confirm is the root
+# field built from the MQTT device id (spec §7), class F is hidden from the modal; factory_reset and ota.* stay closed.
+supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control, phase-01-catalog-activation#reads, phase-01-catalog-activation#system-adc-writes, phase-03-control-telemetry-subsystems#adc-toggle, phase-03-control-telemetry-subsystems#reboot, phase-05-frontend-c2-console#class-f-confirm, phase-06-e2e-hil-verification#reboot]
 version: "1.0.0"
 author: "Antigravity Autonomous Pair-Programmer"
 created: "2026-10-01"
