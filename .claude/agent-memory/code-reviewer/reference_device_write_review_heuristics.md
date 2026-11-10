@@ -1,6 +1,6 @@
 ---
 name: device-write-review-heuristics
-description: Probe heuristics that found real defects in HMS-SERVER device config-write reviews (UI confirm step bypassing the gate, live restore tools blocked by server-side lane holds, gate clocks that tick coarsely, invisible non-Cf names); use when reviewing any server-signed device write flow, its UI gate, or a live check/restore tool
+description: Probe heuristics that found real defects in HMS-SERVER device config-write reviews (UI confirm step bypassing the gate, live restore tools blocked by server-side lane holds, gate clocks that tick coarsely, invisible non-Cf names); plus fixed holds vs configurable timeouts, tool not-sent rules, simulator reply shapes; use when reviewing any server-signed device write flow, its UI gate, or a live check/restore tool
 metadata:
   type: reference
 ---
@@ -9,6 +9,19 @@ metadata:
 - Live check/restore tools vs server lane holds: when the server holds a device write lane after an Acknowledged job reply (60 s), a tool that restores right after the job is terminal gets a lane refusal (classified not_sent) and leaves the device changed. Walk every server-side hold/rate rule against the tool's spacing; also check the tool pre-checks that the ORIGINAL value passes the server payload rule before writing a test value.
 - Freshness gates fed by a component `now` ref: the read cards tick `now` every 15 s, so a "60 s" gate is really 60-75 s. Grep the interval feeding the gate.
 - Name rules that block Unicode categories Cc/Cf/Zl/Zp/Co/Cn still pass invisible fillers (U+3164, U+115F: Lo; U+2800: So; U+034F, U+FE0F: Mn). Probe them with a file-based `dotnet run` app.
+- "Inbound is sequential, so A before B" claims miss the second thread: `MqttDeviceLinkService` runs the timeout sweep on the ExecuteAsync loop, even while the broker link is down, concurrently with the inbound reader. Probe Find → side effect → Remove gaps and sweep-driven final outcomes written while the server cannot hear the device (2026-11-09 reboot plan).
+- Simulator `SIM_SILENT` skips the handler, so it models "no reply AND no effect". It never covers the R4 case of "effect happened, reply lost"; ask for a mode that runs the effect and drops only the reply.
+- Live negative probes (expected server refusals) must use shapes that the device itself would also refuse if the server gate failed (no confirm, dry-run). Check especially closed class D/F rows such as factory_reset.
+- A live reboot also applies staged state: OTA image, a pending mqtt config trial, clean_session, and device rules that fire at boot. Check that the pre-run snapshot reads these through opened reads (ota.get_status, mqtt.get_status, mqtt.get_config).
+- Grep the full spec for every "spec gap" a plan lists before accepting it: in the reboot plan (2026-11-09), §4.2 L551 already said that dry-run preview runs before confirm/dedup/safe-mode/throttle and returns `would_apply`, which answered 3 "gaps" and contradicted the planned simulator.
+- Coverage blind spots in the tests: no test sets `enableLiveMqtt`, so `MqttDeviceCommandTransport` is never resolved from DI, and an optional `= null` gate dependency can be dropped silently. EF audit-store tests use `UseInMemoryDatabase`, so the relational `ExecuteUpdate` branches are never run. `DeviceReplyProjection.ApplyAsync` marks outputs stale only for class B.
 - A lone-surrogate JSON escape (`"\uD800"`) in a command payload 500s at `CommandRequestFingerprint.Compute` (STJ Serialize throws JsonException) before any policy runs; guards added later in the adapter do not change the HTTP outcome.
+- Device page tabs use `v-if` (`DeviceDetailView.vue` `activeTab`). A long flow whose composable lives in a tab-local panel (`onScopeDispose(cancel)`) is cancelled silently by a tab switch, and the remounted panel shows idle. Also check that every pre-dialog read controller is aborted on unmount, not only on device change (reboot UI, 2026-11-10).
+- Result-text mappers keyed by `kind` can drop a second dimension: the reboot `relay_unchecked` text hid whether the reboot was verified. For each terminal kind, check that every sentence the acceptance criteria require still appears.
+
+- Server-side holds with fixed lengths: compare them with every configurable timer they must outlive. The reboot hold (accepted + 122 s) assumed `Mqtt:ResponseTimeoutSeconds` 30, but options allow up to 600, so the unconditional sweep timeout write could overwrite a later reboot code (2026-11-10).
+- Tool "not sent" rules: diff each new tool's `refused()`/`certainlyNotSent()` against `tools/device-config-check.js:62-67`. `Failed` includes `MQTT_PUBLISH_UNCONFIRMED`, which may have run.
+- Simulator reply shapes: check handler errors against spec R3 (the envelope `error` holds the esp_err_t name, the reason sits in `data.error`). A simulator that puts `busy` in the envelope makes anchored regexes like `/^busy/` on the server detail pass in simulation and fail on hardware (server detail = "ESP_ERR_INVALID_STATE: busy").
+- Interleaving probes without editing the repo: wrap `IAuthorizedEventPublisher` and run an action on the first `outputs` event. That event fires between `Upgrade` and `RecordAsync` in the correlator, the window where HTTP-thread and sweep actions can interleave.
 
 Related: [[hms-review-workflow]], [[authz-probe-heuristics]], [[reference-firmware-c-oracle]].
