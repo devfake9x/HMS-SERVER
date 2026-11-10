@@ -80,7 +80,7 @@ Catalog nhúng ghim `c80797d` (2026-11-10): 108 row, 13 namespace, 53 quyền fi
   - **R13** (SMS, spec L417, L719): mọi `sms.*` chỉ qua broker primary; TTL bảng là trần; `sms.list` cần posture signed.
   - **R15** (force DO, spec L419): chỉ primary, signed, đồng hồ đã đồng bộ, `ttl_ms` ≤ 60000; force giữ qua reboot.
   - **R16** (`control.set_config`, spec L420): như R15; quyền `gpio.do_config`.
-  - **Tách hành vi class B:** server coi mọi row class B là relay. Audit giữ payload (số điện thoại, nội dung SMS; `sms.delete` class D cũng giữ), trạng thái DO bị đánh stale, lane ghi bị bỏ qua, TTL bị cap 10 s; allowlist B duy nhất là `PhysicalOutputActions`; `OutputCommandPolicy` viết theo payload relay. Phải tách trước khi mở `sms.send`, `control.force_*`, `control.set_config`.
+  - **Hành vi theo action, không theo class** (đã tách, xem [Thuộc tính hành vi của action](#thuộc-tính-hành-vi-của-action)): row class B/D chưa mở mặc định không lưu payload audit và đi lane ghi; trong đó chỉ row `control.*` (`set_all`, `force_*`, `set_config`) đánh stale DO, `sms.*` và row D thì không. Plan mở `sms.send`, `sms.delete`, `control.force_*`, `control.set_config` còn phải quyết định ba việc: redaction payload (nếu muốn lưu), lane, và TTL (trần 10 s của class B và `OutputCommandPolicy` vẫn viết cho relay).
 - **Cut-over (deploy catalog mới):**
   1. Catalog là embedded resource: deploy = build mới và khởi động lại API.
   2. Khởi động lại xoá reply đã lưu, trạng thái DO, lane, theo dõi reboot, và đánh `OUTCOME_UNKNOWN_AFTER_RESTART` cho lệnh chưa xong (`Program.cs:157-164`).
@@ -147,6 +147,20 @@ SignalR có thêm các event `connectivity`, `capabilities`, `device_event`, `co
     | `control.get_status` | 6 kênh DO |
     | `system.get_operations` | — |
 
+## Thuộc tính hành vi của action
+
+Một class chứa những action cần xử lý khác nhau (class B có relay và `sms.send`), nên server không suy hành vi từ class. `CommandDefinition` mang ba cờ, chỉ `PinnedCommandCatalog.ToDefinition` gán. Cả ba mặc định `false`: action chưa ai rà thì không lưu payload và xếp hàng ở lane ghi. Riêng `AffectsOutputs = false` không phải phía thận trọng: cache DO vẫn được tin, nên action có thể đổi relay phải bật cờ hoặc tự đánh stale theo đường khác (`system.reboot` đi qua theo dõi reboot). `system.factory_reset` hiện không có đường nào, plan mở nó phải quyết định.
+
+| Cờ | Nghĩa | Nơi đọc | Action có cờ |
+|---|---|---|---|
+| `KeepsAuditPayload` | Audit được lưu payload | `EfCommandAuditStore.SummarizePayload` | `control.set_output`, `control.pulse`, 5 action ghi cấu hình, `system.reboot` |
+| `AffectsOutputs` | Lệnh có thể đổi DO; cache trạng thái DO thành stale sau reply hoặc khi hết hạn | `DeviceOutputState`, sweep trong `DeviceLinkHandlers` | Mọi row class B thuộc `control.*` (kể cả `set_all`, `force_*`, `set_config` đang đóng) |
+| `UsesOutputLane` | Bảng relay tự tuần tự hoá lệnh, bỏ qua lane ghi | `CommandLanes.IsWrite` | `control.set_output`, `control.pulse` |
+
+Vẫn xét theo class, chưa tách: trần TTL 10 s (`SendDeviceCommandHandler`), `OutputCommandPolicy`, `ConfigCommandPolicy`. Plan mở một row B/D phải quyết định redaction, lane và TTL cho row đó.
+
+Test: `CatalogTests` (cờ của từng row B/D/F; danh sách 8 action giữ payload ghi bằng tên, nên mở thêm một action ghi cấu hình như Wi-Fi hay broker không tự lưu mật khẩu vào audit), `DeviceOutputStateTests`, `DeviceLaneSafetyTests`, `PersistenceModelTests` (`sms.send` không lưu payload). Plan: `plans/261110-2021-split-class-b-behaviour/`.
+
 ## DO relay control
 
 Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan: `plans/261106-0735-do-relay-control/`. Trên gateway thật chỉ DO1 nằm trong allowlist; DO2–DO6 chỉ kiểm chứng trên simulator.
@@ -159,9 +173,9 @@ Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan:
 | `control.pulse` | `{channel: int ≥ 1, duration_ms: int 1..MaxPulseMs}` | Kênh phải ở `pulse` mode trên thiết bị |
 | `control.set_all` | — | Vẫn đóng: không atomic |
 
-- Kiểm trước khi ký: `OutputCommandPolicy.Check`. Action class B khác → `PHYSICAL_ACTION_UNSUPPORTED`.
+- Kiểm trước khi ký: `OutputCommandPolicy.Check`. Action class B khác → `PHYSICAL_ACTION_UNSUPPORTED` (policy này vẫn xét theo class).
 - `Mqtt:MaxPulseMs` (`MqttLinkOptions.MaxPulseMs`): mặc định 60000, hợp lệ 1..3600000. Đây là chính sách của server; spec §6.4 để giới hạn thật cho cấu hình HTTP của thiết bị.
-- TTL vật lý: `SendDeviceCommandHandler.MaxPhysicalCommandTtlMs = 10000` kẹp TTL lệnh class B xuống 10 s. `ttl_ms` trên envelope cũng ≤ 10000. Các lệnh khác bị kẹp ở `MaxCommandTtlMs = 20000` (xem [Lệnh đọc giám sát](#lệnh-đọc-giám-sát)).
+- TTL vật lý: `SendDeviceCommandHandler.MaxPhysicalCommandTtlMs = 10000` kẹp TTL lệnh class B xuống 10 s (xét theo class, kể cả row B không phải relay). `ttl_ms` trên envelope cũng ≤ 10000. Các lệnh khác bị kẹp ở `MaxCommandTtlMs = 20000` (xem [Lệnh đọc giám sát](#lệnh-đọc-giám-sát)).
 - `Mqtt:ResponseTimeoutSeconds` (mặc định 30) phải lớn hơn 20 s, nếu không `MqttLinkOptions.Validate` ném `MQTT_TIMING_INVALID`. Lý do: thiết bị kiểm TTL khi lệnh rời hàng đợi của nó. Nếu server đã báo timeout mà lệnh còn hạn, lệnh vẫn có thể chạy sau đó, và operator không biết trạng thái thật.
 
 ### Allowlist kênh
@@ -198,7 +212,7 @@ Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan:
 
 ### Audit
 
-- Cột `command_audits.IssuedBy` (người gửi), `Detail` (varchar 1024, lý do từ thiết bị), `PayloadSummary` (JSON payload, tối đa 512 ký tự). `PayloadSummary` chỉ được lưu cho class B (physical), D, F và 5 action ghi cấu hình; các action W/C khác để `null`.
+- Cột `command_audits.IssuedBy` (người gửi), `Detail` (varchar 1024, lý do từ thiết bị), `PayloadSummary` (JSON payload, tối đa 512 ký tự). `PayloadSummary` chỉ được lưu khi definition có `KeepsAuditPayload`: hai action relay, 5 action ghi cấu hình và `system.reboot`. Mọi action khác để `null`, kể cả row B/D chưa mở (`sms.send`, `sms.delete`, `control.set_all`…).
 - Khi khởi động, `FailUnfinished("OUTCOME_UNKNOWN_AFTER_RESTART")` (`Program.cs`) đổi mọi row `Published` và `IN_FLIGHT` thành `Failed` với code `OUTCOME_UNKNOWN_AFTER_RESTART`.
 - Kết quả transport muộn (`Published`, `MQTT_PUBLISH_UNCONFIRMED`) không ghi đè outcome mà thiết bị đã báo (`CommandTransportOutcome.IsTransportOnly`).
 
@@ -300,7 +314,7 @@ Simulator (`hms_server_selftest/sim_001`):
 - **Client gửi `RequestedAt` lệch tới +60 s** (`SendDeviceCommandHandler`): với lệnh đọc, lệnh đã ký có thể còn hiệu lực tới khoảng +80 s (+60 s và TTL tối đa 20 s), vượt timeout 30 s. Lệnh ghi cấu hình đã dùng giờ server (xem [Cấu hình từ xa](#cấu-hình-từ-xa--hệ-thống--adc)), nên không còn rủi ro này. UI không gửi trường này; script API thì có thể.
 - **Dev seed áp lại allowlist mỗi lần khởi động** (`Program.cs`, chưa sửa): khởi động lại sẽ mở lại kênh đã bị đóng qua API. Chỉ dev, nhưng dev đang điều khiển relay lab thật.
 - **Read-back bị `DEVICE_READ_BUSY`:** UI đã chờ 1.5 s rồi thử lại một lần. Nhưng server vẫn chỉ ghi audit row cho lần từ chối này, không có log riêng; log có cấu trúc chỉ có cho lệnh bị từ chối trước khi có audit.
-- **`PayloadSummary` lưu nguyên payload** cho class B/D/F và 5 action ghi cấu hình. Payload của relay và cấu hình không chứa bí mật. Trước khi mở OTA, action có token, hoặc action ghi có bí mật, phải thêm redaction theo action.
+- **`PayloadSummary` lưu nguyên payload** cho action có `KeepsAuditPayload` (relay, 5 action ghi cấu hình, `system.reboot`). Payload của các action này không chứa bí mật hay dữ liệu cá nhân. Action khác mặc định không lưu; muốn lưu (OTA, action có token, SMS có số điện thoại và nội dung) thì phải thêm redaction theo action rồi mới bật cờ.
 
 ## Lệnh đọc giám sát
 
@@ -334,7 +348,7 @@ Hàng đợi lệnh của thiết bị nhỏ và dùng chung giữa lệnh đọ
 | Lệnh đọc đang chờ trên mỗi thiết bị | 4 (`Mqtt:MaxPendingReadsPerDevice`) | Vượt → `ContractUnavailable` / `DEVICE_READ_BUSY`, không publish |
 | Phần của mỗi người gửi | 2 (một nửa) | Một người chạy vòng lặp không chiếm hết slot của người khác |
 | Read-back relay `control.get_status` | +1 slot ngoài giới hạn | Luôn xác minh được trạng thái sau lệnh relay |
-| Lệnh vật lý (class B) | Không bị giới hạn | |
+| Lệnh relay (`UsesOutputLane`: `control.set_output`, `control.pulse`) | Không bị giới hạn | |
 | Thời điểm giải phóng slot | `ExpiresAt + 2 s` | Thiết bị đã bỏ lệnh khi hết TTL |
 
 - Lệnh bị từ chối đã được ký rồi bỏ, không publish. Cap nằm trong transport, sau adapter. Không có rủi ro bảo mật vì không có gì được gửi.
@@ -450,7 +464,7 @@ Luật payload, kiểm trước khi ký (`ConfigCommandPolicy.Check`):
 
 ### Lane ghi
 
-Lane ghi áp dụng cho mọi class trừ R và B (tức W, C, D, F). Lane đọc và lane relay không đổi.
+Lane ghi áp dụng cho mọi lệnh không phải class R và không có `UsesOutputLane` (`CommandLanes.IsWrite`): W, C, D, F và cả class B không phải relay (`sms.send`, `control.set_all`, `control.force_*`…). Chỉ `control.set_output` và `control.pulse` đi lane relay. Lane đọc và lane relay không đổi.
 
 | Quy tắc | Giá trị | Mã khi từ chối |
 |---|---|---|
@@ -473,7 +487,7 @@ Lane ghi áp dụng cho mọi class trừ R và B (tức W, C, D, F). Lane đọ
 
 ### Audit
 
-- `PayloadSummary` lưu JSON payload (tối đa 512 ký tự) cho 5 action trên. Payload không có bí mật.
+- `PayloadSummary` lưu JSON payload (tối đa 512 ký tự) cho 5 action trên (catalog khai `KeepsAuditPayload`). Payload không có bí mật.
 - Các action W/C khác giữ `null` cho tới khi có che theo từng action.
 - Reply `Acknowledged` được ghi như vậy và không tự đóng: server không theo dõi job.
 

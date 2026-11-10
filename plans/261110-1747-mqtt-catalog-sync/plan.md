@@ -183,7 +183,7 @@ Nguồn: brainstorm đã duyệt 2026-11-10; D-A, D-B là quyết định user s
 | (a) | Xin team firmware tag (bảo vệ) các commit spec đã ghim (`c80797d`, `83e93d77e`) hoặc cam kết không rewrite nhánh. Việc liên team: plan không tự làm | User | Tag tồn tại; docs ghi tên tag |
 | (b) | Gửi câu hỏi spec 8 (một câu đếm duy nhất) và 20 (§11 L1359 ghi "(R14)" cho luật SMS, đúng là R13) | User chuyển | Khi câu 8 có trả lời và L1351 đổi: bỏ `--accept-stated-count` |
 | (c) | `status.tags` dạng trang (spec §6 L612, L927-929): server/UI chưa phân trang; gateway 1.0.108 còn mảng | Dev, plan riêng | Quyết định giữ mở theo dạng trang hoặc đóng |
-| (d) | Trước khi mở row đóng: R13/R15/R16 + tách hành vi class B (mục Ngoài phạm vi) | Dev, mỗi nhóm một plan | Plan riêng |
+| (d) | Trước khi mở row đóng: R13/R15/R16 + tách hành vi class B (mục Ngoài phạm vi) | Dev, mỗi nhóm một plan | Tách hành vi class B: xong (`plans/261110-2021-split-class-b-behaviour/`, 2026-11-10). R13/R15/R16: còn mở, plan riêng |
 | (e) | Tuỳ chọn: `CheckRoleChange`/gán role fail-closed với mã ngoài từ vựng hiện hành (thu hẹp cửa sổ rollback) | Dev | Cần plan riêng |
 
 ## Open questions / khác brainstorm
