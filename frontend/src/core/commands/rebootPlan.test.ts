@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { DeviceLinkDto } from '@/core/api/adminApi'
 import {
+  channelsOf,
   checkAfterReboot,
   isVerifiedReboot,
   rebootGate,
@@ -53,7 +54,44 @@ describe('relaysBeforeReboot', () => {
       expect(plan.readable).toBe(false)
       expect(plan.turnOff).toEqual([])
       expect(plan.forcedOn).toEqual([])
+      expect(plan.ruleHeld).toEqual([])
     })
+
+  it('lists the channels a level rule holds with their rule id, apart from the ones that turn off', () => {
+    const plan = relaysBeforeReboot({
+      channels: [channel(1, true), channel(6, true, { owner: 'level_rule', owner_id: 7 })],
+    })
+
+    expect(plan.turnOff).toEqual([1])
+    expect(plan.ruleHeld).toEqual([{ channel: 6, ruleId: '7', on: true }])
+  })
+
+  it('reads a rule id given as a string', () => {
+    const plan = relaysBeforeReboot({ channels: [channel(6, false, { owner: 'level_rule', owner_id: '12' })] })
+
+    expect(plan.ruleHeld).toEqual([{ channel: 6, ruleId: '12', on: false }])
+  })
+
+  it('has no rule-held channel when the device does not report owner or the table is unreadable', () => {
+    expect(relaysBeforeReboot({ channels: [channel(6, true)] }).ruleHeld).toEqual([])
+    expect(relaysBeforeReboot({ channels: [channel(6, true, { owner: 'event_rule' })] }).ruleHeld).toEqual([])
+    expect(relaysBeforeReboot({ channels: 'no' }).ruleHeld).toEqual([])
+  })
+})
+
+describe('channelsOf', () => {
+  it('treats owner force as forced', () => {
+    const [ch] = channelsOf({ channels: [channel(4, false, { owner: 'force' })] })!
+
+    expect(ch.forced).toBe(true)
+    expect(ch.owner).toBe('force')
+  })
+
+  it('reads the owner and a numeric or string owner id', () => {
+    const channels = channelsOf({ channels: [channel(1, true, { owner: 'level_rule', owner_id: 3 }), channel(2, true, { owner_id: 'a' }), channel(3, true)] })!
+
+    expect(channels.map(c => [c.owner, c.ownerId])).toEqual([['level_rule', '3'], [null, 'a'], [null, null]])
+  })
 })
 
 describe('checkAfterReboot', () => {
@@ -97,6 +135,37 @@ describe('checkAfterReboot', () => {
     expect(result.notes).toHaveLength(1)
     expect(result.notes[0]).toContain('DO1')
     expect(result.notes[0]).toContain('SET_HIGH/SET_LOW')
+  })
+
+  it('reports a relay a level rule turned on after the boot as the rule, not as a fault', () => {
+    const ruled = relaysBeforeReboot({ channels: [channel(6, true, { owner: 'level_rule', owner_id: 7 })] })
+    const result = checkAfterReboot(ruled, { channels: [channel(6, true, { owner: 'level_rule', owner_id: 7 })] })
+
+    expect(result.deviations).toEqual([])
+    expect(result.notes).toEqual(['DO6 BẬT sau khởi động do luật #7'])
+  })
+
+  it('names the rule from the reading before when the reading after has no owner', () => {
+    const ruled = relaysBeforeReboot({ channels: [channel(6, true, { owner: 'level_rule', owner_id: 7 })] })
+    const result = checkAfterReboot(ruled, { channels: [channel(6, true)] })
+
+    expect(result.deviations).toEqual([])
+    expect(result.notes).toEqual(['DO6 BẬT sau khởi động do luật #7'])
+  })
+
+  it('does not credit the earlier rule when the reading after names another owner', () => {
+    const ruled = relaysBeforeReboot({ channels: [channel(6, true, { owner: 'level_rule', owner_id: 7 })] })
+    const result = checkAfterReboot(ruled, { channels: [channel(6, true, { owner: 'event_rule' })] })
+
+    expect(result.deviations).toEqual([])
+    expect(result.notes).toEqual(['DO6 BẬT sau khởi động, có thể do luật DO SET_HIGH/SET_LOW'])
+  })
+
+  it('takes a rule id only from a level rule row', () => {
+    const ruled = relaysBeforeReboot({ channels: [channel(6, true, { owner: 'level_rule', owner_id: 7 })] })
+    const result = checkAfterReboot(ruled, { channels: [channel(6, true, { owner: 'trigger', owner_id: 3 })] })
+
+    expect(result.notes.join(' ')).not.toMatch(/#3|#7/)
   })
 })
 

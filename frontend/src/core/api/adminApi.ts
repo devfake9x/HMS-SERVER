@@ -118,7 +118,20 @@ export interface DeviceLinkDto {
   canControlOutputs: boolean
   canViewOutputs: boolean
 }
-export interface OutputChannelDto { channel: number; state: boolean; mode: string | null; pulseActive: boolean | null }
+/** Who drives a channel, as the device reports it in control.get_status. */
+export type OutputOwner = 'none' | 'force' | 'level_rule' | 'event_rule' | 'trigger' | 'unknown'
+/** The last five fields are null when the device did not report them (older firmware); absent from an older server. */
+export interface OutputChannelDto {
+  channel: number
+  state: boolean
+  mode: string | null
+  pulseActive: boolean | null
+  enabled?: boolean | null
+  gpioOk?: boolean | null
+  forced?: boolean | null
+  owner?: OutputOwner | null
+  ownerId?: string | null
+}
 /** Relay state from the last verified control.get_status reply. */
 export interface DeviceOutputsDto { channels: OutputChannelDto[]; readAt: string; stale: boolean; staleReason: string | null }
 export type DeviceOutputsResult =

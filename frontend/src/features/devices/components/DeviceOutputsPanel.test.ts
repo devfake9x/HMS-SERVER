@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { adminApi, type DeviceLinkDto, type DeviceOutputsDto } from '@/core/api/adminApi'
+import { adminApi, type DeviceLinkDto, type DeviceOutputsDto, type OutputChannelDto } from '@/core/api/adminApi'
 import DeviceOutputsPanel from './DeviceOutputsPanel.vue'
 
 const link = (overrides: Partial<DeviceLinkDto> = {}): DeviceLinkDto => ({
@@ -45,6 +45,15 @@ function mountPanel(props: Record<string, unknown> = {}) {
 const published = (id: string) => ({ status: 'Published', code: 'MQTT_PUBLISHED', correlationId: id })
 const result = (id: string, status: string, code: string, detail: string | null = null) =>
   ({ correlationId: id, result: { status, code, correlationId: id, detail }, reply: null })
+const rejected = (id: string, reason: string, data: Record<string, unknown>) => ({
+  correlationId: id,
+  result: { status: 'Failed', code: 'DEVICE_REJECTED', correlationId: id, detail: `ESP_ERR_INVALID_STATE: ${reason}` },
+  reply: { data },
+})
+const ch = (channel: number, mode: string, extra: Partial<OutputChannelDto> = {}): OutputChannelDto =>
+  ({ channel, state: false, mode, pulseActive: false, ...extra })
+const withChannels = (channels: OutputChannelDto[]): DeviceOutputsDto =>
+  ({ channels, readAt: '2026-11-06T08:00:00Z', stale: false, staleReason: null })
 
 describe('DeviceOutputsPanel', () => {
   beforeEach(() => vi.useFakeTimers())
@@ -341,6 +350,209 @@ describe('DeviceOutputsPanel', () => {
     await vi.advanceTimersByTimeAsync(3500)
     await flushPromises()
     expect(send.mock.calls.map(x => x[1].action)).toEqual(['pulse', 'get_status', 'get_status'])
+  })
+
+  describe('channels the device will refuse', () => {
+    const disabled = (wrapper: ReturnType<typeof mountPanel>, id: string) =>
+      (wrapper.find(`[data-test="${id}"]`).element as HTMLButtonElement).disabled
+
+    it('locks each control of a channel the device will refuse and says why', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({
+        kind: 'ok',
+        state: withChannels([
+          ch(1, 'toggle', { owner: 'none' }),
+          ch(2, 'toggle', { gpioOk: false }),
+          ch(4, 'toggle', { forced: true, owner: 'force' }),
+          ch(6, 'pulse', { owner: 'level_rule', ownerId: '7' }),
+        ]),
+      })
+      const send = vi.spyOn(adminApi, 'sendCommand')
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [1, 2, 4, 6] }) })
+      await flushPromises()
+
+      expect(disabled(wrapper, 'do-1-toggle')).toBe(false)
+      for (const id of ['do-2-toggle', 'do-4-toggle', 'do-6-toggle', 'do-6-pulse', 'do-6-pulse-ms'])
+        expect(disabled(wrapper, id)).toBe(true)
+      expect(wrapper.find('[data-test="do-2-lock"]').text()).toBe('GPIO không dùng được')
+      expect(wrapper.find('[data-test="do-4-lock"]').text()).toBe('Đang force')
+      expect(wrapper.find('[data-test="do-6-lock"]').text()).toBe('Luật #7 giữ kênh')
+
+      await wrapper.find('[data-test="do-2-toggle"]').trigger('click')
+      await wrapper.find('[data-test="do-6-pulse"]').trigger('click')
+      await flushPromises()
+      expect(send).not.toHaveBeenCalled()
+    })
+
+    it('keeps the lock while the state is unknown', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({
+        kind: 'ok',
+        state: { ...withChannels([ch(2, 'toggle', { gpioOk: false })]), stale: true, staleReason: 'device_offline' },
+      })
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [2] }) })
+      await flushPromises()
+
+      expect(disabled(wrapper, 'do-2-on')).toBe(true)
+      expect(disabled(wrapper, 'do-2-off')).toBe(true)
+    })
+
+    it('locks a channel turned off in the device configuration', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: withChannels([ch(3, 'toggle', { enabled: false })]) })
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [3] }) })
+      await flushPromises()
+
+      expect(disabled(wrapper, 'do-3-toggle')).toBe(true)
+      expect(wrapper.find('[data-test="do-3-lock"]').text()).toBe('Kênh tắt trong cấu hình')
+    })
+
+    it('keeps a rule lock while the state is unknown', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({
+        kind: 'ok',
+        state: { ...withChannels([ch(6, 'toggle', { owner: 'level_rule', ownerId: '7' })]), stale: true, staleReason: 'device_offline' },
+      })
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [6] }) })
+      await flushPromises()
+
+      expect(disabled(wrapper, 'do-6-on')).toBe(true)
+      expect(disabled(wrapper, 'do-6-off')).toBe(true)
+      expect(wrapper.find('[data-test="do-6-lock"]').text()).toBe('Luật #7 giữ kênh')
+    })
+
+    it('drops the device code when a later pulse is refused for its duration', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: withChannels([ch(6, 'pulse')]) })
+      const send = vi.spyOn(adminApi, 'sendCommand').mockImplementation(async (_d, body) => published(`${body.action}-${send.mock.calls.length}`))
+      vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) =>
+        id.startsWith('pulse') ? rejected(id, 'channel_forced', { error: 'channel_forced', channel: 6 }) as never
+          : result(id, 'Executed', 'DEVICE_EXECUTED'))
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [6] }) })
+      await flushPromises()
+
+      await wrapper.find('[data-test="do-6-pulse"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(2500)
+      await flushPromises()
+      expect(wrapper.find('[data-test="do-6-error-code"]').exists()).toBe(true)
+
+      await wrapper.find('[data-test="do-6-pulse-ms"]').setValue('0')
+      await wrapper.find('[data-test="do-6-pulse"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[data-test="do-6-error"]').text()).toContain('Thời gian xung phải là số nguyên')
+      expect(wrapper.find('[data-test="do-6-error-code"]').exists()).toBe(false)
+    })
+
+    it('locks nothing by owner when the device does not report one', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: withChannels([ch(6, 'toggle')]) })
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [6] }) })
+      await flushPromises()
+
+      expect(disabled(wrapper, 'do-6-toggle')).toBe(false)
+      expect(wrapper.find('[data-test="do-6-lock"]').exists()).toBe(false)
+    })
+
+    it('does not lock on an unknown owner', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: withChannels([ch(1, 'toggle', { owner: 'unknown' })]) })
+      const wrapper = mountPanel()
+      await flushPromises()
+
+      expect(disabled(wrapper, 'do-1-toggle')).toBe(false)
+    })
+
+    it('notes that a rule or trigger may change the channel, without locking it', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({
+        kind: 'ok',
+        state: withChannels([ch(1, 'toggle', { owner: 'event_rule' }), ch(2, 'toggle', { owner: 'trigger' })]),
+      })
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [1, 2] }) })
+      await flushPromises()
+
+      expect(wrapper.find('[data-test="do-1-owner-note"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="do-2-owner-note"]').exists()).toBe(true)
+      expect(disabled(wrapper, 'do-1-toggle')).toBe(false)
+      expect(disabled(wrapper, 'do-2-toggle')).toBe(false)
+    })
+
+    it('explains a state refusal in words with the device code, reads back once and does not resend', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs')
+        .mockResolvedValueOnce({ kind: 'ok', state: withChannels([ch(6, 'toggle')]) })
+        .mockResolvedValue({ kind: 'ok', state: withChannels([ch(6, 'toggle', { owner: 'level_rule', ownerId: '7' })]) })
+      const send = vi.spyOn(adminApi, 'sendCommand')
+        .mockResolvedValueOnce(published('w9'))
+        .mockResolvedValueOnce(published('r9'))
+      vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) =>
+        id === 'w9' ? rejected(id, 'owned_by_rule', { error: 'owned_by_rule', channel: 6, rule_id: 7 }) as never
+          : result(id, 'Executed', 'DEVICE_EXECUTED'))
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [6] }) })
+      await flushPromises()
+
+      await wrapper.find('[data-test="do-6-toggle"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(2500)
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(10_000)
+      await flushPromises()
+
+      expect(send.mock.calls.map(x => x[1].action)).toEqual(['set_output', 'get_status'])
+      expect(wrapper.find('[data-test="do-6-error"]').text()).toContain('Luật #7 giữ kênh: thiết bị không đổi relay')
+      expect(wrapper.find('[data-test="do-6-error-code"]').text()).toContain('DEVICE_REJECTED: ESP_ERR_INVALID_STATE: owned_by_rule')
+      expect(disabled(wrapper, 'do-6-toggle')).toBe(true)
+      expect(wrapper.find('[data-test="do-6-lock"]').text()).toBe('Luật #7 giữ kênh')
+    })
+
+    it.each([
+      ['gpio_unavailable', 'GPIO không dùng được'],
+      ['channel_disabled', 'Kênh tắt trong cấu hình'],
+      ['channel_forced', 'Đang force'],
+    ])('translates %s and keeps the device code', async (reason, words) => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: withChannels([ch(1, 'toggle')]) })
+      vi.spyOn(adminApi, 'sendCommand')
+        .mockResolvedValueOnce(published('w10'))
+        .mockResolvedValueOnce(published('r10'))
+      vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) =>
+        id === 'w10' ? rejected(id, reason, { error: reason, channel: 1 }) as never : result(id, 'Executed', 'DEVICE_EXECUTED'))
+      const wrapper = mountPanel()
+      await flushPromises()
+
+      await wrapper.find('[data-test="do-1-toggle"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(2500)
+      await flushPromises()
+
+      expect(wrapper.find('[data-test="do-1-error"]').text()).toContain(`${words}: thiết bị không đổi relay`)
+      expect(wrapper.find('[data-test="do-1-error-code"]').text()).toContain(`ESP_ERR_INVALID_STATE: ${reason}`)
+    })
+
+    it('reads back once after a refused pulse and skips the read after the pulse end', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: withChannels([ch(6, 'pulse')]) })
+      const send = vi.spyOn(adminApi, 'sendCommand').mockImplementation(async (_d, body) => published(`${body.action}-${send.mock.calls.length}`))
+      vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) =>
+        id.startsWith('pulse') ? rejected(id, 'channel_forced', { error: 'channel_forced', channel: 6 }) as never
+          : result(id, 'Executed', 'DEVICE_EXECUTED'))
+      const wrapper = mountPanel({ link: link({ allowedOutputChannels: [6] }) })
+      await flushPromises()
+
+      await wrapper.find('[data-test="do-6-pulse"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(2500)
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(5000)
+      await flushPromises()
+
+      expect(send.mock.calls.map(x => x[1].action)).toEqual(['pulse', 'get_status'])
+    })
+
+    it('keeps the raw text for a device refusal it does not translate', async () => {
+      vi.spyOn(adminApi, 'deviceOutputs').mockResolvedValue({ kind: 'ok', state: withChannels([ch(1, 'toggle')]) })
+      vi.spyOn(adminApi, 'sendCommand')
+        .mockResolvedValueOnce(published('w11'))
+        .mockResolvedValueOnce(published('r11'))
+      vi.spyOn(adminApi, 'commandResult').mockImplementation(async (_d, id) =>
+        id === 'w11' ? rejected(id, 'busy', { error: 'busy' }) as never : result(id, 'Executed', 'DEVICE_EXECUTED'))
+      const wrapper = mountPanel()
+      await flushPromises()
+
+      await wrapper.find('[data-test="do-1-toggle"]').trigger('click')
+      await vi.advanceTimersByTimeAsync(2500)
+      await flushPromises()
+
+      expect(wrapper.find('[data-test="do-1-error"]').text()).toContain('DEVICE_REJECTED: ESP_ERR_INVALID_STATE: busy')
+      expect(wrapper.find('[data-test="do-1-error-code"]').exists()).toBe(false)
+    })
   })
 
   it('reloads the state when the server announces an outputs change', async () => {

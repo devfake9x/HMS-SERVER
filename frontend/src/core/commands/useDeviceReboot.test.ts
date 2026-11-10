@@ -316,6 +316,20 @@ describe('runReboot', () => {
       expect(outcome.outputs).not.toBeNull()
     })
 
+    it.each(['gpio_unavailable', 'channel_disabled', 'channel_forced', 'owned_by_rule'])(
+      'does not retry the read on a %s refusal, which is not busy',
+      async reason => {
+        const sent = startDevice({
+          status: n => n === 1
+            ? { result: { status: 'Failed', code: 'DEVICE_REJECTED', detail: `ESP_ERR_INVALID_STATE: ${reason}` }, data: { error: reason } }
+            : undefined,
+        })
+        await finish(runReboot('dev-1', options()))
+
+        expect(reads(sent, STATUS)).toBe(1)
+      },
+    )
+
     it('reports relay_unchecked when LANE_FULL does not clear within 30 s, with the uptime check intact', async () => {
       const sent = startDevice({ status: () => ({ result: { status: 'Failed', code: 'DEVICE_REJECTED', detail: 'LANE_FULL' } }) })
       const outcome = await finish(runReboot('dev-1', options()))

@@ -24,7 +24,7 @@
 //   SIM_HOSTNAME_DEFERRED=1 set_hostname answers applied_immediately:false; get_hostname keeps the old name
 //   SIM_ADC_DROP_FIELDS=1  set_channel resets type/enabled when they are not sent
 //   SIM_CLOCK_SKEW_S=<n>   system.get_time reports an epoch n seconds off
-// system.reboot (§6.1 L604, §7 L1087, §3 L483, §4.2 L551, §6.4 L866-880):
+// system.reboot (§6.1 L604, §7 L1087, §3 L483, §4.2 L551, §6.4 L870-885):
 //   dry_run:true answers {would_apply:true} before every other check; a real reboot needs the root
 //   confirm REBOOT-<device_id>, is throttled (UNAUTHORIZED), replies, then drops the connection like
 //   a chip reset (no DISCONNECT, so the broker publishes the last will), stays down for
@@ -41,6 +41,21 @@
 //   SIM_SILENT_REAL=system.reboot  like SIM_SILENT but dry runs still get their reply: the real command
 //                               is silent and nothing reboots
 //   (SIM_SILENT=system.reboot  no reply and no reboot, dry run included)
+// DO channel fields (spec c80797d L797, L822, L827-831, L839, L883; HIL L1054-1057):
+//   SIM_DO_LAYOUT=gateway  the bench gateway's table, ignoring SIM_CHANNELS, SIM_PULSE_CHANNELS, SIM_FORCED:
+//                          DO1 free; DO2, DO3 gpioOk:false; DO4, DO5 forced OFF (owner "force"); DO6 toggle
+//                          held by level rule #1. The rule's ON level is this simulator's choice (the spec
+//                          does not give one), so a reboot shows a relay ON because of a rule.
+//   SIM_DO_NO_OWNER=1      get_status leaves out owner and owner_id (firmware that does not send owner); enabled,
+//                          gpioOk and forced are still sent and every refusal stays the same
+//   SIM_DO_DISABLED=<list> comma list of channels 1..SIM_CHANNELS reported as enabled:false and refused by
+//                          set_output and pulse with channel_disabled, e.g. 3,5. A bad item exits with code 2,
+//                          and so does combining it with SIM_DO_LAYOUT=gateway (that table fixes every channel).
+//   set_output refuses with ESP_ERR_INVALID_STATE and data { error, channel[, rule_id] } in the order
+//   gpio_unavailable, channel_disabled, channel_forced, owned_by_rule (the order the panel locks in; the
+//   spec fixes none). control.pulse refuses with the first three, in the same order, and checks no owner:
+//   the spec says pulse is unchanged by owned_by_rule (L818) and leaves open whether a level-rule
+//   channel refuses it.
 'use strict'
 const fs = require('fs')
 const crypto = require('crypto')
@@ -63,16 +78,46 @@ const forcedLevels = new Map((env.SIM_FORCED || '').split(',').map(s => s.trim()
   return [Number(channel), level === 'on']
 }))
 
-const outputs = Array.from({ length: channelCount }, (_, i) => ({
-  channel: i + 1,
-  state: forcedLevels.get(i + 1) ?? false,
-  forced: forcedLevels.has(i + 1),
-  mode: pulseChannels.has(i + 1) ? 'pulse' : 'toggle',
-  totalCommands: 0,
-  pulseCount: 0,
-  pulseActive: false,
-  timer: null,
+const doLayout = env.SIM_DO_LAYOUT || ''
+if (doLayout && doLayout !== 'gateway') fail('SIM_DO_LAYOUT must be "gateway"')
+const noOwner = env.SIM_DO_NO_OWNER === '1'
+const disabledChannels = new Set((env.SIM_DO_DISABLED || '').split(',').map(s => s.trim()).filter(Boolean).map(item => {
+  const channel = Number(item)
+  if (!/^[0-9]+$/.test(item) || channel < 1 || channel > channelCount) fail(`SIM_DO_DISABLED item "${item}" must be an integer from 1 to ${channelCount}`)
+  return channel
 }))
+if (doLayout && disabledChannels.size) fail('SIM_DO_DISABLED cannot be combined with SIM_DO_LAYOUT=gateway')
+if (doLayout && (env.SIM_CHANNELS || env.SIM_PULSE_CHANNELS || env.SIM_FORCED)) console.log('SIM_DO_LAYOUT=gateway ignores SIM_CHANNELS, SIM_PULSE_CHANNELS and SIM_FORCED')
+
+// owner is the rule class holding the channel ('none' | 'level_rule'); a forced channel reports 'force'.
+const gatewayTable = {
+  1: {},
+  2: { gpioOk: false },
+  3: { gpioOk: false },
+  4: { forced: true, forcedLevel: false },
+  5: { forced: true, forcedLevel: false },
+  6: { owner: 'level_rule', ruleId: 1, ruleLevel: true },
+}
+const outputs = Array.from({ length: doLayout ? 6 : channelCount }, (_, i) => {
+  const channel = i + 1
+  const g = doLayout ? gatewayTable[channel] : {}
+  return {
+    channel,
+    state: doLayout ? (g.forcedLevel ?? g.ruleLevel ?? false) : (forcedLevels.get(channel) ?? false),
+    forced: doLayout ? g.forced === true : forcedLevels.has(channel),
+    forcedLevel: doLayout ? g.forcedLevel : forcedLevels.get(channel),
+    enabled: !disabledChannels.has(channel),
+    gpioOk: g.gpioOk !== false,
+    owner: g.owner ?? 'none',
+    ruleId: g.ruleId ?? null,
+    ruleLevel: g.ruleLevel,
+    mode: doLayout ? 'toggle' : (pulseChannels.has(channel) ? 'pulse' : 'toggle'),
+    totalCommands: 0,
+    pulseCount: 0,
+    pulseActive: false,
+    timer: null,
+  }
+})
 
 const flag = name => env[name] === '1'
 const clockSkewSeconds = Number(env.SIM_CLOCK_SKEW_S || 0)
@@ -95,10 +140,15 @@ function fail(message) {
 }
 
 function channelView(o) {
-  return {
-    channel: o.channel, state: o.state, mode: o.mode, forced: o.forced, enabled: true, gpioOk: true,
+  const view = {
+    channel: o.channel, state: o.state, mode: o.mode, forced: o.forced, enabled: o.enabled, gpioOk: o.gpioOk,
     totalCommands: o.totalCommands, pulseCount: o.pulseCount, pulseActive: o.pulseActive,
   }
+  if (!noOwner) {
+    view.owner = o.forced ? 'force' : o.owner
+    view.owner_id = view.owner === 'level_rule' ? o.ruleId : null
+  }
+  return view
 }
 
 const bootSeconds = Number(env.SIM_BOOT_SECONDS ?? 8)
@@ -117,11 +167,16 @@ function findChannel(data) {
   return { o }
 }
 
+// A channel that cannot be written refuses with ESP_ERR_INVALID_STATE and data { error, channel[, rule_id] }.
+const refuse = (o, reason, extra = {}) => ({ error: 'ESP_ERR_INVALID_STATE', data: { error: reason, channel: o.channel, ...extra } })
+// The refusals set_output and pulse share (L827-829); the spec gives no order, this is the order the panel locks in.
+const channelBlock = o => (!o.gpioOk ? 'gpio_unavailable' : !o.enabled ? 'channel_disabled' : o.forced ? 'channel_forced' : null)
+
 // §6.4 control actions. Returns { data } on success or { error, data } on a handler error.
 const handlers = {
   'control.get_status': () => {
     // Right after a boot the relay driver is still starting: the device answers "busy" with a hint.
-    // Spec §6.4 (L822, L831): ESP_ERR_INVALID_STATE with data.error "busy" and retry_after_ms.
+    // Spec §6.4 (L822, L832): ESP_ERR_INVALID_STATE with data.error "busy" and retry_after_ms.
     if (Date.now() < warmupUntil) return { error: 'ESP_ERR_INVALID_STATE', data: { error: 'busy', retry_after_ms: 1000 } }
     return { data: { channels: outputs.map(channelView) } }
   },
@@ -132,8 +187,10 @@ const handlers = {
     // The spec accepts a number too (0 = false, else true); clients should send a boolean.
     if (typeof value !== 'boolean' && typeof value !== 'number') return { error: 'ESP_ERR_INVALID_ARG', data: { error: 'value must be a boolean' } }
     const o = found.o
-    // Spec §6.4 (L828): a forced channel refuses writes with data.error "channel_forced".
-    if (o.forced) return { error: 'ESP_ERR_INVALID_STATE', data: { error: 'channel_forced' } }
+    // Spec §6.4 (L822, L827-831).
+    const blocked = channelBlock(o)
+    if (blocked) return refuse(o, blocked)
+    if (o.owner === 'level_rule') return refuse(o, 'owned_by_rule', { rule_id: o.ruleId })
     o.state = typeof value === 'boolean' ? value : value !== 0
     o.totalCommands++
     return { data: { channel: o.channel, state: o.state, mode: o.mode, source: 'mqtt' } }
@@ -142,6 +199,10 @@ const handlers = {
     const found = findChannel(data)
     if (!found.o) return found
     const o = found.o
+    // Spec §6.4 (L827-829): the write gate refuses a pulse too. No owner check: the spec leaves pulse
+    // unchanged by owned_by_rule (L818) and does not say whether a level-rule channel refuses it.
+    const blocked = channelBlock(o)
+    if (blocked) return refuse(o, blocked)
     // The spec only says the channel must be in pulse mode; this code and text are what the lab
     // gateway (hms_toan_lab/gateway_870c) answered on 2026-11-06.
     if (o.mode !== 'pulse') return { error: 'ESP_ERR_INVALID_ARG', data: { error: 'Channel is in toggle mode, use set_output' } }
@@ -276,7 +337,7 @@ const heartbeatSeconds = Number(env.SIM_HEARTBEAT_SECONDS ?? 5)
 let heartbeat = null
 
 client.on('connect', () => {
-  console.log(`sim connected; base=${base} channels=${channelCount} silent=[${[...silent].join(',')}] heartbeat=${heartbeatSeconds}s`)
+  console.log(`sim connected; base=${base} channels=${outputs.length} layout=${doLayout || 'default'} owner=${noOwner ? 'off' : 'on'} silent=[${[...silent].join(',')}] heartbeat=${heartbeatSeconds}s`)
   client.subscribe(`${base}/cmd/#`, { qos: 1 })
   client.publish(`${base}/status/connectivity`, '{"state":"online"}', { qos: 1, retain: true })
   clearInterval(heartbeat)
@@ -333,7 +394,11 @@ function scheduleReboot(delayMs) {
     setTimeout(() => {
       startedAt = Date.now()
       if (!flag('SIM_THROTTLE_SURVIVES')) lastRebootAt = null
-      for (const o of outputs) if (o.forced) o.state = forcedLevels.get(o.channel)
+      // A forced channel returns to its force level; a level rule fires SET_HIGH/SET_LOW at the first evaluation (L883).
+      for (const o of outputs) {
+        if (o.forced) o.state = o.forcedLevel
+        else if (o.owner === 'level_rule') o.state = o.ruleLevel
+      }
       warmupUntil = Date.now() + warmupSeconds * 1000
       rebooting = false
       log('REBOOT: booted; reconnecting')

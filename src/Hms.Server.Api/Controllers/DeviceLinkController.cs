@@ -34,7 +34,8 @@ public sealed class DeviceLinkController(
         DeviceAccessChecks.Resolve(User, device, organizations, permissions, accessResolver);
 
     /// <summary>Relay output state from the last verified <c>control.get_status</c> reply. Needs
-    /// <c>gpio.do_view</c> on the device, like the reply itself.</summary>
+    /// <c>gpio.do_view</c> on the device, like the reply itself. Channel fields are what the device
+    /// reported; null when it did not.</summary>
     [HttpGet("~/api/v1/devices/{deviceId:guid}/outputs")]
     public ActionResult<DeviceOutputsDto> Outputs(Guid deviceId, [FromServices] IDeviceOutputStateStore outputs)
     {
@@ -50,7 +51,8 @@ public sealed class DeviceLinkController(
             return NotFound(new { code = "OUTPUTS_NOT_READ" });
         Response.Headers.CacheControl = "no-store";
         return Ok(new DeviceOutputsDto(
-            state.Channels.Select(x => new OutputChannelDto(x.Channel, x.State, x.Mode, x.PulseActive)).ToArray(),
+            state.Channels.Select(x => new OutputChannelDto(
+                x.Channel, x.State, x.Mode, x.PulseActive, x.Enabled, x.GpioOk, x.Forced, x.Owner, x.OwnerId)).ToArray(),
             state.ReadAt, state.IsStale, state.StaleReason));
     }
 
@@ -211,7 +213,9 @@ public sealed record DeviceLinkDto(
     bool CanControlOutputs,
     bool CanViewOutputs);
 
-public sealed record OutputChannelDto(int Channel, bool State, string? Mode, bool? PulseActive);
+public sealed record OutputChannelDto(
+    int Channel, bool State, string? Mode, bool? PulseActive,
+    bool? Enabled, bool? GpioOk, bool? Forced, string? Owner, string? OwnerId);
 
 public sealed record DeviceOutputsDto(
     IReadOnlyList<OutputChannelDto> Channels,

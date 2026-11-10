@@ -74,7 +74,7 @@ const REFUSED_BEFORE_SIGNING = new Set([
 // handler errors keep the esp_err_t name first (ESP_ERR_INVALID_STATE: busy).
 const BUSY_DETAIL = /(^|:\s*)(LANE_FULL|busy|UNAUTHORIZED)\b/i
 
-const NOTHING_BEFORE: RelaysBefore = { turnOff: [], forcedOff: [], forcedOn: [], readable: false }
+const NOTHING_BEFORE: RelaysBefore = { turnOff: [], forcedOff: [], forcedOn: [], ruleHeld: [], readable: false }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise(resolve => {

@@ -17,12 +17,14 @@ import {
 import Button from '@/shared/ui/primitives/Button.vue'
 import Badge from '@/shared/ui/primitives/Badge.vue'
 import { formatReadTime } from '@/core/time/readAge'
+import { outputOwnerNote, outputWriteLock, stateRefusal } from '@/core/commands/outputLocks'
 import { Layers, RefreshCw, AlertTriangle } from '@lucide/vue'
 
 /**
  * Relay outputs (DO) of one device: the only place the UI drives them. State comes only from the
  * server's verified control.get_status read; every command that may have reached the device keeps
  * its channel locked until the state has been read again (MQTT spec R4: no reply proves nothing).
+ * Controls are locked, with the device's reason, on channels the last read says will refuse a manual write.
  */
 const props = defineProps<{
   deviceId: string
@@ -48,6 +50,8 @@ const readingAll = ref(false)
 const readError = ref<string | null>(null)
 const channelBusy = reactive<Record<number, string>>({})
 const channelError = reactive<Record<number, string>>({})
+// The device's own code, shown next to a translated refusal.
+const channelErrorCode = reactive<Record<number, string>>({})
 const pulseMs = reactive<Record<number, number>>({})
 
 const allowedChannels = computed(() => props.link?.allowedOutputChannels ?? [])
@@ -161,28 +165,38 @@ function readFailureText(code: string): string {
     : `Chưa đọc lại được trạng thái (${code}), hãy bấm Đọc trạng thái`
 }
 
-function describe(outcome: DeviceCommandOutcome): string | null {
-  if (outcome.phase === 'timeout') return 'Không có kết quả từ thiết bị trong 40 s'
+/** The text for a failed outcome; `code` is the device's own code when `text` is a translation of it. */
+function describe(outcome: DeviceCommandOutcome): { text: string; code: string | null } | null {
+  if (outcome.phase === 'timeout') return { text: 'Không có kết quả từ thiết bị trong 40 s', code: null }
   const final = outcome.final?.result
-  if (final && final.status !== 'Executed' && final.status !== 'Acknowledged')
-    return final.detail ? `${final.code}: ${final.detail}` : final.code
+  if (final && final.status !== 'Executed' && final.status !== 'Acknowledged') {
+    const raw = final.detail ? `${final.code}: ${final.detail}` : final.code
+    const refusal = final.code === 'DEVICE_REJECTED' ? stateRefusal(final.detail, outcome.final?.reply?.data) : null
+    return refusal ? { text: refusal, code: raw } : { text: raw, code: null }
+  }
   return null
 }
 
+/** `stopped`: nothing to follow up (refused before sending, or the page moved on). `unchanged`: the
+ *  device refused because of the channel's state, so the relay did not change. `sent`: it may have run. */
+type WriteEnd = 'stopped' | 'unchanged' | 'sent'
+
 /** Sends a write. Only a refusal that proves nothing was published unlocks the channel at once;
  *  anything else (device outcome, timeout, server error, lost connection) keeps it locked and
- *  reads the state back (two attempts) first. Returns whether the write may have reached the device. */
-async function operate(channel: number, command: DeviceCommandBody): Promise<boolean> {
+ *  reads the state back (two attempts) first. */
+async function operate(channel: number, command: DeviceCommandBody): Promise<WriteEnd> {
   const device = props.deviceId
   channelBusy[channel] = 'Đang gửi…'
   delete channelError[channel]
+  delete channelErrorCode[channel]
   let problem: string | null
+  let deviceCode: string | null = null
   try {
     const outcome = await send(command, device, () => {
       if (props.deviceId === device) channelBusy[channel] = 'Chờ thiết bị…'
     })
     // The page moved to another device: its channels were reset; nothing here applies to them.
-    if (props.deviceId !== device) return false
+    if (props.deviceId !== device) return 'stopped'
     if (outcome.phase === 'not_sent') {
       const sent = outcome.dispatch
       problem = sent.code === 'CATALOG_STALE'
@@ -191,19 +205,21 @@ async function operate(channel: number, command: DeviceCommandBody): Promise<boo
       if (!mayHaveRun(outcome)) {
         channelError[channel] = problem
         delete channelBusy[channel]
-        return false
+        return 'stopped'
       }
     } else {
-      problem = describe(outcome)
+      const failure = describe(outcome)
+      problem = failure?.text ?? null
+      deviceCode = failure?.code ?? null
     }
   } catch (error) {
-    if (props.deviceId !== device) return false
+    if (props.deviceId !== device) return 'stopped'
     const status = httpStatusOf(error)
     if (!mayHaveRun(error)) {
       // The request was refused at the API boundary, before any command was built.
       channelError[channel] = `HTTP ${status}: yêu cầu bị từ chối, lệnh chưa được gửi`
       delete channelBusy[channel]
-      return false
+      return 'stopped'
     }
     // A server error or a lost connection can come after the publish.
     problem = status !== null
@@ -212,13 +228,14 @@ async function operate(channel: number, command: DeviceCommandBody): Promise<boo
   }
 
   if (problem) channelError[channel] = problem
+  if (deviceCode) channelErrorCode[channel] = deviceCode
   channelBusy[channel] = 'Đang đọc lại…'
   const failure = await readBackTwice(device)
-  if (failure === DEVICE_CHANGED) return false
+  if (failure === DEVICE_CHANGED) return 'stopped'
   if (failure !== null)
     channelError[channel] = `${problem ? `${problem}. ` : ''}${readFailureText(failure)}`
   delete channelBusy[channel]
-  return true
+  return deviceCode ? 'unchanged' : 'sent'
 }
 
 async function setOutput(channel: number, value: boolean) {
@@ -230,10 +247,12 @@ async function pulse(channel: number) {
   const duration = typed === undefined || typed === '' ? DEFAULT_PULSE_MS : Number(typed)
   if (!Number.isInteger(duration) || duration < 1 || duration > MAX_PULSE_MS) {
     channelError[channel] = `Thời gian xung phải là số nguyên từ 1 đến ${MAX_PULSE_MS} ms`
+    delete channelErrorCode[channel]
     return
   }
   const device = props.deviceId
-  if (!(await operate(channel, body('pulse', { channel, duration_ms: duration })))) return
+  // A pulse refused for the channel's state never drove the relay, so there is no pulse end to wait for.
+  if ((await operate(channel, body('pulse', { channel, duration_ms: duration }))) !== 'sent') return
   // The first read lands inside the pulse; read again once the relay has dropped.
   channelBusy[channel] = 'Chờ hết xung…'
   await new Promise(resolve => setTimeout(resolve, duration + PULSE_SETTLE_MS))
@@ -263,6 +282,7 @@ watch(() => props.refreshKey, load)
 watch(() => props.deviceId, () => {
   for (const key of Object.keys(channelBusy)) delete channelBusy[Number(key)]
   for (const key of Object.keys(channelError)) delete channelError[Number(key)]
+  for (const key of Object.keys(channelErrorCode)) delete channelErrorCode[Number(key)]
   readError.value = null
   outputs.value = null
   void load()
@@ -328,6 +348,12 @@ watch(() => props.deviceId, () => {
         >
           <span class="text-[11px] font-mono font-medium text-[var(--text-primary)]">DO{{ ch.channel }}</span>
           <span class="text-[9px] text-[var(--text-hint)]">{{ ch.mode ?? '—' }}{{ ch.pulseActive ? ' · đang xung' : '' }}</span>
+          <span v-if="outputWriteLock(ch)" class="text-[9px] text-amber-600 dark:text-amber-400" :data-test="`do-${ch.channel}-lock`">
+            {{ outputWriteLock(ch) }}
+          </span>
+          <span v-else-if="outputOwnerNote(ch)" class="text-[9px] text-[var(--text-hint)]" :data-test="`do-${ch.channel}-owner-note`">
+            {{ outputOwnerNote(ch) }}
+          </span>
           <span
             class="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono"
             :class="!unknown && ch.state ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-neutral-500/10 text-[var(--text-hint)]'"
@@ -340,14 +366,14 @@ watch(() => props.deviceId, () => {
 
           <template v-if="canControl(ch.channel)">
             <div v-if="unknown" class="flex gap-1">
-              <Button variant="primary" size="xs" :disabled="!!channelBusy[ch.channel]" :data-test="`do-${ch.channel}-on`" @click="setOutput(ch.channel, true)">Bật</Button>
-              <Button variant="danger" size="xs" :disabled="!!channelBusy[ch.channel]" :data-test="`do-${ch.channel}-off`" @click="setOutput(ch.channel, false)">Tắt</Button>
+              <Button variant="primary" size="xs" :disabled="!!channelBusy[ch.channel] || !!outputWriteLock(ch)" :data-test="`do-${ch.channel}-on`" @click="setOutput(ch.channel, true)">Bật</Button>
+              <Button variant="danger" size="xs" :disabled="!!channelBusy[ch.channel] || !!outputWriteLock(ch)" :data-test="`do-${ch.channel}-off`" @click="setOutput(ch.channel, false)">Tắt</Button>
             </div>
             <Button
               v-else
               :variant="ch.state ? 'danger' : 'primary'"
               size="xs"
-              :disabled="!!channelBusy[ch.channel]"
+              :disabled="!!channelBusy[ch.channel] || !!outputWriteLock(ch)"
               :data-test="`do-${ch.channel}-toggle`"
               @click="setOutput(ch.channel, !ch.state)"
             >{{ ch.state ? 'Tắt' : 'Bật' }}</Button>
@@ -361,10 +387,11 @@ watch(() => props.deviceId, () => {
               :max="MAX_PULSE_MS"
               :placeholder="`${DEFAULT_PULSE_MS} ms`"
               :aria-label="`Thời gian xung DO${ch.channel} (ms)`"
+              :disabled="!!outputWriteLock(ch)"
               class="w-full min-w-0 px-1 py-0.5 text-[10px] font-mono rounded border border-[var(--border-default)] bg-[var(--surface-card)]"
               :data-test="`do-${ch.channel}-pulse-ms`"
             />
-            <Button variant="secondary" size="xs" :disabled="!!channelBusy[ch.channel]" :data-test="`do-${ch.channel}-pulse`" @click="pulse(ch.channel)">Xung</Button>
+            <Button variant="secondary" size="xs" :disabled="!!channelBusy[ch.channel] || !!outputWriteLock(ch)" :data-test="`do-${ch.channel}-pulse`" @click="pulse(ch.channel)">Xung</Button>
           </div>
         </div>
       </div>
@@ -374,6 +401,7 @@ watch(() => props.deviceId, () => {
     <ul v-if="Object.keys(channelError).length" class="space-y-1 text-[10px] text-rose-500 break-words">
       <li v-for="(message, ch) in channelError" :key="ch" :data-test="`do-${ch}-error`">
         <span class="font-mono font-semibold">DO{{ ch }}:</span> {{ message }}
+        <span v-if="channelErrorCode[Number(ch)]" class="font-mono" :data-test="`do-${ch}-error-code`">({{ channelErrorCode[Number(ch)] }})</span>
       </li>
     </ul>
   </div>

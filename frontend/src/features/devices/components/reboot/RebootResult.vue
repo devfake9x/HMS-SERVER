@@ -2,6 +2,10 @@
 import { computed } from 'vue'
 import { AlertTriangle } from '@lucide/vue'
 import type { RebootOutcome } from '@/core/commands/useDeviceReboot'
+import type { RelayChannel } from '@/core/commands/rebootPlan'
+
+const tag = (ch: RelayChannel) =>
+  ch.forced ? ' (force)' : ch.owner === 'level_rule' ? (ch.ownerId ? ` (luật #${ch.ownerId})` : ' (luật)') : ''
 
 /** What a finished reboot run read back from the device: signed uptime, firmware, clock, relay table. */
 const props = defineProps<{ outcome: RebootOutcome }>()
@@ -31,7 +35,7 @@ const clock = computed(() => {
         v-for="ch in outcome.outputs"
         :key="ch.channel"
         class="px-1.5 py-0.5 rounded border border-[var(--border-subtle)] bg-[var(--surface-card)] font-mono"
-      >DO{{ ch.channel }} {{ ch.state ? 'BẬT' : 'TẮT' }}{{ ch.forced ? ' (force)' : '' }}</span>
+      >DO{{ ch.channel }} {{ ch.state ? 'BẬT' : 'TẮT' }}{{ tag(ch) }}</span>
     </div>
     <ul v-if="outcome.check?.deviations.length" class="space-y-0.5 text-rose-600 dark:text-rose-400" data-test="reboot-deviations">
       <li v-for="line in outcome.check.deviations" :key="line" class="flex items-start gap-1">

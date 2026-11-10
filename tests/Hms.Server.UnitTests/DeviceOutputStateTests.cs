@@ -50,6 +50,107 @@ public sealed class DeviceOutputStateTests
         Assert.Equal(["readAt", "stale", "staleReason"], pushed.Payload.Keys.Order());
     }
 
+    private const string GatewayChannels =
+        """{"success":true,"data":{"channels":[""" +
+        """{"channel":1,"state":false,"mode":"toggle","enabled":true,"gpioOk":true,"forced":false,"owner":"none","owner_id":null},""" +
+        """{"channel":2,"state":false,"mode":"toggle","enabled":true,"gpioOk":false,"forced":false,"owner":"none","owner_id":null},""" +
+        """{"channel":3,"state":false,"mode":"toggle","enabled":true,"gpioOk":false,"forced":false,"owner":"none","owner_id":null},""" +
+        """{"channel":4,"state":false,"mode":"toggle","enabled":true,"gpioOk":true,"forced":true,"owner":"force","owner_id":null},""" +
+        """{"channel":5,"state":false,"mode":"toggle","enabled":true,"gpioOk":true,"forced":true,"owner":"force","owner_id":null},""" +
+        """{"channel":6,"state":true,"mode":"toggle","enabled":true,"gpioOk":true,"forced":false,"owner":"level_rule","owner_id":7}""" +
+        """]}}""";
+
+    private static string OneChannel(string extra) =>
+        """{"success":true,"data":{"channels":[{"channel":1,"state":true,"mode":"toggle" """ + extra + """}]}}""";
+
+    private static async Task<OutputChannelState> ReadOneAsync(string reply)
+    {
+        var link = new Link();
+        await link.Correlator.HandleAsync(link.Device.Id,
+            link.SignedReply(await link.PublishedAsync(GetStatus), reply), DateTimeOffset.UtcNow);
+        return Assert.Single(link.Outputs.Get(link.Device.Id)!.Channels);
+    }
+
+    [Fact]
+    public async Task A_status_reply_keeps_what_the_device_says_about_each_channel()
+    {
+        var link = new Link();
+        await link.Correlator.HandleAsync(link.Device.Id,
+            link.SignedReply(await link.PublishedAsync(GetStatus), GatewayChannels), DateTimeOffset.UtcNow);
+
+        var channels = link.Outputs.Get(link.Device.Id)!.Channels;
+        Assert.Equal(6, channels.Count);
+        Assert.Equal(new OutputChannelState(1, false, "toggle", null, true, true, false, "none", null), channels[0]);
+        Assert.Equal(false, channels[1].GpioOk);
+        Assert.Equal(false, channels[2].GpioOk);
+        Assert.Equal(true, channels[3].Forced);
+        Assert.Equal("force", channels[3].Owner);
+        Assert.Equal(new OutputChannelState(6, true, "toggle", null, true, true, false, "level_rule", "7"), channels[5]);
+    }
+
+    [Fact]
+    public async Task Channel_fields_the_device_did_not_send_stay_null()
+    {
+        var link = new Link();
+        await link.Correlator.HandleAsync(link.Device.Id,
+            link.SignedReply(await link.PublishedAsync(GetStatus), SixChannels), DateTimeOffset.UtcNow);
+
+        var channels = link.Outputs.Get(link.Device.Id)!.Channels;
+        Assert.Equal(6, channels.Count);
+        Assert.All(channels, c =>
+        {
+            Assert.Null(c.Enabled);
+            Assert.Null(c.GpioOk);
+            Assert.Null(c.Forced);
+            Assert.Null(c.Owner);
+            Assert.Null(c.OwnerId);
+        });
+        Assert.True(channels[5].PulseActive);
+        Assert.Equal("pulse", channels[5].Mode);
+    }
+
+    [Theory]
+    [InlineData("\"manual\"", "unknown")]
+    [InlineData("\"LEVEL_RULE\"", "unknown")]
+    [InlineData("3", "unknown")]
+    [InlineData("true", "unknown")]
+    [InlineData("null", null)]
+    [InlineData("\"none\"", "none")]
+    [InlineData("\"force\"", "force")]
+    [InlineData("\"level_rule\"", "level_rule")]
+    [InlineData("\"event_rule\"", "event_rule")]
+    [InlineData("\"trigger\"", "trigger")]
+    [InlineData("\"unknown\"", "unknown")]
+    public async Task An_owner_outside_the_spec_list_becomes_unknown(string sent, string? expected)
+    {
+        var channel = await ReadOneAsync(OneChannel($",\"owner\":{sent}"));
+
+        Assert.Equal(expected, channel.Owner);
+    }
+
+    [Theory]
+    [InlineData("7", "7")]
+    [InlineData("\"r-7\"", "r-7")]
+    [InlineData("null", null)]
+    [InlineData("true", null)]
+    public async Task A_rule_id_is_kept_as_text_whether_it_comes_as_a_number_or_a_string(string sent, string? expected)
+    {
+        var channel = await ReadOneAsync(OneChannel($",\"owner_id\":{sent}"));
+
+        Assert.Equal(expected, channel.OwnerId);
+    }
+
+    [Fact]
+    public async Task A_channel_field_of_another_type_is_dropped_and_the_channel_is_kept()
+    {
+        var channel = await ReadOneAsync(OneChannel(",\"enabled\":\"yes\",\"gpioOk\":1,\"forced\":null"));
+
+        Assert.Null(channel.Enabled);
+        Assert.Null(channel.GpioOk);
+        Assert.Null(channel.Forced);
+        Assert.True(channel.State);
+    }
+
     [Fact]
     public async Task Output_state_is_never_taken_from_heartbeats_forged_replies_or_other_clients()
     {

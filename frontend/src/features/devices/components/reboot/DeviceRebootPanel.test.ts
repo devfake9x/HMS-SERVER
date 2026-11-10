@@ -24,7 +24,9 @@ const props = (extra: Record<string, unknown> = {}) => ({
   link: link(), commandEvent: null, outputsKey: 0, ...extra,
 })
 
-const channel = (n: number, state: boolean, forced = false) => ({ channel: n, state, mode: 'toggle', enabled: true, gpioOk: true, forced })
+const channel = (n: number, state: boolean, forced = false, extra: Record<string, unknown> = {}) =>
+  ({ channel: n, state, mode: 'toggle', enabled: true, gpioOk: true, forced, ...extra })
+const ruleHeld = (state: boolean) => channel(6, state, false, { owner: 'level_rule', owner_id: 7 })
 const relaysNow = { channels: [channel(1, true), channel(2, true, true), channel(3, true), channel(4, false, true), channel(5, false)] }
 const scheduled = { status: 'Executed', code: 'DEVICE_REBOOT_SCHEDULED' }
 const observed = { status: 'Executed', code: 'DEVICE_REBOOT_OBSERVED' }
@@ -149,6 +151,30 @@ describe('DeviceRebootPanel', () => {
       expect(body()?.textContent).toContain('mất kết nối')
     })
 
+    it('names each channel a level rule holds with its rule id, and keeps the general rule warning', async () => {
+      startDevice({ before: { channels: [channel(1, true), ruleHeld(true)] } })
+      await openDialog(mountPanel())
+
+      expect(text('[data-test="reboot-line-rule-held"]')).toBe('DO6 do luật #7 giữ: sau khởi động về TẮT, rồi luật đặt lại mức (có thể BẬT)')
+      expect(text('[data-test="reboot-line-rules"]')).toBe('Luật DO SET_HIGH/SET_LOW (nếu có) chạy ngay sau khởi động và có thể BẬT relay')
+      expect(text('[data-test="reboot-line-turn-off"]')).not.toContain('DO6')
+      expect(document.body.querySelector('[data-test="reboot-line-none"]')).toBeNull()
+    })
+
+    it('does not say no relay is on while a rule-held channel is on', async () => {
+      startDevice({ before: { channels: [channel(1, false), ruleHeld(true)] } })
+      await openDialog(mountPanel())
+
+      expect(document.body.querySelector('[data-test="reboot-line-none"]')).toBeNull()
+    })
+
+    it('shows no rule-held line when the device does not report owner', async () => {
+      startDevice()
+      await openDialog(mountPanel())
+
+      expect(document.body.querySelector('[data-test="reboot-line-rule-held"]')).toBeNull()
+    })
+
     it('says no relay is on when none is', async () => {
       startDevice({ before: { channels: [channel(1, false), channel(2, false, true)] } })
       await openDialog(mountPanel())
@@ -227,6 +253,18 @@ describe('DeviceRebootPanel', () => {
       const wrapper = mountPanel()
       await openDialog(wrapper)
       verified()
+
+      await outputsEvent(wrapper)
+
+      expect(body()).not.toBeNull()
+      expect(wrapper.find('[data-test="reboot-notice"]').exists()).toBe(false)
+    })
+
+    it('stays open when only the owner of a channel changed', async () => {
+      startDevice()
+      const wrapper = mountPanel()
+      await openDialog(wrapper)
+      verified(rows => { rows[0].owner = 'level_rule'; rows[0].ownerId = '9' })
 
       await outputsEvent(wrapper)
 
@@ -452,6 +490,18 @@ describe('DeviceRebootPanel', () => {
       expect(text('[data-test="reboot-deviations"]', wrapper)).toContain('DO2')
       expect(text('[data-test="reboot-notes"]', wrapper)).toContain('DO1')
       expect(text('[data-test="reboot-notes"]', wrapper)).toContain('SET_HIGH/SET_LOW')
+    })
+
+    it('shows a relay a level rule turned on after the boot as the rule, not as a fault', async () => {
+      const wrapper = await finishRun({
+        before: { channels: [channel(1, false), ruleHeld(false)] },
+        after: { channels: [channel(1, false), ruleHeld(true)] },
+      })
+
+      expect(text('[data-test="reboot-relays"]', wrapper)).toContain('DO6 BẬT (luật #7)')
+      expect(text('[data-test="reboot-notes"]', wrapper)).toContain('do luật #7')
+      expect(wrapper.find('[data-test="reboot-deviations"]').exists()).toBe(false)
+      expect(text('[data-test="reboot-status"]', wrapper)).toBe('Đã khởi động lại')
     })
 
     it('says whether the reboot was verified, and that the relay table could not be checked', async () => {

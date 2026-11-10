@@ -10,7 +10,18 @@ using Microsoft.Extensions.Logging;
 
 namespace Hms.Server.Application.DeviceLink;
 
-public sealed record OutputChannelState(int Channel, bool State, string? Mode, bool? PulseActive);
+/// <summary>One relay channel as reported by the device. The optional fields are null when the device
+/// did not send them (or sent another type); nothing is inferred from the other fields.</summary>
+public sealed record OutputChannelState(
+    int Channel,
+    bool State,
+    string? Mode,
+    bool? PulseActive,
+    bool? Enabled = null,
+    bool? GpioOk = null,
+    bool? Forced = null,
+    string? Owner = null,
+    string? OwnerId = null);
 
 /// <summary>Relay outputs as the device last reported them in a verified <c>control.get_status</c>
 /// reply. <see cref="IsStale"/> means the state may no longer be true and must be read again.</summary>
@@ -27,6 +38,21 @@ public static class OutputStaleReasons
     public const string OutputCommandExecuted = "output_command_executed";
     public const string OutputCommandOutcomeUnknown = "output_command_outcome_unknown";
     public const string DeviceRebootScheduled = "device_reboot_scheduled";
+}
+
+/// <summary>Values of the per-channel <c>owner</c> field of <c>control.get_status</c>; anything else
+/// the device sends is kept as <see cref="Unknown"/>.</summary>
+public static class OutputOwners
+{
+    public const string None = "none";
+    public const string Force = "force";
+    public const string LevelRule = "level_rule";
+    public const string EventRule = "event_rule";
+    public const string Trigger = "trigger";
+    public const string Unknown = "unknown";
+
+    public static readonly FrozenSet<string> Known =
+        new[] { None, Force, LevelRule, EventRule, Trigger, Unknown }.ToFrozenSet(StringComparer.Ordinal);
 }
 
 /// <summary>Written only by <see cref="DeviceReplyProjection"/>: heartbeats, device events and
@@ -147,7 +173,7 @@ public sealed class DeviceReplyProjection(
         }
     }
 
-    // spec §6.4: channels[{channel,state,mode,totalCommands?,pulseCount?,pulseActive?}]
+    // channels[{channel,state,mode,totalCommands?,pulseCount?,pulseActive?,enabled?,gpioOk?,forced?,owner?,owner_id?}]
     private static IReadOnlyList<OutputChannelState>? ParseChannels(JsonElement? data)
     {
         if (data is not { ValueKind: JsonValueKind.Object } body ||
@@ -165,9 +191,36 @@ public sealed class DeviceReplyProjection(
             bool? pulseActive = row.TryGetProperty("pulseActive", out var p) && p.ValueKind is JsonValueKind.True or JsonValueKind.False
                 ? p.GetBoolean()
                 : null;
-            parsed.Add(new OutputChannelState(number, state.GetBoolean(), mode, pulseActive));
+            parsed.Add(new OutputChannelState(
+                number, state.GetBoolean(), mode, pulseActive,
+                Flag(row, "enabled"), Flag(row, "gpioOk"), Flag(row, "forced"), OwnerOf(row), RuleIdOf(row)));
         }
 
         return parsed.OrderBy(x => x.Channel).ToArray();
+    }
+
+    private static bool? Flag(JsonElement row, string name) =>
+        row.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? value.GetBoolean()
+            : null;
+
+    private static string? OwnerOf(JsonElement row)
+    {
+        if (!row.TryGetProperty("owner", out var value) || value.ValueKind == JsonValueKind.Null)
+            return null;
+        var text = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+        return text is not null && OutputOwners.Known.Contains(text) ? text : OutputOwners.Unknown;
+    }
+
+    private static string? RuleIdOf(JsonElement row)
+    {
+        if (!row.TryGetProperty("owner_id", out var value))
+            return null;
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number => value.GetRawText(),
+            _ => null
+        };
     }
 }

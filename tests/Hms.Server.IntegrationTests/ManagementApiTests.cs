@@ -665,6 +665,43 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
     }
 
     [Fact]
+    public async Task Output_state_adds_the_channel_fields_and_keeps_the_old_ones()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("relay-fields-device", new OrganizationId(_factory.ChildOrganizationId));
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            deviceId = device.Id.Value;
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.IDeviceOutputStateStore>()
+                .Set(device.Id,
+                [
+                    new(1, false, "toggle", false),
+                    new Hms.Server.Application.DeviceLink.OutputChannelState(
+                        6, true, "toggle", null, Enabled: true, GpioOk: true, Forced: false, Owner: "level_rule", OwnerId: "7")
+                ], DateTimeOffset.UtcNow);
+        }
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+
+        var state = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/outputs");
+
+        Assert.Equal(["channels", "readAt", "stale", "staleReason"], state.EnumerateObject().Select(x => x.Name).Order());
+        string[] expected = ["channel", "enabled", "forced", "gpioOk", "mode", "owner", "ownerId", "pulseActive", "state"];
+        var first = state.GetProperty("channels")[0];
+        var last = state.GetProperty("channels")[1];
+        Assert.Equal(expected, first.EnumerateObject().Select(x => x.Name).Order());
+        Assert.Equal(expected, last.EnumerateObject().Select(x => x.Name).Order());
+        foreach (var name in new[] { "enabled", "gpioOk", "forced", "owner", "ownerId" })
+            Assert.Equal(JsonValueKind.Null, first.GetProperty(name).ValueKind);
+        Assert.Equal("toggle", first.GetProperty("mode").GetString());
+        Assert.Equal("level_rule", last.GetProperty("owner").GetString());
+        Assert.Equal("7", last.GetProperty("ownerId").GetString());
+        Assert.True(last.GetProperty("gpioOk").GetBoolean());
+        Assert.False(last.GetProperty("forced").GetBoolean());
+    }
+
+    [Fact]
     public async Task Permission_management_requires_permission_policy()
     {
         using var client = _factory.CreateClientForUser(_factory.ScopedUserId);

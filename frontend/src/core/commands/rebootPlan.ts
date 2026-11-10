@@ -21,6 +21,8 @@ export interface RelaysBefore {
   forcedOff: number[]
   /** Forced ON: may drop OFF while the driver restarts, then comes back ON at the first line write. */
   forcedOn: number[]
+  /** Held by a level rule: OFF at boot, then the rule sets its level again; it may turn the relay ON (L853, L883). */
+  ruleHeld: Array<{ channel: number; ruleId: string | null; on: boolean }>
   readable: boolean
 }
 export interface RelayCheck { deviations: string[]; notes: string[] }
@@ -38,7 +40,16 @@ export interface RebootGateInput {
   running: boolean
 }
 
-export interface RelayChannel { channel: number; state: boolean; mode: string | null; forced: boolean; pulseActive: boolean }
+export interface RelayChannel {
+  channel: number
+  state: boolean
+  mode: string | null
+  forced: boolean
+  pulseActive: boolean
+  /** The device's own words (raw reply): who drives the channel, and the rule or trigger id. */
+  owner: string | null
+  ownerId: string | null
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
@@ -57,8 +68,10 @@ export function channelsOf(data: unknown): RelayChannel[] | null {
       channel: item.channel as number,
       state: item.state,
       mode: typeof item.mode === 'string' ? item.mode : null,
-      forced: item.forced === true,
+      forced: item.forced === true || item.owner === 'force',
       pulseActive: item.pulseActive === true,
+      owner: typeof item.owner === 'string' ? item.owner : null,
+      ownerId: typeof item.owner_id === 'string' ? item.owner_id : typeof item.owner_id === 'number' ? String(item.owner_id) : null,
     })
   }
   return channels
@@ -79,10 +92,11 @@ export function relaysMatch(shown: RelayChannel[], current: Array<{ channel: num
 
 export function relaysBeforeReboot(data: unknown): RelaysBefore {
   const channels = channelsOf(data)
-  if (!channels) return { turnOff: [], forcedOff: [], forcedOn: [], readable: false }
-  const plan: RelaysBefore = { turnOff: [], forcedOff: [], forcedOn: [], readable: true }
+  if (!channels) return { turnOff: [], forcedOff: [], forcedOn: [], ruleHeld: [], readable: false }
+  const plan: RelaysBefore = { turnOff: [], forcedOff: [], forcedOn: [], ruleHeld: [], readable: true }
   for (const ch of channels) {
     if (ch.forced) (ch.state ? plan.forcedOn : plan.forcedOff).push(ch.channel)
+    else if (ch.owner === 'level_rule') plan.ruleHeld.push({ channel: ch.channel, ruleId: ch.ownerId, on: ch.state || ch.pulseActive })
     else if (ch.state || ch.pulseActive) plan.turnOff.push(ch.channel)
   }
   return plan
@@ -102,8 +116,15 @@ export function checkAfterReboot(before: RelaysBefore, after: unknown): RelayChe
       result.deviations.push(`DO${ch.channel} đang force BẬT nhưng sau khởi động đang TẮT`)
     else if (before.forcedOff.includes(ch.channel) && ch.state)
       result.deviations.push(`DO${ch.channel} đang force TẮT nhưng sau khởi động đang BẬT`)
-    else if (!ch.forced && ch.state)
-      result.notes.push(`DO${ch.channel} BẬT sau khởi động, có thể do luật DO SET_HIGH/SET_LOW`)
+    else if (!ch.forced && ch.state) {
+      // The reading after names the owner when the device reports one; the list from before is used
+      // only when it does not.
+      const held = ch.owner == null ? before.ruleHeld.find(r => r.channel === ch.channel) : undefined
+      if (ch.owner === 'level_rule' || held) {
+        const id = ch.owner === 'level_rule' ? ch.ownerId : held?.ruleId
+        result.notes.push(`DO${ch.channel} BẬT sau khởi động ${id ? `do luật #${id}` : 'do luật theo mức'}`)
+      } else result.notes.push(`DO${ch.channel} BẬT sau khởi động, có thể do luật DO SET_HIGH/SET_LOW`)
+    }
   }
   return result
 }

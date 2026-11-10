@@ -9,7 +9,7 @@
 //   node tools/device-reboot-check.js --device <guid> --confirm-live --preflight
 //   node tools/device-reboot-check.js --device <guid> --confirm-live --checks [--sim]
 //   node tools/device-reboot-check.js --device <guid> --confirm-live --dry-run
-//   node tools/device-reboot-check.js --device <guid> --confirm-live --reboot [--expect <kind>] [--correlation-id <id>]
+//   node tools/device-reboot-check.js --device <guid> --confirm-live --reboot [--rules-confirmed] [--expect <kind>] [--correlation-id <id>]
 //                                     [--window-s 180] [--tail-s 0] [--sim]
 //   node tools/device-reboot-check.js --device <guid> --confirm-live --probe-in-progress --watch <correlationId> [--after-s 3]
 //   node tools/device-reboot-check.js --device <guid> --confirm-live --after <before.json>
@@ -73,8 +73,60 @@ function selfCheck() {
   ];
   for (const [http, dispatch, expected] of cases)
     if (refusedResult(http, dispatch) !== expected) problems.push(`refusedResult(${http}, ${dispatch?.status}/${dispatch?.code}) should be ${expected}`);
-  for (const [detail, expected] of [['ESP_ERR_INVALID_STATE: busy', true], ['busy', true], ['LANE_FULL', true], ['UNAUTHORIZED', true], ['ESP_ERR_INVALID_ARG: channel must be an integer >= 1', false], ['ESP_ERR_INVALID_STATE: channel_forced', false]])
+  for (const [detail, expected] of [['ESP_ERR_INVALID_STATE: busy', true], ['busy', true], ['LANE_FULL', true], ['UNAUTHORIZED', true], ['ESP_ERR_INVALID_ARG: channel must be an integer >= 1', false], ['ESP_ERR_INVALID_STATE: channel_forced', false],
+    ['ESP_ERR_INVALID_STATE: owned_by_rule', false], ['ESP_ERR_INVALID_STATE: gpio_unavailable', false], ['ESP_ERR_INVALID_STATE: channel_disabled', false]])
     if (BUSY_DETAIL.test(detail) !== expected) problems.push(`BUSY_DETAIL on "${detail}" should be ${expected}`);
+
+  // Channel ownership (control.get_status owner / owner_id).
+  const holders = relays => JSON.stringify(ruleHolders(relays));
+  const names = list => (list ?? []).map(c => c.channel).join(',');
+  const base0 = () => ({ link: { online: true }, info: { uptimeSeconds: 5 }, cleanSession: true, time: { skewSeconds: 0 }, configTrialState: 'none', ota: { known: true, idle: true } });
+  // Anything outside the spec's six values is unknown: case variants, non-strings, and a channel without owner next to channels that report one.
+  const odd = [
+    ['future owner string', [{ channel: 1, owner: 'none' }, { channel: 6, owner: 'schedule' }]],
+    ['case variant', [{ channel: 1, owner: 'none' }, { channel: 6, owner: 'Level_Rule' }]],
+    ['non-string owner', relaysOf({ channels: [{ channel: 1, owner: 'none' }, { channel: 6, owner: 2 }] })],
+    ['owner missing on one channel', [{ channel: 1, owner: 'none' }, { channel: 6, owner: null }]],
+  ];
+  for (const [label, relays] of odd) {
+    const h = ruleHolders(relays);
+    if (!h || names(h.unknown) !== '6' || h.held.length) problems.push(`ruleHolders ${label} should be unknown on DO6, got ${holders(relays)}`);
+    if (!String(ownerNotes(relays).ask).startsWith('ASK')) problems.push(`ownerNotes ${label} should ASK`);
+    const v = preflightVerdict({ ...base0(), relays }).find(x => x.name === OWNER_CHECK);
+    if (!v || v.pass !== true) problems.push(`preflightVerdict ${label} should keep the owner check passing (ASK, not FAIL)`);
+  }
+  if (!String(ownerNotes([{ channel: 1, owner: null }]).ask).includes('does not report owner')) problems.push('ownerNotes without any owner should ASK that the firmware does not report owner');
+  if (ownerNotes([{ channel: 1, owner: 'none' }, { channel: 4, owner: 'force' }]).ask !== null) problems.push('ownerNotes none/force should not ASK');
+  if (ownerNotes([{ channel: 6, owner: 'level_rule', ownerId: '1' }]).ask !== null) problems.push('ownerNotes on a held channel should not ASK (the check FAILs instead)');
+  if (ownerNotes([{ channel: 3, owner: 'unknown' }]).ask === null) problems.push('ownerNotes unknown should ASK');
+  if (ownerNotes(null).ask !== null) problems.push('ownerNotes of unreadable relays should not ASK');
+  // --reboot gate: an ASK blocks the real reboot unless --rules-confirmed; a failed preflight blocks regardless.
+  const gate = (pass, ask, rulesConfirmed) => rebootBlockedByAsk({ pass, ask, rulesConfirmed });
+  if (!gate(true, 'ASK x', false)) problems.push('rebootBlockedByAsk: ASK without --rules-confirmed should block');
+  if (gate(true, 'ASK x', true)) problems.push('rebootBlockedByAsk: ASK with --rules-confirmed should allow');
+  if (gate(true, null, false)) problems.push('rebootBlockedByAsk: no ASK should allow');
+  if (!gate(false, null, true) || !gate(false, 'ASK x', true)) problems.push('rebootBlockedByAsk: a failed preflight should block even with --rules-confirmed');
+  if (ruleHolders([{ channel: 1, owner: null }, { channel: 2, owner: null }]) !== null) problems.push('ruleHolders without any owner should be null');
+  if (ruleHolders(null) !== null) problems.push('ruleHolders of a non-array should be null');
+  const free = ruleHolders([{ channel: 1, owner: 'none' }, { channel: 4, owner: 'force' }]);
+  if (!free || free.held.length !== 0 || free.unknown.length !== 0) problems.push(`ruleHolders none/force should hold nothing, got ${holders([{ channel: 1, owner: 'none' }, { channel: 4, owner: 'force' }])}`);
+  const level = ruleHolders([{ channel: 6, owner: 'level_rule', ownerId: '1' }]);
+  if (names(level?.held) !== '6') problems.push('ruleHolders level_rule on DO6 should be held');
+  const mixed = ruleHolders([{ channel: 2, owner: 'event_rule' }, { channel: 3, owner: 'trigger' }]);
+  if (names(mixed?.held) !== '2,3') problems.push('ruleHolders event_rule and trigger should both be held');
+  const unknown = ruleHolders([{ channel: 3, owner: 'unknown' }]);
+  if (!unknown || unknown.held.length !== 0 || names(unknown.unknown) !== '3') problems.push('ruleHolders unknown should list DO3 as unknown, not held');
+  const owned = relaysOf({ channels: [{ channel: 6, state: true, owner: 'level_rule', owner_id: 1 }] })?.[0];
+  if (owned?.owner !== 'level_rule' || owned?.ownerId !== '1') problems.push(`relaysOf should read owner and owner_id, got ${JSON.stringify(owned)}`);
+  const bare = relaysOf({ channels: [{ channel: 1, state: false }] })?.[0];
+  if (bare?.owner !== null || bare?.ownerId !== null) problems.push(`relaysOf without owner should give null, got ${JSON.stringify(bare)}`);
+  const base = { link: { online: true }, info: { uptimeSeconds: 5 }, cleanSession: true, time: { skewSeconds: 0 }, configTrialState: 'none', ota: { known: true, idle: true } };
+  const ownerName = OWNER_CHECK;
+  const withOwner = preflightVerdict({ ...base, relays: [{ channel: 6, state: true, owner: 'level_rule', ownerId: '1' }] }).find(v => v.name === ownerName);
+  if (!withOwner || withOwner.pass !== false || !(withOwner.detail ?? '').includes('DO6 level_rule #1')) problems.push('preflightVerdict should fail on a level_rule channel and name DO6 level_rule #1');
+  const clean = preflightVerdict({ ...base, relays: [{ channel: 1, state: false, owner: 'none' }] }).find(v => v.name === ownerName);
+  if (!clean || clean.pass !== true) problems.push('preflightVerdict should pass the owner check when no rule holds a channel');
+  if (preflightVerdict({ ...base, relays: [{ channel: 1, state: false, owner: null }] }).some(v => v.name === ownerName)) problems.push('preflightVerdict should have no owner check when the device sends no owner');
   return problems;
 }
 
@@ -204,8 +256,41 @@ const phraseOf = link => `REBOOT-${link.binding.mqttDeviceId}`;
 function relaysOf(data) {
   const node = fieldsOf(data);
   if (!node || !Array.isArray(node.channels)) return null;
-  return node.channels.map(c => ({ channel: c.channel, state: c.state === true, forced: c.forced === true, pulseActive: c.pulseActive === true }));
+  return node.channels.map(c => ({
+    channel: c.channel, state: c.state === true, forced: c.forced === true, pulseActive: c.pulseActive === true,
+    owner: typeof c.owner === 'string' ? c.owner : null,
+    ownerId: c.owner_id == null ? null : String(c.owner_id),
+  }));
 }
+
+// Who holds a channel at read time (spec c80797d L797: none | force | level_rule | event_rule | trigger | unknown).
+// null when the device sends no owner at all, so nothing can be checked.
+// Whitelist, like the server: only none and force are free, only the three rule classes are held, and everything
+// else (another string, a case variant, a non-string, a channel without owner next to channels that report one)
+// is unknown, because it does not prove that no rule holds the channel.
+const RULE_OWNERS = new Set(['level_rule', 'event_rule', 'trigger']);
+const FREE_OWNERS = new Set(['none', 'force']);
+function ruleHolders(relays) {
+  if (!Array.isArray(relays) || !relays.some(r => typeof r.owner === 'string')) return null;
+  return {
+    held: relays.filter(r => RULE_OWNERS.has(r.owner)),
+    unknown: relays.filter(r => !RULE_OWNERS.has(r.owner) && !FREE_OWNERS.has(r.owner)),
+  };
+}
+const OWNER_CHECK = 'no DO channel held by a rule or trigger (control.get_status owner)';
+
+/** True when the real reboot must not be sent: a failed preflight always blocks; an ASK blocks unless the operator passed --rules-confirmed. Pure. */
+const rebootBlockedByAsk = ({ pass, ask, rulesConfirmed }) => !pass || (Boolean(ask) && !rulesConfirmed);
+
+/** The manual-confirmation line the preflight prints for these relays, or null when none is needed. Pure. */
+function ownerNotes(relays) {
+  if (!Array.isArray(relays)) return { holders: null, ask: null };
+  const holders = ruleHolders(relays);
+  if (!holders) return { holders, ask: 'ASK   firmware does not report owner on control.get_status: confirm by hand that no DO rule (SET_HIGH/SET_LOW) or trigger drives a relay on this device; this does not fail the preflight' };
+  if (holders.unknown.length) return { holders, ask: `ASK   owner unknown or unrecognized on ${holders.unknown.map(r => `DO${r.channel}`).join(', ')}: the device cannot tell who holds it; confirm by hand that no DO rule or trigger drives it` };
+  return { holders, ask: null };
+}
+const describeHolder = r => `DO${r.channel} ${r.owner}${r.ownerId != null ? ` #${r.ownerId}` : ''}`;
 
 // ---- preflight ---------------------------------------------------------------------------------
 
@@ -253,7 +338,17 @@ function preflightVerdict(s) {
     ['config_trial.state === "none"', s.configTrialState === 'none'],
     ['no staged or unverified OTA image (ota.get_status)', s.ota.known === true && s.ota.idle === true],
   ];
-  return checks.map(([name, pass]) => ({ name, pass }));
+  const verdict = checks.map(([name, pass]) => ({ name, pass }));
+  const holders = ruleHolders(s.relays);
+  if (holders) {
+    const held = holders.held.map(describeHolder);
+    verdict.push({
+      name: OWNER_CHECK,
+      pass: held.length === 0,
+      detail: held.length ? `held: ${held.join(', ')}; remove the rule on the device (HTTP /api/do-rule/remove) before a reboot test` : undefined,
+    });
+  }
+  return verdict;
 }
 
 // ---- modes -------------------------------------------------------------------------------------
@@ -271,12 +366,15 @@ const report = (label, pass, extra = '') => console.log(`${pass ? 'PASS' : 'FAIL
 async function runPreflight(deviceId) {
   const snap = await snapshot(deviceId);
   const verdict = preflightVerdict(snap);
-  verdict.forEach(v => report(v.name, v.pass));
-  console.log(`WARN  firmware ${snap.info?.firmware ?? 'unknown'}: "force OFF stays OFF" holds only for firmware with the 2026-11-08 change (spec L850); before it a force-OFF relay could switch ON for about 0.14 s at each restart. Check the firmware version with the team before a real device run.`);
+  verdict.forEach(v => report(v.name, v.pass, v.detail));
+  const { ask } = ownerNotes(snap.relays);
+  if (ask) console.log(ask);
+  console.log('WARN  owner names who holds a channel at read time; a DO rule that holds none can still fire SET_HIGH/SET_LOW at the first evaluation after boot (spec L883, HEAD c80797d)');
+  console.log(`WARN  firmware ${snap.info?.firmware ?? 'unknown'}: "force OFF stays OFF" holds only for firmware with the 2026-11-08 change (spec L851); before it a force-OFF relay could switch ON for about 0.14 s at each restart. Check the firmware version with the team before a real device run.`);
   if (snap.readFailures.length) console.log(`      reads that failed: ${snap.readFailures.join(', ')}`);
   const file = save(`${stamp()}-reboot-before.json`, { snapshot: snap, verdict });
   console.log(`Before-state saved: ${file}`);
-  return { snap, pass: verdict.every(v => v.pass), file };
+  return { snap, pass: verdict.every(v => v.pass), ask, file };
 }
 
 async function runChecks(deviceId, link, sim) {
@@ -415,6 +513,10 @@ async function runReboot(deviceId, args, arg, sim) {
 
   const pre = await runPreflight(deviceId);
   if (!pre.pass) { console.log('Preflight failed: nothing was sent to the device.'); return false; }
+  if (rebootBlockedByAsk({ pass: pre.pass, ask: pre.ask, rulesConfirmed: args.includes('--rules-confirmed') })) {
+    console.log('Preflight printed an ASK line: nothing was sent to the device. Confirm by hand that no DO rule (SET_HIGH/SET_LOW, level or event) or trigger is on the device, then run again with --rules-confirmed.');
+    return false;
+  }
   if (!(await runChecks(deviceId, link, sim))) { console.log('Probe checks failed: the reboot was not sent.'); return false; }
   if (!(await runDryRunQuick(deviceId, link))) { console.log('Dry run failed: the reboot was not sent.'); return false; }
 
@@ -511,11 +613,13 @@ function printPlan() {
   console.log('Plan (nothing is sent):');
   console.log('  --preflight         reads: link, system.get_info, control.get_status, system.get_time, mqtt.get_config, mqtt.get_status, ota.get_status');
   console.log('                      PASS only when clean_session=true, clock within 5 s, config_trial.state=none, no staged OTA image');
+  console.log('                      PASS also needs no DO channel held by a rule or trigger when the device reports owner; ASK when it does not');
   console.log('  --checks            unsigned probes, all dryRun:true: reboot without confirm, factory_reset, ota.apply, ota.remote_start');
   console.log('                      (--sim adds: wrong confirm, delay_ms payload); nothing leaves the server');
   console.log('  --dry-run           one dry run with the right confirm, then 20 s of signed uptime reads and link checks');
   console.log('  --reboot            preflight + checks + dry run + ONE real reboot; polls the audit row every 2 s up to --window-s;');
   console.log('                      records reply, offline, first heartbeat after boot; then --after; never resends');
+  console.log('                      --reboot refuses when the preflight printed an ASK line, unless --rules-confirmed says a person checked that no DO rule or trigger is on the device');
   console.log('  --probe-in-progress --watch <id>   a dry-run reboot during the hold; expects DEVICE_REBOOT_IN_PROGRESS, or skipped when late');
   console.log('  --after <before.json>   uptime smaller, firmware same, forced channels at their level, unforced OFF (ON noted)');
   console.log('  --restore-do <before.json>   one control.set_output DO1 back to the before-state if it differs');

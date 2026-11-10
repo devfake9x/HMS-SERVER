@@ -8,7 +8,8 @@ const props = defineProps<{ plan: RelaysBefore; readAt: number; uptimeKnown: boo
 
 const names = (channels: number[]) => channels.map(n => `DO${n}`).join(', ')
 const readTime = computed(() => new Date(props.readAt).toLocaleTimeString('vi-VN'))
-const noneOn = computed(() => props.plan.turnOff.length === 0 && props.plan.forcedOn.length === 0)
+const noneOn = computed(() =>
+  props.plan.turnOff.length === 0 && props.plan.forcedOn.length === 0 && !props.plan.ruleHeld.some(r => r.on))
 </script>
 
 <template>
@@ -22,6 +23,9 @@ const noneOn = computed(() => props.plan.turnOff.length === 0 && props.plan.forc
       <p v-if="plan.forcedOff.length" data-test="reboot-line-forced-off">{{ names(plan.forcedOff) }} force TẮT, giữ TẮT</p>
       <p v-if="plan.forcedOn.length" data-test="reboot-line-forced-on">
         {{ names(plan.forcedOn) }} force BẬT: có thể TẮT trong lúc khởi động, BẬT lại khi thiết bị lên
+      </p>
+      <p v-for="held in plan.ruleHeld" :key="held.channel" data-test="reboot-line-rule-held">
+        DO{{ held.channel }} {{ held.ruleId ? `do luật #${held.ruleId}` : 'do luật theo mức' }} giữ: sau khởi động về TẮT, rồi luật đặt lại mức (có thể BẬT)
       </p>
       <p v-if="noneOn" data-test="reboot-line-none">Không có relay nào đang BẬT</p>
     </template>
