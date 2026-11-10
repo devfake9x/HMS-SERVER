@@ -4,11 +4,14 @@
 // so the spec is the contract: this script reads that document through git, never firmware
 // source and never a working tree.
 //
-//   node scripts/generate-command-catalog.mjs [--idf <path>] [--check]
+//   node scripts/generate-command-catalog.mjs [--idf <path>] [--check] [--accept-stated-count <pairs>/<namespaces>]
 //
 // The HMS-IDF repository is --idf, else env HMS_IDF_REPO, else D:/WORKSPACE/PROJECT/HMS-IDF.
 // --check writes nothing and exits 1 when the committed catalog differs from the output.
-// The canonicalizer, serializer and spec parser are exported for
+// --accept-stated-count takes exactly the counts the first count sentence of §11 states, when
+// that sentence disagrees with the action table. Once the sentence changes (fixed or removed) the
+// generator asks to update or drop the flag.
+// The canonicalizer, serializer, spec parser and the CLI entry (run) are exported for
 // generate-command-catalog.test.mjs, which runs without HMS-IDF; importing this module never
 // calls git.
 import { execFileSync } from 'node:child_process';
@@ -18,14 +21,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SOURCE_REPO = 'HMS-IDF';
-const SOURCE_COMMIT = '83e93d77e4a433efce665d669b567b3acc51b735';
-const SOURCE_PATH = 'engineering-docs/api/mqtt-api.md';
+export const SOURCE_COMMIT = 'c80797d9d5b817174cd2cfbcb6ee62effe503ff2';
+export const SOURCE_PATH = 'engineering-docs/api/mqtt-api.md';
 const DEFAULT_IDF_REPO = 'D:/WORKSPACE/PROJECT/HMS-IDF';
 // Must equal CommandCatalogHash.Canonicalization; the .NET loader rejects anything else.
 const CANONICALIZATION =
   'v2: commands sorted ordinal (type,action) with fixed field order; config_domains sorted ordinal by domain; ' +
   '{commands,config_domains} compact System.Text.Json; UTF-8; SHA-256 lowercase hex';
-const OUTPUT_PATH = path.resolve(
+export const OUTPUT_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'Hms.Server.Infrastructure', 'Commands', 'command-catalog.json');
 
 const TOP_LEVEL_FIELDS = [
@@ -174,7 +177,7 @@ const TABLE_SEPARATOR = /^\|(\s*:?-+:?\s*\|)+$/;
 // Exported for generate-command-catalog.test.mjs, which feeds it synthetic documents. Reads
 // only the section between the §11 heading and the next heading of any level, and fails loudly on
 // any layout it was not written for rather than guessing.
-export function parseSpecManifest(markdown) {
+export function parseSpecManifest(markdown, { acceptStatedCount } = {}) {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const headings = lines.flatMap((line, index) => (nfc(line.trimEnd()) === SECTION_HEADING ? [index] : []));
   if (headings.length === 0) throw new Error(`spec section 11 heading not found at column 0: "${SECTION_HEADING}"`);
@@ -199,8 +202,8 @@ export function parseSpecManifest(markdown) {
   assertUnique(commands.map((row) => `${row.type}.${row.action}`), 'action');
   assertUnique(config_domains.map((row) => row.domain), 'config domain');
   assertDomainBinding(commands, config_domains);
-  assertStatedCounts(nfc(prose.join('\n')), commands);
-  return { commands, config_domains };
+  const warnings = assertStatedCounts(nfc(prose.join('\n')), commands, acceptStatedCount);
+  return { commands, config_domains, warnings };
 }
 
 // Separates the section into Markdown tables and prose, accepting only the layout §11 uses:
@@ -370,55 +373,104 @@ function assertDomainBinding(commands, configDomains) {
   }
 }
 
-// §11 states its own size ("94 cặp, 12 namespace"); the tables must agree with it.
-function assertStatedCounts(prose, commands) {
+// §11 states its own size ("94 cặp, 12 namespace", the first count sentence); the tables must
+// agree with it. When the sentence is known to be stale, `accept` names exactly the counts it
+// states; the flag stops working as soon as the sentence changes. No message prints the table's own
+// counts: the table is checked by the independent verifier and the pinned hash, not by copying a
+// number from a tool.
+function assertStatedCounts(prose, commands, accept) {
   const pairs = PAIR_COUNT.exec(prose);
   if (!pairs) throw new Error('spec §11 no longer states the pair count ("N cặp"); update the generator');
-  if (Number(pairs[1]) !== commands.length) {
-    throw new Error(`spec §11 states ${pairs[1]} pairs but its action table has ${commands.length} rows`);
-  }
   const namespaces = NAMESPACE_COUNT.exec(prose);
   if (!namespaces) throw new Error('spec §11 no longer states the namespace count ("N namespace"); update the generator');
-  const typeCount = new Set(commands.map((row) => row.type)).size;
-  if (Number(namespaces[1]) !== typeCount) {
-    throw new Error(`spec §11 states ${namespaces[1]} namespaces but its action table has ${typeCount}`);
+  const stated = { pairs: Number(pairs[1]), namespaces: Number(namespaces[1]) };
+  const agrees = stated.pairs === commands.length && stated.namespaces === new Set(commands.map((row) => row.type)).size;
+
+  if (accept) {
+    if (accept.pairs !== stated.pairs || accept.namespaces !== stated.namespaces) {
+      throw new Error(`--accept-stated-count ${accept.pairs}/${accept.namespaces} does not match the count §11 states ` +
+        `(${stated.pairs}/${stated.namespaces}); update or remove the flag`);
+    }
+    const sentence = `spec §11 states ${stated.pairs} pairs and ${stated.namespaces} namespaces, which`;
+    if (agrees) throw new Error(`${sentence} agrees with its action table; remove --accept-stated-count`);
+    return [`${sentence} disagrees with its action table; accepted by --accept-stated-count ${stated.pairs}/${stated.namespaces}`];
   }
+
+  const rerun = `review the table, then rerun with --accept-stated-count ${stated.pairs}/${stated.namespaces}`;
+  if (stated.pairs !== commands.length) {
+    throw new Error(`spec §11 states ${stated.pairs} pairs, which disagrees with its action table; ${rerun}`);
+  }
+  if (!agrees) {
+    throw new Error(`spec §11 states ${stated.namespaces} namespaces, which disagrees with its action table; ${rerun}`);
+  }
+  return [];
 }
 
 // ---------------------------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------------------------
 
-function main(argv) {
-  const options = parseArgs(argv);
-  const idfRepo = options.idf ?? process.env.HMS_IDF_REPO ?? DEFAULT_IDF_REPO;
-  const git = (...args) => execFileSync('git', ['-C', idfRepo, ...args], {
-    maxBuffer: 16 * 1024 * 1024,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+const FULL_COMMIT = /^[0-9a-f]{40}$/;
+const ACCEPT_STATED_COUNT = /^([1-9]\d*)\/([1-9]\d*)$/;
 
-  let resolved;
-  try {
-    resolved = git('rev-parse', '--verify', `${SOURCE_COMMIT}^{commit}`).toString('utf8').trim();
-  } catch (error) {
-    throw new Error(`cannot resolve ${SOURCE_REPO} commit ${SOURCE_COMMIT} in ${idfRepo} ` +
-      `(pass --idf <path> or set HMS_IDF_REPO): ${error.stderr?.toString().trim() || error.message}`);
-  }
-  if (resolved !== SOURCE_COMMIT) throw new Error(`${idfRepo}: ${SOURCE_COMMIT} resolved to ${resolved}`);
+// Every git call reads objects only: --no-replace-objects stops refs/replace from substituting a
+// different spec, and no inherited GIT_* variable (GIT_DIR, GIT_OBJECT_DIRECTORY,
+// GIT_ALTERNATE_OBJECT_DIRECTORIES, GIT_REPLACE_REF_BASE, GIT_CONFIG_*) can redirect the read.
+export function gitCommand(repo, args, env = process.env) {
+  const cleanEnv = Object.fromEntries(Object.entries(env).filter(([name]) => !/^GIT_/i.test(name)));
+  return { file: 'git', args: ['--no-replace-objects', '-c', 'core.fsmonitor=false', '-C', repo, ...args], env: cleanEnv };
+}
 
-  const sourceBlob = git('rev-parse', `${SOURCE_COMMIT}:${SOURCE_PATH}`).toString('utf8').trim();
-  const bytes = git('show', `${SOURCE_COMMIT}:${SOURCE_PATH}`);
+function runGit(repo, args) {
+  const { file, args: gitArgs, env } = gitCommand(repo, args);
+  return execFileSync(file, gitArgs, { env, maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
+// `git` is (...args) => Buffer. Reads the spec bytes of one commit and the blob id git has for
+// them; the bytes must hash to that blob, so a textconv or filter cannot alter what is parsed.
+export function readSpecAtCommit(git, commit = SOURCE_COMMIT, specPath = SOURCE_PATH) {
+  if (!FULL_COMMIT.test(commit)) throw new Error(`pinned spec commit must be a full 40-hex commit id, found ${commit}`);
+  const resolved = git('rev-parse', '--verify', `${commit}^{commit}`).toString('utf8').trim();
+  if (resolved !== commit) throw new Error(`${commit} resolved to ${resolved}`);
+
+  const sourceBlob = git('rev-parse', `${commit}:${specPath}`).toString('utf8').trim();
+  const bytes = git('show', `${commit}:${specPath}`);
   if (gitBlobId(bytes) !== sourceBlob) {
     throw new Error(`git show bytes do not hash to blob ${sourceBlob}; a textconv or filter altered them`);
   }
+  return { bytes, sourceBlob };
+}
 
-  const tables = parseSpecManifest(bytes.toString('utf8'));
+// The CLI behind main, with git, the filesystem and the output streams injectable for tests.
+export function run(argv, deps = {}) {
+  const {
+    git = runGit, fs: files = fs, stdout = console.log, stderr = console.error, env = process.env, commit = SOURCE_COMMIT,
+  } = deps;
+  const options = parseArgs(argv);
+  const idfRepo = options.idf ?? env.HMS_IDF_REPO ?? DEFAULT_IDF_REPO;
+
+  let firstCall = true;
+  const repoGit = (...args) => {
+    const isFirst = firstCall;
+    firstCall = false;
+    try {
+      return git(idfRepo, args);
+    } catch (error) {
+      if (!isFirst) throw error;
+      throw new Error(`cannot resolve ${SOURCE_REPO} commit ${commit} in ${idfRepo} ` +
+        `(pass --idf <path> or set HMS_IDF_REPO): ${error.stderr?.toString().trim() || error.message}`);
+    }
+  };
+  const { bytes, sourceBlob } = readSpecAtCommit(repoGit, commit);
+
+  const tables = parseSpecManifest(bytes.toString('utf8'), { acceptStatedCount: options.acceptStatedCount });
+  for (const warning of tables.warnings) stderr(`generate-command-catalog: warning: ${warning}`);
   const doc = {
-    catalog_version: `mqtt-api-${SOURCE_COMMIT.slice(0, 9)}`,
+    catalog_version: `mqtt-api-${commit.slice(0, 9)}`,
     catalog_hash: catalogHash(tables),
     canonicalization: CANONICALIZATION,
     source_repo: SOURCE_REPO,
-    source_commit: SOURCE_COMMIT,
+    source_commit: commit,
     source_path: SOURCE_PATH,
     source_blob: sourceBlob,
     source_hash: crypto.createHash('sha256').update(bytes).digest('hex'),
@@ -429,22 +481,36 @@ function main(argv) {
   const relativeOutput = path.relative(process.cwd(), OUTPUT_PATH);
 
   if (options.check) {
-    const committed = fs.existsSync(OUTPUT_PATH) ? fs.readFileSync(OUTPUT_PATH, 'utf8').replace(/\r\n/g, '\n') : null;
+    const committed = files.existsSync(OUTPUT_PATH) ? files.readFileSync(OUTPUT_PATH, 'utf8').replace(/\r\n/g, '\n') : null;
     if (committed !== text) {
-      console.error(`${relativeOutput} is stale; run: node scripts/generate-command-catalog.mjs`);
+      const flag = options.acceptStatedCount
+        ? ` --accept-stated-count ${options.acceptStatedCount.pairs}/${options.acceptStatedCount.namespaces}`
+        : '';
+      stderr(`${relativeOutput} is stale; run: node scripts/generate-command-catalog.mjs${flag}`);
       return 1;
     }
-    console.log(`${relativeOutput} is up to date (hash ${doc.catalog_hash})`);
+    stdout(`${relativeOutput} is up to date (hash ${doc.catalog_hash})`);
     return 0;
   }
 
-  fs.writeFileSync(OUTPUT_PATH, text, 'utf8');
-  console.log(summary(doc, relativeOutput));
+  files.writeFileSync(OUTPUT_PATH, text, 'utf8');
+  stdout(summary(doc, relativeOutput));
   return 0;
 }
 
-function parseArgs(argv) {
-  const options = { check: false, idf: undefined };
+function main(argv) {
+  return run(argv);
+}
+
+export function parseArgs(argv) {
+  const options = { check: false, idf: undefined, acceptStatedCount: undefined };
+  const acceptValue = (value) => {
+    const match = ACCEPT_STATED_COUNT.exec(value ?? '');
+    if (!match) {
+      throw new Error('--accept-stated-count needs <pairs>/<namespaces>, the counts the first §11 count sentence states');
+    }
+    return { pairs: Number(match[1]), namespaces: Number(match[2]) };
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--check') {
@@ -455,6 +521,11 @@ function parseArgs(argv) {
       if (!options.idf) throw new Error('--idf needs a path');
     } else if (arg.startsWith('--idf=')) {
       options.idf = arg.slice('--idf='.length);
+    } else if (arg === '--accept-stated-count') {
+      options.acceptStatedCount = acceptValue(argv[index + 1]);
+      index += 1;
+    } else if (arg.startsWith('--accept-stated-count=')) {
+      options.acceptStatedCount = acceptValue(arg.slice('--accept-stated-count='.length));
     } else {
       throw new Error(`unknown argument ${arg}`);
     }

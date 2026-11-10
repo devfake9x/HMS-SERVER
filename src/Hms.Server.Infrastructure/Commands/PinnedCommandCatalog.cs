@@ -41,9 +41,11 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             ["F"] = CommandClass.Flash
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    // Read actions the server signs. The first group is what the pinned spec snapshot closed as
-    // SLICE_PASS ("API đã đóng trong campaign hiện tại", verified 2026-10-28), plus system.ping (the
-    // spec §1 smoke test) and system.get_operations (job read-back, spec §5). The monitoring group
+    // Read actions the server signs. The first group is the pinned spec's "API đã đóng trong campaign
+    // hiện tại" table (snapshot verified 2026-10-28), plus system.ping (the spec §1 smoke test) and
+    // system.get_operations (job read-back, spec §5). In that table status.tags now has paged-reply
+    // evidence (PASS_HOST, HIL_PASS) and keeps its array-form SLICE_PASS receipt only as history; it
+    // stays open with the permission the catalog gives it. The monitoring group
     // is opened ahead of the firmware campaign by owner decision (2026-11-06): read-only rows of the
     // pinned manifest whose replies were checked against §6 on the lab gateway. Sensitive reads
     // (sms.*, config.get, ota.remote_config_get) and every other row stay DeniedUntilActionContract.

@@ -10,8 +10,15 @@ import {
   canonicalJson,
   canonicalize,
   catalogHash,
+  gitCommand,
+  OUTPUT_PATH,
+  parseArgs,
   parseSpecManifest,
+  readSpecAtCommit,
   renderCatalog,
+  run,
+  SOURCE_COMMIT,
+  SOURCE_PATH,
 } from './generate-command-catalog.mjs';
 
 const ROW_FIELDS = [
@@ -348,4 +355,215 @@ test('importing the module never runs the CLI, whatever argv holds', () => {
   ], { encoding: 'utf8' });
 
   assert.equal(output.trim(), 'imported');
+});
+
+// ---------------------------------------------------------------------------------------------
+// Stated-count flag, safe git reads and the CLI entry (run)
+// ---------------------------------------------------------------------------------------------
+
+// The first count sentence is the stale one, the way the real spec words it; the second is current.
+const STALE_COUNTS = mutateSpec('6 cặp, 4 namespace trong snapshot.',
+  'Snapshot cũ có 5 cặp, 3 namespace. Kiểm lại: 7 cặp, 4 namespace trong snapshot.');
+// Only the second sentence is fixed to agree with the table; the first still states 5/3.
+const SECOND_FIXED = mutateSpec('6 cặp, 4 namespace trong snapshot.',
+  'Snapshot cũ có 5 cặp, 3 namespace. Hiện tại: 6 cặp, 4 namespace trong snapshot.');
+const ACCEPT_5_3 = { acceptStatedCount: { pairs: 5, namespaces: 3 } };
+const TABLE_NUMBERS = /\b6\b|\b4\b/;
+
+const gitBlobOf = (bytes) => crypto.createHash('sha1')
+  .update(Buffer.concat([Buffer.from(`blob ${bytes.length}`), Buffer.from([0]), bytes])).digest('hex');
+
+// A git double that answers the three object reads for `text` and records each call.
+function fakeGit(text, { commit = SOURCE_COMMIT, blobOverride } = {}) {
+  const bytes = Buffer.from(text, 'utf8');
+  const blob = blobOverride ?? gitBlobOf(bytes);
+  const calls = [];
+  const answer = (args) => {
+    if (args[0] === 'rev-parse' && args[1] === '--verify') return Buffer.from(`${commit}\n`);
+    if (args[0] === 'rev-parse') return Buffer.from(`${blob}\n`);
+    if (args[0] === 'show') return bytes;
+    throw new Error(`unexpected git ${args.join(' ')}`);
+  };
+  return {
+    calls, blob, bytes,
+    readOnly: (...args) => { calls.push(args); return answer(args); },
+    withRepo: (repo, args) => { calls.push([repo, args]); return answer(args); },
+  };
+}
+
+const expectedReads = (commit = SOURCE_COMMIT) => [
+  ['rev-parse', '--verify', `${commit}^{commit}`],
+  ['rev-parse', `${commit}:${SOURCE_PATH}`],
+  ['show', `${commit}:${SOURCE_PATH}`],
+];
+
+function fakeFs(initial) {
+  const writes = [];
+  return {
+    writes,
+    existsSync: () => initial !== undefined,
+    readFileSync: () => initial,
+    writeFileSync: (file, text) => { writes.push([file, text]); },
+  };
+}
+
+function runWith(argv, text, extra = {}) {
+  const git = fakeGit(text);
+  const out = [];
+  const files = extra.fs ?? fakeFs();
+  const code = run(argv, {
+    git: git.withRepo, fs: files, stdout: (m) => out.push(['stdout', m]), stderr: (m) => out.push(['stderr', m]),
+    env: {}, ...extra.deps,
+  });
+  return { code, git, out, files };
+}
+
+test('parseSpecManifest returns no warnings when the stated counts match the table', () => {
+  assert.deepEqual(parseSpecManifest(SPEC_FIXTURE).warnings, []);
+});
+
+test('parseSpecManifest accepts the stated counts named by --accept-stated-count, and warns', () => {
+  const expected = parseSpecManifest(SPEC_FIXTURE);
+  for (const source of [STALE_COUNTS, SECOND_FIXED]) {
+    const parsed = parseSpecManifest(source, ACCEPT_5_3);
+    assert.deepEqual(parsed.commands, expected.commands);
+    assert.deepEqual(parsed.config_domains, expected.config_domains);
+    assert.deepEqual(parsed.warnings, [
+      'spec §11 states 5 pairs and 3 namespaces, which disagrees with its action table; accepted by --accept-stated-count 5/3',
+    ]);
+    assert.doesNotMatch(parsed.warnings[0], TABLE_NUMBERS);
+  }
+});
+
+test('parseSpecManifest rejects stated counts that disagree with the table when no flag names them', () => {
+  assert.throws(() => parseSpecManifest(STALE_COUNTS), (error) => {
+    assert.equal(error.message,
+      'spec §11 states 5 pairs, which disagrees with its action table; review the table, then rerun with --accept-stated-count 5/3');
+    assert.doesNotMatch(error.message, TABLE_NUMBERS);
+    return true;
+  });
+  assert.throws(() => parseSpecManifest(mutateSpec('6 cặp, 4 namespace', '6 cặp, 5 namespace')),
+    /states 5 namespaces, which disagrees with its action table; review the table, then rerun with --accept-stated-count 6\/5/);
+});
+
+test('parseSpecManifest rejects an --accept-stated-count that is not what §11 states', () => {
+  for (const [pairs, namespaces] of [[7, 4], [6, 4], [5, 4], [98, 12]]) {
+    assert.throws(() => parseSpecManifest(STALE_COUNTS, { acceptStatedCount: { pairs, namespaces } }),
+      /does not match the count §11 states \(5\/3\); update or remove the flag/, `${pairs}/${namespaces}`);
+  }
+  assert.throws(() => parseSpecManifest(SPEC_FIXTURE, ACCEPT_5_3), /does not match the count §11 states \(6\/4\)/);
+});
+
+test('parseSpecManifest asks to remove --accept-stated-count once §11 agrees with its table', () => {
+  assert.throws(() => parseSpecManifest(SPEC_FIXTURE, { acceptStatedCount: { pairs: 6, namespaces: 4 } }),
+    /which agrees with its action table; remove --accept-stated-count/);
+  assert.throws(() => parseSpecManifest(mutateSpec('6 cặp, 4 namespace trong snapshot.', 'Snapshot.'), ACCEPT_5_3), /pair count/);
+});
+
+test('parseArgs reads --accept-stated-count as <pairs>/<namespaces>', () => {
+  assert.deepEqual(parseArgs(['--accept-stated-count', '98/12']).acceptStatedCount, { pairs: 98, namespaces: 12 });
+  assert.deepEqual(parseArgs(['--accept-stated-count=98/12']).acceptStatedCount, { pairs: 98, namespaces: 12 });
+  assert.equal(parseArgs([]).acceptStatedCount, undefined);
+  assert.deepEqual(parseArgs(['--check', '--idf', 'x', '--accept-stated-count', '9/2']),
+    { check: true, idf: 'x', acceptStatedCount: { pairs: 9, namespaces: 2 } });
+  for (const bad of [undefined, '98', '98/', '/12', '0/12', '98/0', '098/12', '98:12', '98/12/1', '-1/2', '1e2/3', 'a/b']) {
+    const argv = bad === undefined ? ['--accept-stated-count'] : ['--accept-stated-count', bad];
+    assert.throws(() => parseArgs(argv), /--accept-stated-count needs <pairs>\/<namespaces>/, String(bad));
+  }
+});
+
+test('readSpecAtCommit reads the spec only from git objects of the pinned commit', () => {
+  const git = fakeGit(SPEC_FIXTURE);
+
+  const { bytes, sourceBlob } = readSpecAtCommit(git.readOnly);
+
+  assert.deepEqual(git.calls, expectedReads());
+  assert.equal(bytes.toString('utf8'), SPEC_FIXTURE);
+  assert.equal(sourceBlob, git.blob);
+  assert.match(SOURCE_COMMIT, /^[0-9a-f]{40}$/);
+  assert.equal(SOURCE_PATH, 'engineering-docs/api/mqtt-api.md');
+});
+
+test('readSpecAtCommit refuses bytes that do not hash to the commit blob', () => {
+  const git = fakeGit(SPEC_FIXTURE, { blobOverride: '0'.repeat(40) });
+  assert.throws(() => readSpecAtCommit(git.readOnly), /textconv or filter/);
+});
+
+test('readSpecAtCommit refuses a commit id that is abbreviated, symbolic or resolves elsewhere', () => {
+  for (const commit of ['HEAD', 'c80797d', SOURCE_COMMIT.toUpperCase()]) {
+    const git = fakeGit(SPEC_FIXTURE);
+    assert.throws(() => readSpecAtCommit(git.readOnly, commit), /full 40-hex commit id/, commit);
+    assert.equal(git.calls.length, 0, `git must not run for ${commit}`);
+  }
+  const elsewhere = fakeGit(SPEC_FIXTURE, { commit: 'f'.repeat(40) });
+  assert.throws(() => readSpecAtCommit(elsewhere.readOnly), /resolved to/);
+});
+
+test('gitCommand reads without replace objects and without inherited GIT_ variables', () => {
+  const env = {
+    PATH: 'p', HOME: 'h', GIT_DIR: 'x', git_object_directory: 'y', GIT_ALTERNATE_OBJECT_DIRECTORIES: 'z',
+    GIT_REPLACE_REF_BASE: 'r', GIT_CONFIG_COUNT: '1',
+  };
+  const before = { ...env };
+
+  const command = gitCommand('R', ['show', 'a:b'], env);
+
+  assert.equal(command.file, 'git');
+  assert.deepEqual(command.args, ['--no-replace-objects', '-c', 'core.fsmonitor=false', '-C', 'R', 'show', 'a:b']);
+  assert.deepEqual(command.env, { PATH: 'p', HOME: 'h' });
+  assert.deepEqual(env, before);
+});
+
+test('run writes the catalog from the pinned commit through three git object reads', () => {
+  const { code, git, out, files } = runWith(['--idf', 'R'], SPEC_FIXTURE);
+
+  assert.equal(code, 0);
+  assert.deepEqual(git.calls, expectedReads().map((args) => ['R', args]));
+  assert.equal(files.writes.length, 1);
+  assert.equal(files.writes[0][0], OUTPUT_PATH);
+  const doc = JSON.parse(files.writes[0][1]);
+  assert.equal(doc.source_commit, SOURCE_COMMIT);
+  assert.equal(doc.source_blob, git.blob);
+  assert.equal(doc.catalog_version, `mqtt-api-${SOURCE_COMMIT.slice(0, 9)}`);
+  assert.equal(out[0][0], 'stdout');
+  assert.match(out[0][1], /^wrote /);
+
+  const fromEnv = runWith([], SPEC_FIXTURE, { deps: { env: { HMS_IDF_REPO: 'E' } } });
+  assert.deepEqual(fromEnv.git.calls.map(([repo]) => repo), ['E', 'E', 'E']);
+});
+
+test('run prints the accepted count warning on stderr before anything on stdout', () => {
+  const { code, out } = runWith(['--accept-stated-count', '5/3'], STALE_COUNTS);
+
+  assert.equal(code, 0);
+  assert.equal(out[0][0], 'stderr');
+  assert.match(out[0][1], /^generate-command-catalog: warning: spec §11 states 5 pairs and 3 namespaces, /);
+  assert.ok(out.slice(1).every(([stream]) => stream === 'stdout'));
+  assert.ok(out.some(([stream]) => stream === 'stdout'));
+});
+
+test('run --check reports a stale catalog with the rerun hint and writes nothing', () => {
+  const written = runWith(['--accept-stated-count', '5/3'], STALE_COUNTS);
+  const text = written.files.writes[0][1];
+
+  const stale = runWith(['--check', '--accept-stated-count', '5/3'], STALE_COUNTS, { fs: fakeFs(`${text}x`) });
+  assert.equal(stale.code, 1);
+  assert.ok(stale.out.some(([stream, message]) => stream === 'stderr' && message.includes('--accept-stated-count 5/3')));
+  assert.equal(stale.files.writes.length, 0);
+
+  for (const committed of [text, text.replace(/\n/g, '\r\n')]) {
+    const fresh = runWith(['--check', '--accept-stated-count', '5/3'], STALE_COUNTS, { fs: fakeFs(committed) });
+    assert.equal(fresh.code, 0);
+    assert.ok(fresh.out.some(([stream, message]) => stream === 'stdout' && message.includes('is up to date')));
+    assert.equal(fresh.files.writes.length, 0);
+  }
+});
+
+test('run refuses a commit that is not a full id before calling git', () => {
+  for (const commit of ['HEAD', 'c80797d']) {
+    const git = fakeGit(SPEC_FIXTURE);
+    assert.throws(() => run([], { git: git.withRepo, fs: fakeFs(), stdout() {}, stderr() {}, env: {}, commit }),
+      /full 40-hex commit id/, commit);
+    assert.equal(git.calls.length, 0);
+  }
 });

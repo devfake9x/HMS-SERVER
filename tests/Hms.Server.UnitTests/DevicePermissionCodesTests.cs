@@ -23,8 +23,8 @@ public sealed class DevicePermissionCodesTests
         Assert.Equal(
             new[]
             {
-                "eth.edit", "gpio.do_write", "mqtt.config_edit", "net.priority_edit", "sys.factory_reset", "sys.ota",
-                "sys.reboot", "wifi.sta_connect", "wifi.sta_edit"
+                "eth.edit", "gpio.do_config", "gpio.do_force", "gpio.do_write", "mqtt.config_edit", "net.priority_edit",
+                "sms.delete", "sms.send", "sys.factory_reset", "sys.ota", "sys.reboot", "wifi.sta_connect", "wifi.sta_edit"
             },
             DevicePermissionCodes.HighRisk.Order(StringComparer.Ordinal).ToArray());
         Assert.Subset(
@@ -39,6 +39,12 @@ public sealed class DevicePermissionCodesTests
     [InlineData(" sys.reboot", false)]
     [InlineData("sys.config_import", false)]
     [InlineData("device.view", false)]
+    [InlineData("gpio.do_force", true)]
+    [InlineData("gpio.do_config", true)]
+    [InlineData("sms.send", true)]
+    [InlineData("sms.delete", true)]
+    [InlineData("sms.view", false)]
+    [InlineData("tag.view", false)]
     [InlineData(null, false)]
     public void IsHighRisk_is_exact_and_null_safe(string? code, bool expected) =>
         Assert.Equal(expected, DevicePermissionCodes.IsHighRisk(code));

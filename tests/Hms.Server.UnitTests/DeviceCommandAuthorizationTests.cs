@@ -186,10 +186,10 @@ public sealed class DeviceCommandAuthorizationTests
     }
 
     [Fact]
-    public void Only_three_rows_require_confirmation()
+    public void Only_the_spec_confirm_rows_require_confirmation()
     {
         Assert.Equal(
-            ["ota.apply", "system.factory_reset", "system.reboot"],
+            ["ota.apply", "sms.delete", "sms.send", "system.factory_reset", "system.reboot"],
             _catalog.List().Where(x => x.ConfirmTemplate is not null).Select(x => $"{x.Type}.{x.Action}")
                 .Order(StringComparer.Ordinal));
     }
@@ -208,13 +208,13 @@ public sealed class DeviceCommandAuthorizationTests
             Assert.Equal("COMMAND_RECORDED", result.Code);
         }
 
-        Assert.Equal(24, rows.Length);
-        Assert.Equal(24, _transport.Records.Count);
+        Assert.Equal(29, rows.Length);
+        Assert.Equal(29, _transport.Records.Count);
         // Every command now expires on the device before the server stops waiting for its reply;
-        // a flash command (reboot) gets the tighter physical cap.
+        // a relay or flash command gets the tighter physical cap, as the handler does.
         Assert.All(_transport.Records, x =>
             Assert.Equal(
-                TimeSpan.FromMilliseconds(x.Plan.Definition.Class == CommandClass.Flash
+                TimeSpan.FromMilliseconds(x.Plan.Definition.Class is CommandClass.Physical or CommandClass.Flash
                     ? SendDeviceCommandHandler.MaxPhysicalCommandTtlMs
                     : SendDeviceCommandHandler.MaxCommandTtlMs),
                 x.Plan.ExpiresAt - x.Plan.Request.RequestedAt));

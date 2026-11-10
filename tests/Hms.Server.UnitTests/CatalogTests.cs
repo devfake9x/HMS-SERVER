@@ -12,22 +12,22 @@ namespace Hms.Server.UnitTests;
 // the expectations below restate that table.
 public sealed class CatalogTests
 {
-    private const string PinnedSpecCommit = "83e93d77e4a433efce665d669b567b3acc51b735";
+    private const string PinnedSpecCommit = "c80797d9d5b817174cd2cfbcb6ee62effe503ff2";
     private const string PinnedSpecPath = "engineering-docs/api/mqtt-api.md";
     // Blob id and SHA-256 of the LF bytes of the spec document at that commit.
-    private const string PinnedSpecBlob = "6485e00f4c609a1ba57063cfd7e7aef75955c58b";
-    private const string PinnedSpecSha256 = "ef41c113b001459b2cc0d0e6bb8c3fd00f8008c22bd583af8a2e72d6f33e5274";
+    private const string PinnedSpecBlob = "84ff812f68567e07cfd3a2dfeeb862ceb48630f6";
+    private const string PinnedSpecSha256 = "8cde6ab454b7148bd29ab5a49c5187ec98b1143b4f11f84de76c95d9451c6406";
     private const string CatalogResourceName = "Hms.Server.Infrastructure.Commands.command-catalog.json";
 
-    // SHA-256 of the 94 (type, action) pairs of spec §11, computed with the v1 pair-set
+    // SHA-256 of the 108 (type, action) pairs of spec §11, computed with the v1 pair-set
     // algorithm in PairSetSha256. It fingerprints the pair set; it is not the catalog hash.
-    private const string ManifestPairSetSha256 = "dbda8317758e5f25c5a4dee8456841ef3689fea4707cf5a27c30ffad656f78d9";
+    private const string ManifestPairSetSha256 = "4286c13cd55ef43ca344ba98d07f7e99b98f111872d408d2afb97ec6017c2b07";
 
     // Catalog hash of the committed catalog. CI cannot run the generator's --check (no HMS-IDF),
     // so this literal is what makes any content change, even one with a recomputed hash, fail
     // the build. Re-pinning the spec changes it on purpose: update it in the same change, after
     // checking the regenerated catalog against §11.
-    private const string PinnedCatalogHash = "b1d47a786879f8be749fb89f38250c73a37b6e72297412e40c9e71a96aeb12c4";
+    private const string PinnedCatalogHash = "658e191a9e66f14a6885183b6ae9d9ec72a9e25a396c3cd30c80bdcd4df3413b";
 
     private static readonly string[] RowFields =
         ["type", "action", "class", "required_perm", "domain_policy", "ttl_ms", "confirm_required", "confirm_template", "dry_run"];
@@ -104,9 +104,9 @@ public sealed class CatalogTests
         var catalog = new PinnedCommandCatalog();
         var pairs = catalog.List().Select(x => (x.Type, x.Action)).ToArray();
 
-        Assert.Equal(94, catalog.Count);
-        Assert.Equal(94, pairs.Distinct().Count());
-        Assert.Equal(12, pairs.Select(x => x.Type).Distinct().Count());
+        Assert.Equal(108, catalog.Count);
+        Assert.Equal(108, pairs.Distinct().Count());
+        Assert.Equal(13, pairs.Select(x => x.Type).Distinct().Count());
         Assert.Equal(ManifestPairSetSha256, PairSetSha256(pairs));
     }
 
@@ -214,23 +214,26 @@ public sealed class CatalogTests
         var rows = new PinnedCommandCatalog().List();
         var counts = rows.GroupBy(x => x.Class).ToDictionary(x => x.Key, x => x.Count());
 
-        Assert.Equal(49, counts[CommandClass.Read]);
+        Assert.Equal(58, counts[CommandClass.Read]);
         Assert.Equal(18, counts[CommandClass.Write]);
         Assert.Equal(17, counts[CommandClass.Control]);
-        Assert.Equal(3, counts[CommandClass.Destructive]);
-        Assert.Equal(3, counts[CommandClass.Physical]);
+        Assert.Equal(4, counts[CommandClass.Destructive]);
+        Assert.Equal(7, counts[CommandClass.Physical]);
         Assert.Equal(4, counts[CommandClass.Flash]);
         Assert.All(rows, x => Assert.Equal(x.Class == CommandClass.Flash, x.Dangerous));
         Assert.Equal(4, rows.Count(x => x.Dangerous));
     }
 
     [Fact]
-    public void Pinned_catalog_exposes_46_firmware_permissions_and_6_config_domains()
+    public void Pinned_catalog_exposes_53_firmware_permissions_and_6_config_domains()
     {
         var catalog = new PinnedCommandCatalog();
         var domainRows = catalog.List().Where(x => x.PermissionByDomain is not null).ToArray();
 
-        Assert.Equal(46, catalog.FirmwarePermissions.Count);
+        Assert.Equal(53, catalog.FirmwarePermissions.Count);
+        Assert.All(
+            new[] { "tag.view", "mb_rtu.slave_view", "mb_rtu.tag_view", "sms.send", "sms.delete", "gpio.do_force", "gpio.do_config" },
+            x => Assert.True(catalog.FirmwarePermissions.Contains(x), x));
         Assert.Contains("sys.config_export", catalog.FirmwarePermissions);
         Assert.Contains("sys.config_import", catalog.FirmwarePermissions);
         Assert.Equal(
@@ -239,6 +242,97 @@ public sealed class CatalogTests
         Assert.All(domainRows, row => Assert.Equal(
             new[] { "adc", "mqtt", "network", "system", "wifi_ap", "wifi_sta" },
             row.PermissionByDomain!.Keys.Order(StringComparer.Ordinal).ToArray()));
+    }
+
+    [Fact]
+    public void Tag_paged_modbus_sms_and_output_force_or_config_rows_stay_closed()
+    {
+        var catalog = new PinnedCommandCatalog();
+        (string Type, string Action)[] rows =
+        [
+            ("tags", "list"), ("tags", "get"), ("modbus", "get_rtu_devices"), ("modbus", "get_rtu_tags"),
+            ("modbus", "get_rtu_live"), ("modbus", "get_rtu_diagnostics"), ("sms", "get"), ("sms", "send_status"),
+            ("sms", "send"), ("sms", "delete"), ("control", "force_set"), ("control", "force_clear"),
+            ("control", "set_config"), ("control", "get_config")
+        ];
+        var allowlisted = PinnedCommandCatalog.EnabledActions
+            .Concat(PinnedCommandCatalog.PhysicalOutputActions)
+            .Concat(PinnedCommandCatalog.ConfigWriteActions)
+            .Concat(PinnedCommandCatalog.FlashActions)
+            .ToHashSet();
+
+        Assert.All(rows, x =>
+        {
+            Assert.Equal(CommandAvailability.DeniedUntilActionContract, catalog.Find(x.Type, x.Action)!.Availability);
+            Assert.False(allowlisted.Contains(x), $"{x.Type}.{x.Action}");
+        });
+    }
+
+    [Fact]
+    public void Status_tags_is_open_and_needs_tag_view()
+    {
+        var row = new PinnedCommandCatalog().Find("status", "tags")!;
+
+        Assert.Equal(CommandAvailability.Enabled, row.Availability);
+        Assert.Equal(CommandClass.Read, row.Class);
+        Assert.Equal("tag.view", row.RequiredPermission);
+        Assert.Contains(("status", "tags"), (IEnumerable<(string Type, string Action)>)PinnedCommandCatalog.EnabledActions);
+    }
+
+    [Fact]
+    public void Open_actions_keep_their_reviewed_class_permission_ttl_and_confirm()
+    {
+        var catalog = new PinnedCommandCatalog();
+        // Written by hand from the reviewed catalog, apart from the hash literals above: a re-pin
+        // that changes an open row has to change its line here.
+        // Line format: type.action class permission ttl confirm.
+        string[] expected =
+        [
+            "adc.get_channels Read adc.view 120000 -",
+            "adc.get_config Read adc.view 120000 -",
+            "adc.get_status Read adc.view 120000 -",
+            "adc.get_values Read adc.view 120000 -",
+            "adc.set_channel Write adc.config_edit 120000 -",
+            "adc.toggle_channel Control adc.enable 120000 -",
+            "battery.get_alerts Read sys.battery_view 120000 -",
+            "battery.get_status Read sys.battery_view 120000 -",
+            "control.get_status Read gpio.do_view 120000 -",
+            "control.pulse Physical gpio.do_write 120000 -",
+            "control.set_output Physical gpio.do_write 120000 -",
+            "mqtt.get_config Read mqtt.status_view 120000 -",
+            "mqtt.get_status Read mqtt.status_view 120000 -",
+            "network.get_all_status Read net.priority_view 120000 -",
+            "network.get_ethernet Read eth.view 120000 -",
+            "network.get_modem Read modem.view 120000 -",
+            "network.get_priority Read net.priority_view 120000 -",
+            "network.wifi_ap_status Read wifi.ap_view 60000 -",
+            "network.wifi_sta_status Read wifi.sta_view 60000 -",
+            "ota.get_status Read sys.info_view 120000 -",
+            "status.dump Read sys.info_view 120000 -",
+            "status.services Read sys.info_view 120000 -",
+            "status.tags Read tag.view 120000 -",
+            "system.get_device_id Read sys.info_view 120000 -",
+            "system.get_heap Read sys.info_view 120000 -",
+            "system.get_hostname Read sys.hostname_view 120000 -",
+            "system.get_info Read sys.info_view 120000 -",
+            "system.get_operations Read sys.info_view 120000 -",
+            "system.get_time Read sys.time_view 120000 -",
+            "system.ping Read sys.info_view 120000 -",
+            "system.reboot Flash sys.reboot 60000 REBOOT-<DEVID>",
+            "system.set_hostname Write sys.hostname_edit 120000 -",
+            "system.set_timezone Write sys.time_edit 120000 -",
+            "system.sync_ntp Control sys.time_edit 120000 -"
+        ];
+        var actual = PinnedCommandCatalog.EnabledActions
+            .Concat(PinnedCommandCatalog.PhysicalOutputActions)
+            .Concat(PinnedCommandCatalog.ConfigWriteActions)
+            .Concat(PinnedCommandCatalog.FlashActions)
+            .Select(x => catalog.Find(x.Type, x.Action)!)
+            .Select(x => $"{x.Type}.{x.Action} {x.Class} {x.RequiredPermission} {x.DefaultTtlMs} {x.ConfirmTemplate ?? "-"}")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(expected, actual);
     }
 
     [Fact]
@@ -255,11 +349,11 @@ public sealed class CatalogTests
         var rows = new PinnedCommandCatalog().List();
         var sixtySeconds = rows.Where(x => x.DefaultTtlMs == 60_000).ToArray();
 
-        Assert.Equal(24, sixtySeconds.Length);
-        Assert.Equal(3, sixtySeconds.Count(x => x.ConfirmTemplate is not null));
+        Assert.Equal(29, sixtySeconds.Length);
+        Assert.Equal(5, sixtySeconds.Count(x => x.ConfirmTemplate is not null));
         Assert.Equal(21, sixtySeconds.Count(x =>
             x.Type == "network" && x.Action.StartsWith("wifi_", StringComparison.Ordinal)));
-        Assert.Equal(70, rows.Count(x => x.DefaultTtlMs == CommandDefinition.DispatcherDefaultTtlMs));
+        Assert.Equal(79, rows.Count(x => x.DefaultTtlMs == CommandDefinition.DispatcherDefaultTtlMs));
         Assert.DoesNotContain(rows, x => x.DefaultTtlMs is null);
     }
 
@@ -272,6 +366,8 @@ public sealed class CatalogTests
             new[]
             {
                 "ota.apply=OTA-APPLY-<DEVID>",
+                "sms.delete=SMS-DELETE-<DEVID>",
+                "sms.send=SMS-SEND-<DEVID>",
                 "system.factory_reset=FACTORY-RESET-<DEVID>",
                 "system.reboot=REBOOT-<DEVID>"
             },
@@ -299,6 +395,21 @@ public sealed class CatalogTests
     [InlineData("broker", "delete_signal", CommandClass.Destructive, "broker.signal_edit", 120000)]
     [InlineData("adc", "get_status", CommandClass.Read, "adc.view", 120000)]
     [InlineData("mqtt", "get_status", CommandClass.Read, "mqtt.status_view", 120000)]
+    [InlineData("status", "tags", CommandClass.Read, "tag.view", 120000)]
+    [InlineData("tags", "list", CommandClass.Read, "tag.view", 120000)]
+    [InlineData("tags", "get", CommandClass.Read, "tag.view", 120000)]
+    [InlineData("modbus", "get_rtu_devices", CommandClass.Read, "mb_rtu.slave_view", 120000)]
+    [InlineData("modbus", "get_rtu_tags", CommandClass.Read, "mb_rtu.tag_view", 120000)]
+    [InlineData("modbus", "get_rtu_live", CommandClass.Read, "mb_rtu.tag_view", 120000)]
+    [InlineData("modbus", "get_rtu_diagnostics", CommandClass.Read, "mb_rtu.config_view", 120000)]
+    [InlineData("sms", "get", CommandClass.Read, "sms.view", 120000)]
+    [InlineData("sms", "send_status", CommandClass.Read, "sms.send", 120000)]
+    [InlineData("sms", "send", CommandClass.Physical, "sms.send", 60000)]
+    [InlineData("sms", "delete", CommandClass.Destructive, "sms.delete", 60000)]
+    [InlineData("control", "force_set", CommandClass.Physical, "gpio.do_force", 60000)]
+    [InlineData("control", "force_clear", CommandClass.Physical, "gpio.do_force", 60000)]
+    [InlineData("control", "set_config", CommandClass.Physical, "gpio.do_config", 60000)]
+    [InlineData("control", "get_config", CommandClass.Read, "gpio.do_view", 120000)]
     public void Pinned_catalog_row_matches_spec(
         string type, string action, CommandClass commandClass, string permission, int ttlMs)
     {
@@ -369,7 +480,7 @@ public sealed class CatalogTests
     {
         var catalog = Load(ReadCommittedCatalog());
 
-        Assert.Equal(94, catalog.Count);
+        Assert.Equal(108, catalog.Count);
         Assert.Equal(new PinnedCommandCatalog().Metadata, catalog.Metadata);
     }
 

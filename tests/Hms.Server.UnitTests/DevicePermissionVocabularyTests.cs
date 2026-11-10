@@ -8,24 +8,25 @@ namespace Hms.Server.UnitTests;
 public sealed class DevicePermissionVocabularyTests
 {
     [Fact]
-    public void Vocabulary_has_fifty_codes()
+    public void Vocabulary_has_fifty_seven_codes()
     {
         IReadOnlySet<string> vocabulary = DevicePermissionVocabulary.All(new PinnedCommandCatalog());
 
-        Assert.Equal(50, vocabulary.Count);
+        Assert.Equal(57, vocabulary.Count);
+        Assert.Contains("tag.view", vocabulary);
         Assert.Contains("device.view", vocabulary);
         Assert.Contains("sys.config_import", vocabulary);
     }
 
     [Fact]
-    public void Firmware_part_of_vocabulary_has_46_codes()
+    public void Firmware_part_of_vocabulary_has_53_codes()
     {
         var catalog = new PinnedCommandCatalog();
         var firmwarePart = DevicePermissionVocabulary.All(catalog)
             .Except(DevicePermissionCodes.ServerCodes)
             .ToHashSet(StringComparer.Ordinal);
 
-        Assert.Equal(46, firmwarePart.Count);
+        Assert.Equal(53, firmwarePart.Count);
         Assert.True(firmwarePart.SetEquals(catalog.FirmwarePermissions));
         Assert.Empty(DevicePermissionCodes.ServerCodes.Intersect(catalog.FirmwarePermissions));
     }

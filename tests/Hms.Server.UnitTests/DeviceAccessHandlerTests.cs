@@ -580,6 +580,40 @@ public sealed class DeviceAccessHandlerTests
         Assert.Empty(_world.Access.Attempts);
     }
 
+    [Theory]
+    [InlineData("gpio.do_force")]
+    [InlineData("gpio.do_config")]
+    [InlineData("sms.send")]
+    [InlineData("sms.delete")]
+    public void Output_force_output_config_and_sms_send_or_delete_are_granted_by_a_master_admin_only(string code)
+    {
+        var plain = _world.SeedRole(_world.Child.Id, DevicePermissionCodes.DeviceView);
+        var withCode = _world.SeedRole(_world.Child.Id, DevicePermissionCodes.DeviceView, code);
+        var admin = _world.Admin(NewUser(_world.Child.Id), _world.Child.Id, "permissions.manage");
+
+        Assert.Equal("HIGH_RISK_REQUIRES_MASTER_ADMIN",
+            CreateRole(admin, _world.Child.Id, "Holder", DevicePermissionCodes.DeviceView, code).Code);
+        Assert.Equal("HIGH_RISK_REQUIRES_MASTER_ADMIN",
+            UpdateRole(admin, plain, [DevicePermissionCodes.DeviceView, code]).Code);
+        Assert.Equal("HIGH_RISK_REQUIRES_MASTER_ADMIN",
+            UpdateRole(admin, withCode, [DevicePermissionCodes.DeviceView]).Code);
+        Assert.Equal("HIGH_RISK_REQUIRES_MASTER_ADMIN",
+            _world.DeleteRole().Handle(admin, _world.Child.Id, withCode.Id, withCode.Version).Code);
+        Assert.Empty(_world.Access.Attempts);
+
+        var holder = ManagingAdmin(_world.Device, DevicePermissionCodes.DeviceView, code);
+        var target = NewUser(_world.Child.Id);
+        Assert.Equal("HIGH_RISK_REQUIRES_MASTER_ADMIN", Assign(holder, NewUser(_world.Child.Id), withCode).Code);
+        _world.SeedMembership(target, _world.Device, withCode);
+        Assert.Equal("HIGH_RISK_REQUIRES_MASTER_ADMIN", Assign(holder, target, plain, expectedRoleId: withCode.Id).Code);
+        Assert.Equal("HIGH_RISK_REQUIRES_MASTER_ADMIN",
+            _world.Remove().Handle(holder, _world.Device.Id, target, withCode.Id).Code);
+        Assert.Empty(_world.Access.Writes);
+
+        Assert.Equal("OK",
+            CreateRole(Master(), _world.Child.Id, $"Holder {code}", DevicePermissionCodes.DeviceView, code).Code);
+    }
+
     [Fact]
     public void Role_update_with_stale_version_is_rejected()
     {

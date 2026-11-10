@@ -188,7 +188,7 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.False(string.IsNullOrWhiteSpace(catalogJson.RootElement.GetProperty("catalogHash").GetString()));
         Assert.True(catalogJson.RootElement.GetProperty("trusted").GetBoolean());
         var actions = catalogJson.RootElement.GetProperty("actions");
-        Assert.Equal(94, actions.GetArrayLength());
+        Assert.Equal(108, actions.GetArrayLength());
         Assert.Contains(actions.EnumerateArray(), action =>
             action.GetProperty("type").GetString() == "system" &&
             action.GetProperty("action").GetString() == "get_info");
@@ -248,8 +248,13 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Equal("wifi.ap_view", configGet.GetProperty("permissionByDomain").GetProperty("wifi_ap").GetString());
         Assert.False(configGet.GetProperty("highRisk").GetBoolean());
 
-        // 15 rows plus the three relay output rows (gpio.do_write is high risk).
-        Assert.Equal(18, actions.Values.Count(x => x.GetProperty("highRisk").GetBoolean()));
+        // The rows behind relay output, output force and output config, SMS send and delete, plus the 15 others.
+        Assert.Equal(24, actions.Values.Count(x => x.GetProperty("highRisk").GetBoolean()));
+        Assert.True(actions["control.force_set"].GetProperty("highRisk").GetBoolean());
+        Assert.True(actions["sms.send_status"].GetProperty("highRisk").GetBoolean());
+        Assert.True(actions["sms.delete"].GetProperty("highRisk").GetBoolean());
+        Assert.Equal("tag.view", actions["status.tags"].GetProperty("requiredPermission").GetString());
+        Assert.False(actions["status.tags"].GetProperty("highRisk").GetBoolean());
         Assert.True(actions["control.set_output"].GetProperty("highRisk").GetBoolean());
         Assert.All(actions.Values, x => Assert.Equal(
             new[]
@@ -329,6 +334,10 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         Assert.Contains("control.set_output", adminActions);
         Assert.DoesNotContain("sms.list", adminActions);
         Assert.DoesNotContain("config.get", adminActions);
+        Assert.Equal(34, adminActions.Length);
+        Assert.Contains("status.tags", adminActions);
+        Assert.DoesNotContain("control.force_set", adminActions);
+        Assert.DoesNotContain("tags.list", adminActions);
         Assert.Equal(adminActions.Order(StringComparer.Ordinal), adminActions);
 
         var viewerActions = (await viewer.GetFromJsonAsync<JsonElement>(path)).GetProperty("actions");
@@ -488,6 +497,164 @@ public sealed class ManagementApiTests : IClassFixture<ManagementApiFactory>
         // Refused before the audit reservation: nothing was reserved, so nothing was signed or sent.
         using var check = _factory.Services.CreateScope();
         Assert.Null(check.ServiceProvider.GetRequiredService<ICommandAuditStore>().FindPlan(new DeviceId(deviceId), correlationId));
+    }
+
+    [Fact]
+    public async Task Status_tags_needs_tag_view_and_sys_info_view_alone_is_not_enough()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("status-tags-device", new OrganizationId(_factory.ChildOrganizationId));
+            device.Activate();
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.IDeviceMqttBindingStore>()
+                .Upsert(Hms.Server.Application.DeviceLink.DeviceMqttBinding.Create(device.Id, "hms_toan_lab", "status_tags_dev", null));
+            deviceId = device.Id.Value;
+        }
+        var infoViewerId = Guid.NewGuid();
+        GrantDeviceRole(infoViewerId, deviceId, "sys.info_view");
+        var tagViewerId = Guid.NewGuid();
+        GrantDeviceRole(tagViewerId, deviceId, "tag.view");
+        using var infoViewer = _factory.CreateClientForUser(infoViewerId);
+        using var tagViewer = _factory.CreateClientForUser(tagViewerId);
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+        var metadata = PinnedCatalogMetadata();
+        var commandsPath = $"/api/v1/devices/{deviceId}/commands";
+        object Body(string correlationId) => new
+        {
+            type = "status", action = "tags", payload = new { }, correlationId,
+            catalogVersion = metadata.CatalogVersion, catalogHash = metadata.CatalogHash
+        };
+        async Task<string[]> AllowedAsync(HttpClient client) =>
+            (await client.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/allowed-commands"))
+                .GetProperty("actions").EnumerateArray().Select(x => x.GetString()!).ToArray();
+
+        Assert.Equal(
+            [
+                "ota.get_status", "status.dump", "status.services", "system.get_device_id", "system.get_heap",
+                "system.get_info", "system.get_operations", "system.ping"
+            ],
+            await AllowedAsync(infoViewer));
+        Assert.Equal(["status.tags"], await AllowedAsync(tagViewer));
+
+        using var byInfoViewer = await PostAsync(infoViewer, commandsPath, Body("tags-info-1"));
+        using var byAdmin = await PostAsync(admin, commandsPath, Body("tags-admin-1"));
+        using var byTagViewer = await PostAsync(tagViewer, commandsPath, Body("tags-tag-1"));
+
+        Assert.Equal(DeviceAccessCodes.PermissionRequired, await CodeOfAsync(byInfoViewer));
+        var adminCode = await CodeOfAsync(byAdmin);
+        // Past every gate before signing: the device has a binding but no command key yet.
+        Assert.Equal("COMMAND_KEY_NOT_PROVISIONED", adminCode);
+        Assert.Equal(adminCode, await CodeOfAsync(byTagViewer));
+        using var check = _factory.Services.CreateScope();
+        var audit = check.ServiceProvider.GetRequiredService<ICommandAuditStore>();
+        Assert.Null(audit.FindPlan(new DeviceId(deviceId), "tags-info-1"));
+        Assert.NotNull(audit.FindPlan(new DeviceId(deviceId), "tags-tag-1"));
+    }
+
+    [Theory]
+    [InlineData("tags", "list", null)]
+    [InlineData("tags", "get", null)]
+    [InlineData("modbus", "get_rtu_devices", null)]
+    [InlineData("modbus", "get_rtu_tags", null)]
+    [InlineData("modbus", "get_rtu_live", null)]
+    [InlineData("modbus", "get_rtu_diagnostics", null)]
+    [InlineData("sms", "get", null)]
+    [InlineData("sms", "send_status", null)]
+    [InlineData("sms", "send", "SMS-SEND-closed_sms_send")]
+    [InlineData("sms", "delete", "SMS-DELETE-closed_sms_delete")]
+    [InlineData("control", "force_set", null)]
+    [InlineData("control", "force_clear", null)]
+    [InlineData("control", "set_config", null)]
+    [InlineData("control", "get_config", null)]
+    public async Task Tag_paged_modbus_sms_and_output_force_or_config_rows_stay_closed_even_for_a_master_admin(
+        string type, string action, string? confirm)
+    {
+        Guid deviceId;
+        var mqttDeviceId = $"closed_{type}_{action}";
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create($"closed-{type}-{action}-device", new OrganizationId(_factory.ChildOrganizationId));
+            device.Activate();
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.IDeviceMqttBindingStore>()
+                .Upsert(Hms.Server.Application.DeviceLink.DeviceMqttBinding.Create(device.Id, "hms_toan_lab", mqttDeviceId, null));
+            deviceId = device.Id.Value;
+        }
+        using var admin = _factory.CreateClientForUser(Guid.NewGuid(),
+            new Claim(ClaimTypes.Role, RoleAuthorizationPolicy.MasterAdminRole));
+        var metadata = PinnedCatalogMetadata();
+        var correlationId = $"closed-{type}-{action}-1";
+
+        using var response = await PostAsync(admin, $"/api/v1/devices/{deviceId}/commands", new
+        {
+            type, action, payload = new { }, confirm, dryRun = false, correlationId,
+            catalogVersion = metadata.CatalogVersion, catalogHash = metadata.CatalogHash
+        });
+
+        Assert.Equal("DENIED_UNTIL_ACTION_CONTRACT", await CodeOfAsync(response));
+        // Refused before the audit reservation: nothing was reserved, so nothing was signed or sent.
+        using var check = _factory.Services.CreateScope();
+        Assert.Null(check.ServiceProvider.GetRequiredService<ICommandAuditStore>().FindPlan(new DeviceId(deviceId), correlationId));
+    }
+
+    [Fact]
+    public async Task Device_action_grants_open_no_command_whatever_the_code()
+    {
+        Guid deviceId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var device = Device.Create("action-grant-device", new OrganizationId(_factory.ChildOrganizationId));
+            device.Activate();
+            scope.ServiceProvider.GetRequiredService<IDeviceStore>().Add(device);
+            scope.ServiceProvider.GetRequiredService<Hms.Server.Application.DeviceLink.IDeviceMqttBindingStore>()
+                .Upsert(Hms.Server.Application.DeviceLink.DeviceMqttBinding.Create(device.Id, "hms_toan_lab", "action_grant_dev", null));
+            deviceId = device.Id.Value;
+        }
+        var targetId = Guid.NewGuid();
+        await _factory.SeedIdentityUserAsync(targetId, _factory.ChildOrganizationId);
+        // A user of its own: another test writes a persisted Child deny for the shared scoped user.
+        var adminId = Guid.NewGuid();
+        await _factory.SeedIdentityUserAsync(adminId, _factory.ChildOrganizationId);
+        using var admin = _factory.CreateClientForUser(adminId,
+            new Claim("org-scope", _factory.ChildOrganizationId.ToString()),
+            new Claim("perm", "devices.manage"),
+            new Claim("perm", "permissions.manage"));
+
+        foreach (var action in new[] { "gpio.do_write", "gpio.do_force", "sys.reboot" })
+        {
+            using var granted = await PostAsync(admin, "/api/v1/permissions/device-actions",
+                new { userId = targetId, deviceId, action });
+            Assert.Equal(HttpStatusCode.OK, granted.StatusCode);
+        }
+        using var viaMatrix = await PutJsonAsync(admin, $"/api/v1/devices/{deviceId}/permissions", new
+        {
+            grants = new[] { new { userId = targetId, action = "gpio.do_write", granted = true } }
+        });
+        Assert.Equal(HttpStatusCode.OK, viaMatrix.StatusCode);
+
+        // Device-action grants never allow a command: command rights come from role membership only.
+        using var target = _factory.CreateClientForUser(targetId,
+            new Claim("org-scope", _factory.ChildOrganizationId.ToString()));
+        var snapshot = await target.GetFromJsonAsync<JsonElement>("/api/v1/me/permissions");
+        Assert.Contains($"device:{deviceId:N}:action:gpio.do_write",
+            snapshot.GetProperty("permissions").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(0, (await target.GetFromJsonAsync<JsonElement>($"/api/v1/devices/{deviceId}/allowed-commands"))
+            .GetProperty("actions").GetArrayLength());
+
+        var metadata = PinnedCatalogMetadata();
+        using var send = await PostAsync(target, $"/api/v1/devices/{deviceId}/commands", new
+        {
+            type = "control", action = "set_output", payload = new { channel = 1, value = true },
+            correlationId = "grant-nothing-1",
+            catalogVersion = metadata.CatalogVersion, catalogHash = metadata.CatalogHash
+        });
+
+        Assert.Equal(DeviceAccessCodes.PermissionRequired, await CodeOfAsync(send));
+        using var check = _factory.Services.CreateScope();
+        Assert.Null(check.ServiceProvider.GetRequiredService<ICommandAuditStore>().FindPlan(new DeviceId(deviceId), "grant-nothing-1"));
     }
 
     [Fact]

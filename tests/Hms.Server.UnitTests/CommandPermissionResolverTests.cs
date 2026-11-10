@@ -136,11 +136,13 @@ public sealed class CommandPermissionResolverTests
         Assert.Equal(
             new[]
             {
-                "config.set", "control.pulse", "control.set_all", "control.set_output",
+                "config.set", "control.force_clear", "control.force_set", "control.pulse", "control.set_all",
+                "control.set_config", "control.set_output",
                 "mqtt.set_config", "network.configure_ethernet", "network.set_priority",
                 "network.wifi_known_connect", "network.wifi_sta_config_set", "network.wifi_sta_connect",
                 "network.wifi_sta_disable", "network.wifi_sta_disconnect", "network.wifi_sta_enable",
-                "ota.apply", "ota.remote_config_get", "ota.remote_start", "system.factory_reset", "system.reboot"
+                "ota.apply", "ota.remote_config_get", "ota.remote_start", "sms.delete", "sms.send", "sms.send_status",
+                "system.factory_reset", "system.reboot"
             },
             Catalog.List()
                 .Where(CommandPermissionResolver.IsHighRisk)
