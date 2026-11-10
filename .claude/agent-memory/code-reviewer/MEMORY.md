@@ -3,3 +3,4 @@
 - [Device write review heuristics](reference_device_write_review_heuristics.md) — confirm bypasses gate; lane holds; sweep thread; SIM_SILENT; paired error maps; VTU disabled click; GetString surrogate
 - [Authz probe heuristics](reference_authz_probe_heuristics.md) — U+017F role bypass; store-hook TOCTOU; chain capture, depth cap; high-risk is grant-time only
 - [Catalog re-pin review](reference_catalog_repin_review.md) — pin reachability; §6 drift of open rows; HighRisk shrink on rollback; in-memory replies wiped by restart
+- [Behaviour flag review](reference_behaviour_flag_review.md) — per-action flags replace class B inference; W/C payload gap; reboot stale path; hand-built test defs
