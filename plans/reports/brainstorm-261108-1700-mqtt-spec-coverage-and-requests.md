@@ -93,6 +93,14 @@ Chưa mở theo namespace:
 15. Telemetry §9: khi nào thiết bị có key `tlm_*`, và luồng cấp key.
 16. `config.get` có cam kết redact secret không; field nhạy cảm của `ota.remote_config_get`.
 
+### D. DO ownership (spec `c80797d`, 2026-11-10)
+
+Chưa gửi. Nguồn: plan `261110-1335-do-channel-ownership`.
+
+17. `control.pulse` trên kênh có luật theo mức: bị từ chối `owned_by_rule` không? (L831 chỉ nêu `set_output`, `set_all`, `set_config`; L818 ghi pulse không đổi trong đợt này.)
+18. `owner`/`owner_id` có từ firmware nào; 1.0.108 có gửi không?
+19. Kiểu của `owner_id` (số hay chuỗi)?
+
 ## 4. Thứ tự đề xuất
 
 1. User gửi mục 3 cho firmware.

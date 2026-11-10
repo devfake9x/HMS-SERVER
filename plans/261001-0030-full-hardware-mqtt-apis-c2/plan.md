@@ -10,6 +10,9 @@ blockedBy: [261005-0556-device-permissions-what-where]
 # 2026-11-09: system.reboot (phase-03 confirm_token in params, phase-05 REBOOT/OTA-APPLY token autofill and class F
 # confirm dialog in the C2 modal, phase-06 reboot HIL) replaced by 261109-2250-safe-reboot (pending): confirm is the root
 # field built from the MQTT device id (spec §7), class F is hidden from the modal; factory_reset and ota.* stay closed.
+# 2026-11-10: related to the control.* replacement above: DO channel fields of control.get_status (enabled, gpioOk, forced,
+# owner, owner_id; spec c80797d), per-channel locks in the DO panel, rule-held channels in the reboot dialog and preflight
+# planned in 261110-1335-do-channel-ownership (pending); set_all, force_set/force_clear, get_config/set_config stay out.
 supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control, phase-01-catalog-activation#reads, phase-01-catalog-activation#system-adc-writes, phase-03-control-telemetry-subsystems#adc-toggle, phase-03-control-telemetry-subsystems#reboot, phase-05-frontend-c2-console#class-f-confirm, phase-06-e2e-hil-verification#reboot]
 version: "1.0.0"
 author: "Antigravity Autonomous Pair-Programmer"

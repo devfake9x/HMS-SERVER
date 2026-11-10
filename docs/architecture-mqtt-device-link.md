@@ -156,7 +156,8 @@ Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan:
 
 - Chỉ được ghi từ reply `control.get_status` đã xác minh chữ ký (`DeviceReplyProjection`). Heartbeat, device event và `POST /telemetry` không ghi được.
 - Store là in-memory (`IDeviceOutputStateStore`). Sau restart chưa có state, API trả 404 `OUTPUTS_NOT_READ`, UI phải đọc lại.
-- `GET /api/v1/devices/{id}/outputs` (`DeviceLinkController.Outputs`) cần `gpio.do_view` trên thiết bị, thiếu quyền → 403 `DEVICE_PERMISSION_REQUIRED`. Trả `channels[{channel, state, mode, pulseActive}]`, `readAt`, `stale`, `staleReason`.
+- `GET /api/v1/devices/{id}/outputs` (`DeviceLinkController.Outputs`) cần `gpio.do_view` trên thiết bị, thiếu quyền → 403 `DEVICE_PERMISSION_REQUIRED`. Trả `channels[{channel, state, mode, pulseActive, enabled, gpioOk, forced, owner, ownerId}]`, `readAt`, `stale`, `staleReason`.
+- Năm field kênh `enabled`, `gpioOk`, `forced`, `owner`, `ownerId` (thô `owner_id`) lấy từ reply `control.get_status` (spec `c80797d` L797, L839) và luôn có mặt trong JSON: `enabled`, `gpioOk`, `forced`, `ownerId` là `null` khi thiết bị không gửi hoặc gửi sai kiểu, server không suy diễn (`forced:true` không sinh `owner:"force"`). `owner` là `null` khi thiết bị không gửi (hoặc gửi `null`); một giá trị khác 6 giá trị `none|force|level_rule|event_rule|trigger|unknown` (chuỗi lạ, đổi hoa thường, số, object) thành `"unknown"`; `owner_id` số hay chuỗi đều thành chuỗi `ownerId`. Chỉ thêm field: shape ngoài và catalog không đổi (catalog vẫn ghim `83e93d77e`).
 - Event `outputs` không có dữ liệu relay. Người xem phải gọi lại endpoint trên.
 - Telemetry: `digital_outputs`/`digitalOutputs` bị gỡ khỏi heartbeat `status` và khỏi telemetry lưu (`TelemetryRelayStates`). **Contract change:** `GET /api/v1/devices/{id}/telemetry` không còn trả `digital_outputs`.
 
@@ -193,6 +194,21 @@ Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan:
 
 - Thiết bị offline hoặc broker server mất kết nối: mọi kênh hiện **Không rõ**, vẫn có nút Bật/Tắt kèm cảnh báo. "Đọc lúc" hiện giờ đọc và tuổi của lần đọc.
 - Pulse: số nguyên 1..60000 ms, mặc định 1000 ms. Ngoài khoảng thì không gửi.
+- Khoá theo kênh (`outputWriteLock` trong `outputLocks.ts`): khoá Bật, Tắt, Xung và ô ms, kèm lý do. Lấy mức đầu tiên khớp:
+
+| Thứ tự | Điều kiện (lần đọc cuối) | Lý do hiện |
+|---|---|---|
+| 1 | `gpioOk === false` | GPIO không dùng được |
+| 2 | `enabled === false` | Kênh tắt trong cấu hình |
+| 3 | `forced === true` hoặc `owner === "force"` | Đang force |
+| 4 | `owner === "level_rule"` | Luật #`ownerId` giữ kênh (thiếu id: "Luật giữ kênh") |
+
+  - Xung cũng khoá ở mức 4 có chủ đích: spec L818 ghi `control.pulse` không đổi trong đợt `owned_by_rule` và không nói pulse có bị từ chối trên kênh luật theo mức không, mà luật theo mức giữ kênh đặt lại mức ngay sau mỗi lần ghi (L853 nêu giới hạn 1 s cho trường hợp sau `force_clear`). Khi câu hỏi spec 17 có trả lời, chỉ đổi một điều kiện.
+  - Khoá theo lần đọc cuối, kể cả khi trạng thái đã cũ: khoá sai chỉ chặn một lệnh, nút "Đọc trạng thái" luôn có để làm mới.
+  - `event_rule`, `trigger`: không khoá, chỉ ghi chú "Luật/trigger có thể đổi kênh sau lệnh tay".
+  - `owner` thiếu (firmware cũ) hoặc `unknown`: không khoá theo owner, thiết bị tự quyết; khoá theo `gpioOk`/`enabled`/`forced` vẫn áp khi thiết bị gửi các field đó.
+- Dịch lỗi: `gpio_unavailable`, `channel_disabled`, `channel_forced`, `owned_by_rule` (đuôi của `detail`, dạng `ESP_ERR_INVALID_STATE: owned_by_rule`; `stateRefusal`) hiện câu "…: thiết bị không đổi relay", id luật lấy từ `reply.data.rule_id`; mã gốc `DEVICE_REJECTED: …` vẫn hiện font mono. Lệnh ghi không bao giờ tự gửi lại.
+- Đọc lại: đường có sẵn (`readBackTwice`) cho một `get_status` khi lần đọc đầu thành công, nên khi thiết bị gửi `owner`, khoá hiện ra ngay sau lần từ chối đầu (không có `owner` thì không có khoá theo owner). Xung bị từ chối bởi 4 lỗi này không đọc lại lần hai sau khi hết xung, vì relay không đổi.
 
 ### Simulator
 
@@ -211,6 +227,18 @@ node tools/mqtt-broker/spec-device-simulator.js
 - `SIM_SILENT`: danh sách `type.action` bị bỏ qua. Dùng để kiểm timeout `DEVICE_RESPONSE_TIMEOUT` sau 30 s.
 - `SIM_HEARTBEAT_SECONDS` (mặc định 5): simulator gửi `<base>/status` định kỳ. Với `0`, không có heartbeat nào và server coi thiết bị là offline (heartbeat cũ hơn 15 s không còn tính là online).
 - Các biến khác: `SIM_SECONDS`, `SIM_CHANNELS` (mặc định 6), `SIM_PULSE_CHANNELS` (mặc định 6).
+- Field kênh (spec `c80797d`): mặc định `get_status` nay gửi `enabled`, `gpioOk`, `forced`, `owner` (`none`, hoặc `force` cho kênh force) và `owner_id` (`null`). Từ chối `set_output` mang `data { error, channel[, rule_id] }`, thứ tự `gpio_unavailable`, `channel_disabled`, `channel_forced`, `owned_by_rule` (spec không định thứ tự; đây là thứ tự khoá của panel). `control.pulse` từ chối `gpio_unavailable`, `channel_disabled`, `channel_forced` (cùng dạng và thứ tự với `set_output`) và không kiểm owner.
+  - `SIM_DO_LAYOUT=gateway`: bố cục theo HIL L1054, bỏ qua `SIM_CHANNELS`, `SIM_PULSE_CHANNELS`, `SIM_FORCED`.
+
+    | Kênh | Mode | Đặc điểm |
+    |---|---|---|
+    | DO1 | toggle | tự do, ghi được |
+    | DO2, DO3 | toggle | `gpioOk:false` |
+    | DO4, DO5 | toggle | force TẮT, `owner:"force"` |
+    | DO6 | toggle | `owner:"level_rule"`, `owner_id:1`, luật giữ mức BẬT (mức do simulator chọn, spec không nêu); sau boot luật đặt lại mức BẬT |
+
+  - `SIM_DO_NO_OWNER=1`: `get_status` không có `owner`, `owner_id` (firmware không gửi `owner`); các từ chối giữ nguyên.
+  - `SIM_DO_DISABLED=3,5`: các kênh đó `enabled:false`; `set_output` và `control.pulse` từ chối `channel_disabled`. Mỗi phần tử phải là số nguyên 1..`SIM_CHANNELS`, sai thì thoát mã 2; không dùng chung với `SIM_DO_LAYOUT=gateway` (bảng đó đã cố định từng kênh), cũng thoát mã 2.
 - Các biến cho `system.reboot` (`SIM_FORCED`, `SIM_BOOT_SECONDS`, `SIM_THROTTLE_S`, `SIM_REBOOT_NO_RETURN`, ...): xem [Khởi động lại an toàn](#khởi-động-lại-an-toàn).
 
 ### Kết quả kiểm chứng
@@ -240,6 +268,8 @@ Simulator (`hms_server_selftest/sim_001`):
 | Restart giữa lệnh | Chưa chạy live (dev dùng DB in-memory). Kiểm bằng `PhysicalOutputSafetyTests.Commands_a_previous_run_left_unfinished_become_outcome_unknown` và `PersistenceModelTests.Ef_command_audit_fails_what_a_previous_run_left_unfinished_and_keeps_device_outcomes` |
 
 **Spec gap (gateway thật):** `pulse` trên kênh toggle bị thiết bị trả `ESP_ERR_INVALID_ARG` với text `Channel is in toggle mode, use set_output`. Spec §6.4 nói kênh phải ở pulse mode nhưng không định nghĩa mã lỗi. Simulator trả cùng mã và text.
+
+**Spec gap (chủ sở hữu kênh DO, chưa gửi):** (17) `control.pulse` trên kênh có luật theo mức có bị `owned_by_rule` không (L831 chỉ nêu `set_output`, `set_all`, `set_config`; L818 ghi pulse không đổi trong đợt này). (18) `owner`/`owner_id` có từ firmware nào, 1.0.108 có gửi không. (19) Kiểu của `owner_id` (số hay chuỗi). Danh sách đầy đủ ở `plans/reports/brainstorm-261108-1700-mqtt-spec-coverage-and-requests.md` §3.D.
 
 ### Rủi ro còn lại
 
@@ -577,9 +607,10 @@ Mở đúng một lệnh class F, `system.reboot`, **chỉ cho master-admin**. S
 ### UI
 
 - Nút riêng trên trang thiết bị (`DeviceRebootPanel.vue`), chỉ hiện khi `allowed-commands` có `system.reboot`; khoá khi catalog chưa xác minh, link offline, thiếu `mqttDeviceId` hoặc đang chạy. Modal C2 không còn lệnh class F.
-- Hộp xác nhận nói đúng §6.4: kênh không force sẽ TẮT; kênh force TẮT giữ TẮT; kênh force BẬT có thể TẮT trong lúc khởi động rồi BẬT lại ở lần ghi line đầu tiên; luật DO `SET_HIGH`/`SET_LOW` có thể BẬT một relay. Nút xác nhận chỉ bật khi gõ đúng `REBOOT-<mqttDeviceId>`. Hộp xác nhận chỉ đóng khi bảng relay thật sự khác bảng đã hiển thị ("Trạng thái relay vừa đổi…"), hoặc khi danh sách không còn đáng tin (trạng thái cũ, hoặc không đọc được). Đọc trùng trạng thái, kể cả sự kiện trễ từ lần đọc preflight, thì giữ mở.
+- Hộp xác nhận nói đúng §6.4: kênh không force sẽ TẮT; kênh force TẮT giữ TẮT; kênh force BẬT có thể TẮT trong lúc khởi động rồi BẬT lại ở lần ghi line đầu tiên; luật DO `SET_HIGH`/`SET_LOW` có thể BẬT một relay. Kênh do luật theo mức giữ (`owner: "level_rule"`, đọc từ `owner`/`owner_id` của reply thô) có dòng riêng "DO6 do luật #1 giữ: sau khởi động về TẮT, rồi luật đặt lại mức (có thể BẬT)" và không nằm trong dòng "sẽ TẮT"; câu chung về luật vẫn hiện cả khi thiết bị có gửi `owner`, vì `owner` chỉ nói ai giữ kênh lúc đọc còn luật chưa giữ kênh nào vẫn có thể bắn ở lần đánh giá đầu sau boot (spec L883). Nút xác nhận chỉ bật khi gõ đúng `REBOOT-<mqttDeviceId>`. Hộp xác nhận chỉ đóng khi bảng relay thật sự khác bảng đã hiển thị ("Trạng thái relay vừa đổi…"), hoặc khi danh sách không còn đáng tin (trạng thái cũ, hoặc không đọc được). Đọc trùng trạng thái, kể cả sự kiện trễ từ lần đọc preflight, thì giữ mở.
 - Luồng: dry-run, rồi lệnh thật, rồi "Đang khởi động lại…", rồi theo dõi bản ghi server, rồi đọc lại `system.get_info`, `control.get_status`, `system.get_time`. **"Đã khởi động lại" chỉ khi uptime đã ký sau nhỏ hơn trước**; nếu không: "Thiết bị báo đã lên lại (chưa xác minh)". Không bao giờ gửi lại reboot.
 - Trạng thái lần chạy nằm ở trang thiết bị (`useDeviceReboot` tạo trong `DeviceDetailView`), nên chuyển tab không làm mất; đổi thiết bị thì huỷ.
+- Relay BẬT sau boot trên kênh `level_rule` hiện chip "DO6 BẬT (luật #1)" và ghi chú "DO6 BẬT sau khởi động do luật #1"; không tính là lệch hay lỗi.
 - Đọc lại bảng relay sau reboot không được: kết quả là `relay_unchecked`, hiện "Đã khởi động lại" (hoặc "chưa xác minh") kèm "Chưa kiểm được trạng thái relay".
 - Hỏi kết quả nhận 404: chỉ coi là "server đã khởi động lại" khi server đã nhận lệnh gửi hoặc đã trả một lần hỏi trước đó; nếu không thì `REBOOT_SEND_UNCONFIRMED` ("Không rõ lệnh có tới server không").
 - Đọc lại sau reboot: thử lại khi thiết bị báo `busy` (`ESP_ERR_INVALID_STATE: busy`), trong 30 s, theo `retry_after_ms`.
@@ -599,7 +630,11 @@ node tools/device-reboot-check.js --device <deviceId> --confirm-live --reboot [-
 - Mọi probe mong bị từ chối trước khi ký đều gửi `dryRun:true`; probe live không có `confirm` và payload `{}` (`--self-check` kiểm bảng này). Hai probe `CONFIRM_MISMATCH` và `COMMAND_PAYLOAD_INVALID` chỉ chạy với `--sim`. `--checks`, và `--reboot` trước khi gửi, đều chạy các probe.
 - Tool chỉ coi một lần từ chối là "chưa gửi" khi server chắc chắn chưa ký hoặc chưa publish (HTTP 4xx, `ContractUnavailable`, `MQTT_NOT_CONNECTED` và các mã tương tự, hoặc mã từ chối trước khi ký). `MQTT_PUBLISH_UNCONFIRMED`, `DEVICE_RESPONSE_TIMEOUT` và mọi kết quả khác vẫn được theo dõi trên dòng audit; tool không gửi lại.
 - `--preflight` PASS chỉ khi `clean_session === true`, đồng hồ thiết bị lệch ≤ 5 s, `config_trial.state === "none"`, `ota.get_status` không cho thấy image đang chờ. Shape `ota.get_status` chưa có trong spec: không đọc chắc được thì FAIL.
-- Simulator (`tools/mqtt-broker/spec-device-simulator.js`): `dry_run` trả `would_apply:true` trước mọi kiểm; `confirm_required`; throttle `UNAUTHORIZED`; reply rồi rớt kết nối như reset chip (last will `offline`), `SIM_BOOT_SECONDS`, uptime về 0, DO theo §6.4. Biến: `SIM_FORCED=2:on,4:off`, `SIM_BOOT_SECONDS`, `SIM_THROTTLE_S`, `SIM_THROTTLE_SURVIVES`, `SIM_DO_WARMUP_S`, `SIM_REBOOT_NO_RETURN`, `SIM_REBOOT_NO_REPLY`, `SIM_SILENT_REAL`.
+- Kiểm owner của `--preflight` (đọc `owner`/`owner_id` của `control.get_status`):
+  - Có kênh `level_rule`, `event_rule` hoặc `trigger`: dòng `FAIL no DO channel held by a rule or trigger …  held: DO6 level_rule #1; remove the rule on the device (HTTP /api/do-rule/remove) before a reboot test`. `--reboot` dừng ở đây, không gửi gì.
+  - Thiết bị không gửi `owner`: dòng `ASK` (xác nhận tay rằng không có luật DO hay trigger lái relay), không làm preflight FAIL, nhưng `--reboot` từ chối gửi (in lý do, không gửi gì, thoát mã khác 0) khi preflight có dòng `ASK`, trừ khi người vận hành truyền `--rules-confirmed` sau khi đã xác nhận tay. Chỉ `none` và `force` là tự do. Kênh có `owner` khác (`unknown`, chuỗi lạ, đổi hoa thường, không phải chuỗi, hoặc thiếu `owner` khi kênh khác có) là không rõ: cũng `ASK` kèm tên kênh, không FAIL.
+  - Luôn in `WARN`: `owner` chỉ nói ai giữ kênh lúc đọc; luật chưa giữ kênh nào vẫn có thể bắn `SET_HIGH`/`SET_LOW` ở lần đánh giá đầu sau boot (L883).
+- Simulator (`tools/mqtt-broker/spec-device-simulator.js`): `dry_run` trả `would_apply:true` trước mọi kiểm; `confirm_required`; throttle `UNAUTHORIZED`; reply rồi rớt kết nối như reset chip (last will `offline`), `SIM_BOOT_SECONDS`, uptime về 0, DO theo §6.4. Bố cục gateway và owner: `SIM_DO_LAYOUT=gateway`, `SIM_DO_NO_OWNER=1`, `SIM_DO_DISABLED` (xem [Simulator](#simulator) ở mục DO). Biến: `SIM_FORCED=2:on,4:off`, `SIM_BOOT_SECONDS`, `SIM_THROTTLE_S`, `SIM_THROTTLE_SURVIVES`, `SIM_DO_WARMUP_S`, `SIM_REBOOT_NO_RETURN`, `SIM_REBOOT_NO_REPLY`, `SIM_SILENT_REAL`.
 - Broker cho simulator: `tools/mqtt-broker/broker.js` (Aedes) chỉ nói MQTT 3.1.1, còn client MQTTnet 5 của server kết nối bằng MQTT 5.0 nên bị từ chối (`MQTT connect refused: 1`). Các lần kiểm này chạy Mosquitto loopback (`listener 8088 127.0.0.1`, anonymous) thay cho Aedes.
 
 ### Kết quả kiểm (simulator, 2026-11-10)
@@ -620,7 +655,7 @@ node tools/device-reboot-check.js --device <deviceId> --confirm-live --reboot [-
 
 ### Gateway thật: hoãn
 
-Hoãn theo Validation Session 1 (2026-11-10): không có người ở lab, và một session khác đang dùng bàn thử để chạy HIL. Việc tiếp theo, chỉ chạy khi có người ở lab, bàn thử rảnh và user nói "go" (gateway mất kết nối, DO1 về OFF). Điều kiện: `--preflight` PASS (kèm ghi lại phiên bản firmware từ `system.get_info`; "kênh force TẮT giữ TẮT" chỉ đúng với firmware có thay đổi 2026-11-08, spec L850: trước đó relay force TẮT có thể BẬT khoảng 0,14 s mỗi lần khởi động, nên hỏi team firmware phiên bản đó trước khi chạy); chỉ một HMS-SERVER nói chuyện với gateway và `hms-telemetry-bridge.js` đã tắt; user xác nhận không có luật DO `SET_HIGH`/`SET_LOW`; sniffer đã lược (chỉ `id`, `type.action`, `ttl_ms`, `dry_run`, có `confirm` hay không, xoá log sau khi đếm); quá T+180 s sau reply mà chưa lên lại thì người ở lab xử lý, không gửi thêm reboot; cuối phiên `--restore-do`.
+Hoãn theo Validation Session 1 (2026-11-10): không có người ở lab, và một session khác đang dùng bàn thử để chạy HIL. Việc tiếp theo, chỉ chạy khi có người ở lab, bàn thử rảnh và user nói "go" (gateway mất kết nối, DO1 về OFF). Điều kiện: `--preflight` PASS (kèm ghi lại phiên bản firmware từ `system.get_info`; "kênh force TẮT giữ TẮT" chỉ đúng với firmware có thay đổi 2026-11-08, spec L851: trước đó relay force TẮT có thể BẬT khoảng 0,14 s mỗi lần khởi động, nên hỏi team firmware phiên bản đó trước khi chạy); chỉ một HMS-SERVER nói chuyện với gateway và `hms-telemetry-bridge.js` đã tắt; user luôn xác nhận tay rằng thiết bị không có luật DO (`SET_HIGH`/`SET_LOW`, theo mức hay theo sự kiện) hay trigger, dù thiết bị có gửi `owner` hay không, vì `owner` chỉ cho biết ai giữ kênh lúc đọc và luật sự kiện chưa bắn vẫn bắn ở lần đánh giá đầu sau boot (spec L883, HEAD c80797d); kiểm `owner` của preflight là lớp chặn tự động thêm: FAIL nếu kênh do luật/trigger giữ, và `ASK` chặn `--reboot` tới khi có `--rules-confirmed` (`gateway_870c` có DO6 `level_rule`, HIL L1054, nên preflight sẽ FAIL tới khi luật được xoá qua HTTP của thiết bị, việc của người ở lab); sniffer đã lược (chỉ `id`, `type.action`, `ttl_ms`, `dry_run`, có `confirm` hay không, xoá log sau khi đếm); quá T+180 s sau reply mà chưa lên lại thì người ở lab xử lý, không gửi thêm reboot; cuối phiên `--restore-do`.
 
 ### Spec gap (đưa user chuyển cho team firmware, không tự gửi)
 

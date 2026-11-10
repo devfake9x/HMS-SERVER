@@ -122,7 +122,7 @@ sẽ đổi, chạy thử (dry-run) trước lệnh thật, và chỉ báo "Đã
 Chạy khi **cả ba** đúng: có người ở lab; bàn thử rảnh; user nói "go". Trước đó:
 - `--preflight` PASS: `clean_session` true, đồng hồ ±5 s, không có MQTT trial, không có image chờ. Shape `ota.get_status` chưa biết nên preflight có thể FAIL (spec gap).
 - Chỉ một HMS-SERVER nói chuyện với gateway; tắt `hms-telemetry-bridge.js`.
-- User xác nhận gateway không có luật DO `SET_HIGH`/`SET_LOW`; team firmware đã được báo.
+- User luôn xác nhận tay gateway không có luật DO (`SET_HIGH`/`SET_LOW`, theo mức hay sự kiện) hay trigger, dù thiết bị có gửi `owner` hay không (spec L883: luật chưa bắn vẫn bắn ở lần đánh giá đầu sau boot); preflight FAIL nếu kênh do luật/trigger giữ và `--reboot` dừng khi có dòng `ASK` tới khi có `--rules-confirmed` (plan `261110-1335-do-channel-ownership`); team firmware đã được báo.
 - Kiểm firmware có thay đổi force-OFF ngày 2026-11-08 (spec L850), theo cảnh báo của tool.
 - Sniffer đã lược trên `hms_toan_lab/gateway_870c/#`; xoá log sau khi đếm.
 - Kịch bản gateway 1-7 trong phase 3; T+180 s; không gửi lại.

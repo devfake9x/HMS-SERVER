@@ -167,8 +167,10 @@ Dưới đây là đặc tả chi tiết 100% của 94 actions trích xuất tr�
 |---|---|---|---|---|---|---|
 | `set_output` (**mở**) | B | `gpio.do_write` | — | 0 | `{"channel": 1, "value": true}` | Đóng/ngắt một relay. Firmware nhận cả 0/1, nhưng server chỉ nhận bool và chỉ kênh trong allowlist của thiết bị |
 | `pulse` (**mở**) | B | `gpio.do_write` | — | 0 | `{"channel": 1, "duration_ms": 500}` | Kích xung; kênh phải ở mode `pulse` (kênh `toggle` → `ESP_ERR_INVALID_ARG`). Server giới hạn `duration_ms` ≤ `Mqtt:MaxPulseMs` |
-| `get_status` | R | `gpio.do_view` | — | 0 | None | Mảng kênh `{ channel, state, mode, totalCommands?, pulseCount?, pulseActive? }`; số kênh theo thiết bị (gateway lab có 6) |
+| `get_status` | R | `gpio.do_view` | — | 0 | None | Mảng kênh `{ channel, state, mode, totalCommands?, pulseCount?, pulseActive?, enabled, gpioOk, forced, owner, owner_id }`; số kênh theo thiết bị (gateway lab có 6). `owner` là một trong `none`, `force`, `level_rule`, `event_rule`, `trigger`, `unknown`; `owner_id` là id luật khi `owner` là `level_rule`, còn lại `null` |
 | `set_all` | B | `gpio.do_write` | — | 0 | `{"values": [true, false, ...]}` | Vẫn đóng trên server (không atomic) |
+
+Spec HEAD `c80797d` (2026-11-10) thêm `owner`, `owner_id` và lỗi `owned_by_rule` (`enabled`, `gpioOk`, `forced` đã có từ trước); đó là shape reply, không phải row §11. Catalog vẫn ghim `83e93d77e`, hash không đổi; đồng bộ catalog vẫn chặn bởi số đếm §11.
 
 Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/architecture-mqtt-device-link.md`, mục DO relay control. Server chạy 5 lệnh ghi cấu hình thế nào (luật payload, lane ghi, đọc lại, job): xem mục [Cấu hình từ xa](./architecture-mqtt-device-link.md#cấu-hình-từ-xa--hệ-thống--adc).
 
