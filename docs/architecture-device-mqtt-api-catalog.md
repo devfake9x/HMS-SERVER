@@ -3,7 +3,7 @@
 > **Mã tài liệu**: `ARCH-MQTT-API-CATALOG-001`  
 > **Phiên bản**: 3.0.0 (Production Blueprint)  
 > **Trạng thái**: Đã phê duyệt qua Hội đồng Tranh biện 35 Chuyên gia (Arena Debate Consensus)  
-> **Phạm vi**: Toàn bộ 94 MQTT Actions của phần cứng RTU (`D:\WORKSPACE\PROJECT\HMS-IDF`) tích hợp lên Web UI (`HMS-SERVER`)  
+> **Phạm vi**: Toàn bộ 108 MQTT Actions (catalog ghim `c80797d`, 2026-11-10) của phần cứng RTU (`D:\WORKSPACE\PROJECT\HMS-IDF`) tích hợp lên Web UI (`HMS-SERVER`)  
 > **Nguyên tắc cốt lõi**: **READ-ONLY** trên firmware RTU, zero-drift, chuẩn hóa giao thức wire và dynamic schema form  
 
 ---
@@ -23,7 +23,7 @@ flowchart TD
     subgraph Backend["HMS-SERVER Backend (.NET 8)"]
         Ctrl["DeviceCommandsController.cs\n(RBAC & Anti-CSRF)"]
         Handler["SendDeviceCommandHandler.cs\n(Idempotency & Dedup Store)"]
-        Catalog["PinnedCommandCatalog.cs\n(94 Actions Manifest & SHA-256)"]
+        Catalog["PinnedCommandCatalog.cs\n(108 Actions Manifest & SHA-256)"]
         Adapter["HmsIdfProtocolAdapter.cs\n(Wire Framing & ts in Seconds)"]
         Transport["MqttDeviceCommandTransport.cs\n(MQTT Client Publisher)"]
         SigR["DeviceTelemetryHub.cs\n(SignalR Live Push)"]
@@ -132,8 +132,12 @@ flowchart TD
 
 ## 3. Bảng Danh Mục Toàn Diện 94 MQTT Actions (Full 94-Action Catalog)
 
+> Bảng dưới là 94 row lịch sử (catalog cũ `83e93d77e`); danh sách đúng là §11 của đặc tả @ `c80797d` (108 row).
+>
 > **Đã thay thế (2026-10-05):** bảng dưới được chép từ code firmware và có chỗ khác đặc tả. Nguồn có hiệu lực cho class, permission, TTL, dry run và confirm là §11 của đặc tả MQTT `HMS-IDF/engineering-docs/api/mqtt-api.md`; server không đọc code firmware (plan `261005-0556-device-permissions-what-where`, design contract Q14). Bảng giữ lại làm lịch sử.
 
+> **Catalog ghim `c80797d` (2026-11-10):** 108 row, 13 namespace, 53 quyền firmware. `status.tags` cần `tag.view` (trước là `sys.info_view`). 14 row mới đóng (`DENIED_UNTIL_ACTION_CONTRACT`, kể cả master-admin): `control.force_set`, `control.force_clear`, `control.get_config`, `control.set_config`, `modbus.get_rtu_devices`, `modbus.get_rtu_diagnostics`, `modbus.get_rtu_live`, `modbus.get_rtu_tags`, `sms.get`, `sms.send`, `sms.send_status`, `sms.delete`, `tags.list`, `tags.get`. Vẫn 34 action mở.
+>
 > **Trạng thái mở (2026-11-06):** các bảng bên dưới giữ nguyên cấu trúc; trạng thái được ghi ở đây và đánh dấu **(mở)** / **(đóng)** trong từng bảng. Tổng **34 action mở** (cập nhật 2026-11-10): 26 đọc, 2 relay, 5 ghi cấu hình, 1 class F (`system.reboot`, chỉ master-admin).
 >
 > - **Đọc (26):** 11 action đọc gốc và 15 action đọc giám sát, gồm `system.get_time`, `system.get_hostname`, `system.get_device_id`, `ota.get_status`, `network.get_priority`, `network.get_ethernet`, `network.get_modem`, `network.wifi_sta_status`, `network.wifi_ap_status` (`network`), `battery.get_status`, `battery.get_alerts` (`battery`) và `adc.get_config`, `adc.get_channels`, `adc.get_status`, `adc.get_values` (`adc`). Các read còn lại (ví dụ `network.wifi_ap_clients`, `network.wifi_scan_results`, `sms.*`, `config.get`, `ota.remote_config_get`, `broker.*`, Modbus, tags) vẫn đóng.
@@ -170,7 +174,7 @@ Dưới đây là đặc tả chi tiết 100% của 94 actions trích xuất tr�
 | `get_status` | R | `gpio.do_view` | — | 0 | None | Mảng kênh `{ channel, state, mode, totalCommands?, pulseCount?, pulseActive?, enabled, gpioOk, forced, owner, owner_id }`; số kênh theo thiết bị (gateway lab có 6). `owner` là một trong `none`, `force`, `level_rule`, `event_rule`, `trigger`, `unknown`; `owner_id` là id luật khi `owner` là `level_rule`, còn lại `null` |
 | `set_all` | B | `gpio.do_write` | — | 0 | `{"values": [true, false, ...]}` | Vẫn đóng trên server (không atomic) |
 
-Spec HEAD `c80797d` (2026-11-10) thêm `owner`, `owner_id` và lỗi `owned_by_rule` (`enabled`, `gpioOk`, `forced` đã có từ trước); đó là shape reply, không phải row §11. Catalog vẫn ghim `83e93d77e`, hash không đổi; đồng bộ catalog vẫn chặn bởi số đếm §11.
+Spec `c80797d` (2026-11-10) thêm `owner`, `owner_id` và lỗi `owned_by_rule` (`enabled`, `gpioOk`, `forced` đã có từ trước); đó là shape reply, không phải row §11. Catalog ghim `c80797d` từ 2026-11-10; `control.force_set`, `control.force_clear`, `control.get_config`, `control.set_config` có trong catalog nhưng đóng.
 
 Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/architecture-mqtt-device-link.md`, mục DO relay control. Server chạy 5 lệnh ghi cấu hình thế nào (luật payload, lane ghi, đọc lại, job): xem mục [Cấu hình từ xa](./architecture-mqtt-device-link.md#cấu-hình-từ-xa--hệ-thống--adc).
 
@@ -287,9 +291,17 @@ Server chạy DO thế nào (allowlist, TTL 10 s, đọc lại): xem `docs/archi
 1. **Chuẩn hóa Timestamp tại Protocol Adapter (`HmsIdfProtocolAdapter.cs`)** — *tạm dừng (cần MQTT)*:
    - Chuyển đổi `plan.Request.RequestedAt.ToUnixTimeMilliseconds()` sang **`plan.Request.RequestedAt.ToUnixTimeSeconds()`** để hoàn toàn tương thích với firmware ESP32.
 2. **Quyền theo action từ đặc tả MQTT (catalog v2)** — *xong ở phase 1 của `261005-0556`*:
-   - `scripts/generate-command-catalog.mjs` (Node, chỉ dùng module có sẵn) đọc §11 của `HMS-IDF/engineering-docs/api/mqtt-api.md` @ `83e93d77e` qua `git show` rồi sinh `src/Hms.Server.Infrastructure/Commands/command-catalog.json`: 94 action, mỗi action 9 trường, 6 config domain, kèm hash SHA-256. `--check` không ghi file và thoát mã 1 khi file này lệch với §11. Server chỉ dùng đặc tả, không đọc code firmware.
+   - `scripts/generate-command-catalog.mjs` (Node, chỉ dùng module có sẵn) đọc §11 của `HMS-IDF/engineering-docs/api/mqtt-api.md` @ `c80797d9d5b817174cd2cfbcb6ee62effe503ff2` (blob `84ff812f…`) qua `git --no-replace-objects`, env không có biến `GIT_*`, rồi sinh `src/Hms.Server.Infrastructure/Commands/command-catalog.json`: 108 action, mỗi action 9 trường, 6 config domain, kèm hash SHA-256 (`catalog_hash` `658e191a…`). `--check` không ghi file và thoát mã 1 khi file này lệch với §11. Server chỉ dùng đặc tả, không đọc code firmware.
+   - Lệnh ghim lại (commit ghim chỉ nằm trên nhánh feature của HMS-IDF; follow-up xin tag):
+     ```
+     node scripts/generate-command-catalog.mjs --idf <HMS-IDF> --accept-stated-count 98/12
+     node scripts/generate-command-catalog.mjs --idf <HMS-IDF> --check --accept-stated-count 98/12
+     node scripts/verify-command-catalog-repin.mjs --idf <HMS-IDF> --rev c80797d9d5b817174cd2cfbcb6ee62effe503ff2 --base 83e93d77e4a433efce665d669b567b3acc51b735 --expect-pair-set 4286c13cd55ef43ca344ba98d07f7e99b98f111872d408d2afb97ec6017c2b07
+     ```
+   - Vì sao có cờ: câu đếm đầu §11 (L1351, câu lịch sử) ghi "98 cặp, 12 namespace", câu sau (L1352) ghi "100 cặp, 13 namespace", bảng ghi 108 row và 13 namespace. Cờ `--accept-stated-count 98/12` chỉ bỏ qua đúng hai số prose đó; nó không kiểm bảng. Bảng được kiểm bằng script độc lập (không import bộ sinh), bằng test 34 action mở và bằng hash ghim. Khi L1351 đổi (sửa hoặc xoá), bộ sinh đòi sửa hoặc bỏ cờ.
    - `PinnedCommandCatalog` kiểm tra metadata, từng dòng và hash ngay khi khởi tạo; sai thì dừng với `COMMAND_CATALOG_METADATA_INVALID`, `COMMAND_CATALOG_ROW_INVALID` hoặc `COMMAND_CATALOG_HASH_MISMATCH`. Action nào mở (`Enabled`) và action nào còn `DeniedUntilActionContract` xem [architecture-mqtt-device-link.md](./architecture-mqtt-device-link.md).
-   - Từ vựng quyền `DevicePermissionVocabulary.All` có 50 mã: 46 mã từ §11 của đặc tả và 4 mã server (`device.view`, `device.edit_basics`, `device.edit_product`, `device.record_measurements`).
+   - Từ vựng quyền `DevicePermissionVocabulary.All` có 57 mã: 53 mã từ §11 của đặc tả và 4 mã server (`device.view`, `device.edit_basics`, `device.edit_product`, `device.record_measurements`). So với 46 mã của catalog `83e93d77e`, có 7 mã mới: `tag.view`, `mb_rtu.slave_view`, `mb_rtu.tag_view`, `sms.send`, `sms.delete`, `gpio.do_force`, `gpio.do_config`.
+   - `DevicePermissionCodes.HighRisk` có 13 mã (thêm `gpio.do_force`, `gpio.do_config`, `sms.send`, `sms.delete`). High-risk chỉ kiểm lúc ghi grant (tạo, sửa, xoá role; gán, gỡ membership), không kiểm lúc gửi lệnh và không xét lại grant đã có. `/me/command-catalog` báo `highRisk: true` cho 24 action. Người đang giữ mã high-risk: [báo cáo role](../plans/261110-1747-mqtt-catalog-sync/reports/affected-roles.md).
 3. **Kích hoạt Toàn Bộ 94 Command Definitions** — *tạm dừng (cần MQTT; phase 01 của `261001-0030`)*:
    - Thay đổi `CommandAvailability.DeniedUntilActionContract` thành `CommandAvailability.Enabled` cho các actions đã hoàn thiện schema.
 4. **Hiện Thực `IDeviceCommandTransport` qua MQTT Bridge** — *tạm dừng (phase 02 của `261001-0030`)*:

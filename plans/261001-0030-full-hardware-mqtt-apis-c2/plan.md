@@ -13,6 +13,10 @@ blockedBy: [261005-0556-device-permissions-what-where]
 # 2026-11-10: related to the control.* replacement above: DO channel fields of control.get_status (enabled, gpioOk, forced,
 # owner, owner_id; spec c80797d), per-channel locks in the DO panel, rule-held channels in the reboot dialog and preflight
 # planned in 261110-1335-do-channel-ownership (pending); set_all, force_set/force_clear, get_config/set_config stay out.
+# 2026-11-10: related to phase-01 (catalog): catalog re-pin to spec c80797d (108 rows; status.tags needs tag.view; 7 new
+# firmware permissions; gpio.do_force, gpio.do_config, sms.send, sms.delete high-risk; generator --accept-stated-count 98/12
+# for the stale §11 count sentence, plus an independent §11 check script) planned in 261110-1747-mqtt-catalog-sync (completed);
+# the 14 new rows (tags, paged Modbus, sms, DO force/config) stay closed.
 supersededParts: [phase-02-live-mqtt-transport, phase-03-control-telemetry-subsystems#control, phase-01-catalog-activation#reads, phase-01-catalog-activation#system-adc-writes, phase-03-control-telemetry-subsystems#adc-toggle, phase-03-control-telemetry-subsystems#reboot, phase-05-frontend-c2-console#class-f-confirm, phase-06-e2e-hil-verification#reboot]
 version: "1.0.0"
 author: "Antigravity Autonomous Pair-Programmer"

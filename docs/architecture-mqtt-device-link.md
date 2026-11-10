@@ -64,8 +64,30 @@ MQTT chỉ nằm trong Infrastructure, theo ADR modular monolith 260927. Service
   - `control.set_output` và `control.pulse` mở có điều kiện (xem [DO relay control](#do-relay-control)).
   - 5 action ghi cấu hình: `system.set_hostname`, `system.set_timezone`, `system.sync_ntp`, `adc.set_channel`, `adc.toggle_channel` (xem [Cấu hình từ xa](#cấu-hình-từ-xa--hệ-thống--adc)).
   - 1 action class F: `system.reboot`, chỉ master-admin (xem [Khởi động lại an toàn](#khởi-động-lại-an-toàn)).
-  - Mọi action khác ngoài các danh sách trên vẫn ở `DENIED_UNTIL_ACTION_CONTRACT`, gồm `system.set_time` và `system.set_ntp_servers` (đồng hồ thiết bị), `system.factory_reset`, `config.set`, `control.set_all` (không atomic), mọi `network.*`, `mqtt.*`, `broker.*`, `ota.*` chưa mở, Modbus, tags, `sms.*`, `config.get`, `ota.remote_config_get`.
+  - Mọi action khác ngoài các danh sách trên vẫn ở `DENIED_UNTIL_ACTION_CONTRACT`, gồm 14 row mới của catalog `c80797d` (`control.force_set`, `control.force_clear`, `control.get_config`, `control.set_config`, `modbus.get_rtu_*` (4), `sms.get`, `sms.send`, `sms.send_status`, `sms.delete`, `tags.list`, `tags.get`), `system.set_time` và `system.set_ntp_servers` (đồng hồ thiết bị), `system.factory_reset`, `config.set`, `control.set_all` (không atomic), mọi `network.*`, `mqtt.*`, `broker.*`, `ota.*` chưa mở, Modbus, tags, `sms.*`, `config.get`, `ota.remote_config_get`.
 - **Inbound**: không bao giờ đổi lifecycle thiết bị. Broker lab cho phép anonymous, nên identity trên broker không phải bằng chứng.
+
+## Catalog ghim
+
+Catalog nhúng ghim `c80797d` (2026-11-10): 108 row, 13 namespace, 53 quyền firmware. Lệnh ghim lại, cờ `--accept-stated-count 98/12` và lý do: [architecture-device-mqtt-api-catalog.md](./architecture-device-mqtt-api-catalog.md) mục 4.1.
+
+- **`status.tags`** cần `tag.view` (trước là `sys.info_view`). `sys.info_view` mở đúng 8 action: `system.get_info`, `system.get_heap`, `system.ping`, `system.get_device_id`, `system.get_operations`, `ota.get_status`, `status.dump`, `status.services`.
+- **Reply `status.tags` ở `c80797d` là dạng trang** (spec §6 L612, L927-929). Gateway 1.0.108 vẫn trả mảng; server và UI chưa phân trang. Việc này là follow-up (c) của plan `261110-1747-mqtt-catalog-sync`.
+- **`highRisk`** của `GET /api/v1/me/command-catalog` là `true` cho 24 action, kể cả `sms.send_status` (lệnh đọc, quyền `sms.send`).
+  - High-risk chỉ kiểm lúc ghi grant. Grant đã có không bị xét lại. SQL tìm người đang giữ mã và thủ tục rollback: [báo cáo role](../plans/261110-1747-mqtt-catalog-sync/reports/affected-roles.md).
+- **Device-action grant** (`POST /api/v1/permissions/device-actions`, `PUT /api/v1/devices/{id}/permissions`) nhận mã bất kỳ nhưng không mở lệnh nào (`DeviceAccessResolver.cs:23-35`; integration test khoá điều này).
+- **Trước khi mở row đóng**, server phải làm các việc sau (catalog không mang TTL trần, chỉ-primary hay posture):
+  - **R13** (SMS, spec L417, L719): mọi `sms.*` chỉ qua broker primary; TTL bảng là trần; `sms.list` cần posture signed.
+  - **R15** (force DO, spec L419): chỉ primary, signed, đồng hồ đã đồng bộ, `ttl_ms` ≤ 60000; force giữ qua reboot.
+  - **R16** (`control.set_config`, spec L420): như R15; quyền `gpio.do_config`.
+  - **Tách hành vi class B:** server coi mọi row class B là relay. Audit giữ payload (số điện thoại, nội dung SMS; `sms.delete` class D cũng giữ), trạng thái DO bị đánh stale, lane ghi bị bỏ qua, TTL bị cap 10 s; allowlist B duy nhất là `PhysicalOutputActions`; `OutputCommandPolicy` viết theo payload relay. Phải tách trước khi mở `sms.send`, `control.force_*`, `control.set_config`.
+- **Cut-over (deploy catalog mới):**
+  1. Catalog là embedded resource: deploy = build mới và khởi động lại API.
+  2. Khởi động lại xoá reply đã lưu, trạng thái DO, lane, theo dõi reboot, và đánh `OUTCOME_UNKNOWN_AFTER_RESTART` cho lệnh chưa xong (`Program.cs:157-164`).
+  3. Chỉ deploy khi không có lệnh ghi DO, xung hay reboot đang chạy.
+  4. Tab cũ nhận `CATALOG_STALE` ở lệnh kế tiếp và phải tải lại. Lệnh ghi có outcome không rõ: đọc trạng thái thiết bị (`control.get_status`) trước khi thử lại, không gửi lại mù.
+  5. Reply đọc trước đó không còn sau khởi động lại: đọc lại.
+- **Reply đã lưu mất khi khởi động lại** với mọi người và mọi lệnh (store in-memory, `DependencyInjection.cs:42`), không phải hiệu ứng của quyền.
 
 ## API
 
@@ -120,7 +142,7 @@ SignalR có thêm các event `connectivity`, `capabilities`, `device_event`, `co
     | `mqtt.get_status`, `mqtt.get_config` | password được che |
     | `status.services` | — |
     | `status.dump` | 2.6 KB |
-    | `status.tags` | 6.7 KB |
+    | `status.tags` | 6.7 KB (quyền `tag.view` từ catalog `c80797d`; lúc kiểm live là `sys.info_view`, reply dạng mảng) |
     | `network.get_all_status` | — |
     | `control.get_status` | 6 kênh DO |
     | `system.get_operations` | — |
@@ -157,7 +179,7 @@ Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan:
 - Chỉ được ghi từ reply `control.get_status` đã xác minh chữ ký (`DeviceReplyProjection`). Heartbeat, device event và `POST /telemetry` không ghi được.
 - Store là in-memory (`IDeviceOutputStateStore`). Sau restart chưa có state, API trả 404 `OUTPUTS_NOT_READ`, UI phải đọc lại.
 - `GET /api/v1/devices/{id}/outputs` (`DeviceLinkController.Outputs`) cần `gpio.do_view` trên thiết bị, thiếu quyền → 403 `DEVICE_PERMISSION_REQUIRED`. Trả `channels[{channel, state, mode, pulseActive, enabled, gpioOk, forced, owner, ownerId}]`, `readAt`, `stale`, `staleReason`.
-- Năm field kênh `enabled`, `gpioOk`, `forced`, `owner`, `ownerId` (thô `owner_id`) lấy từ reply `control.get_status` (spec `c80797d` L797, L839) và luôn có mặt trong JSON: `enabled`, `gpioOk`, `forced`, `ownerId` là `null` khi thiết bị không gửi hoặc gửi sai kiểu, server không suy diễn (`forced:true` không sinh `owner:"force"`). `owner` là `null` khi thiết bị không gửi (hoặc gửi `null`); một giá trị khác 6 giá trị `none|force|level_rule|event_rule|trigger|unknown` (chuỗi lạ, đổi hoa thường, số, object) thành `"unknown"`; `owner_id` số hay chuỗi đều thành chuỗi `ownerId`. Chỉ thêm field: shape ngoài và catalog không đổi (catalog vẫn ghim `83e93d77e`).
+- Năm field kênh `enabled`, `gpioOk`, `forced`, `owner`, `ownerId` (thô `owner_id`) lấy từ reply `control.get_status` (spec `c80797d` L797, L839) và luôn có mặt trong JSON: `enabled`, `gpioOk`, `forced`, `ownerId` là `null` khi thiết bị không gửi hoặc gửi sai kiểu, server không suy diễn (`forced:true` không sinh `owner:"force"`). `owner` là `null` khi thiết bị không gửi (hoặc gửi `null`); một giá trị khác 6 giá trị `none|force|level_rule|event_rule|trigger|unknown` (chuỗi lạ, đổi hoa thường, số, object) thành `"unknown"`; `owner_id` số hay chuỗi đều thành chuỗi `ownerId`. Chỉ thêm field: shape ngoài; thay đổi này không đụng catalog.
 - Event `outputs` không có dữ liệu relay. Người xem phải gọi lại endpoint trên.
 - Telemetry: `digital_outputs`/`digitalOutputs` bị gỡ khỏi heartbeat `status` và khỏi telemetry lưu (`TelemetryRelayStates`). **Contract change:** `GET /api/v1/devices/{id}/telemetry` không còn trả `digital_outputs`.
 
@@ -284,7 +306,7 @@ Simulator (`hms_server_selftest/sim_001`):
 
 Trạng thái: **đã triển khai và kiểm chứng live** (2026-11-06). Plan: `plans/261106-1040-monitoring-read-actions/`. Cả 15 lệnh đều `Executed` trên gateway thật.
 
-Mở trước chiến dịch spec theo quyết định owner: đây là lệnh chỉ đọc, và reply của từng lệnh được đối chiếu với §6 trên gateway thật. Server vẫn ghim catalog `83e93d77e`. Modbus và tags vẫn đóng cho tới khi HMS-IDF commit firmware và sửa số đếm §11 (đặc tả ghi 98 cặp, bảng có 104; generator từ chối bản `18a63e8ed`).
+Mở trước chiến dịch spec theo quyết định owner: đây là lệnh chỉ đọc, và reply của từng lệnh được đối chiếu với §6 trên gateway thật. Thay đổi này không đụng catalog; ghim hiện tại là `c80797d` (xem [Catalog ghim](#catalog-ghim)). Hiện tại: Modbus theo trang, tags, SMS, force/config DO có trong catalog nhưng đóng.
 
 ### Action mở và quyền firmware
 

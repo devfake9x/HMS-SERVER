@@ -13,7 +13,7 @@
 | **Milestone 1** | **Core Control-Plane & Management APIs**: Quản lý Thiết bị, Tổ chức, Phân quyền 3 lớp, License, C2 Command catalog. | **HOÀN THÀNH** | `plans/260924-2044-hms-server-management/` |
 | **Milestone 2** | **Security Hardening & Zero-Drift**: Bảo vệ CSRF/Antiforgery, Session Fence, Catalog Hash verification, SignalR Epochs. | **HOÀN THÀNH** | `docs/security-audit-report.md` |
 | **Milestone 3** | **Frontend Datacake Parity & FSD Synchronization**: Đồng bộ 100% giao diện theo chuẩn `concrete-stress-monitoring` (FSD, Zinc Dark, Rail Sidebar). | **HOÀN THÀNH** | `plans/260930-1915-hms-frontend-ui-parity/` |
-| **Milestone 4** | **Full Hardware MQTT APIs Integration & Dynamic C2 Console**: Tích hợp toàn diện 94 MQTT Actions của ESP32 RTU (HMS-IDF) lên Web qua Dynamic Schema Form. | **ĐANG TRIỂN KHAI** (xem mục 5) | `docs/architecture-device-mqtt-api-catalog.md` |
+| **Milestone 4** | **Full Hardware MQTT APIs Integration & Dynamic C2 Console**: Tích hợp toàn diện MQTT Actions của ESP32 RTU (HMS-IDF) lên Web qua Dynamic Schema Form; số row theo catalog ghim (xem mục 5). | **ĐANG TRIỂN KHAI** (xem mục 5) | `docs/architecture-device-mqtt-api-catalog.md` |
 
 ---
 
@@ -111,7 +111,8 @@ Milestone 4 đang triển khai theo từng nhóm lệnh. Mỗi nhóm có plan ri
 | Cấu hình Hệ thống & ADC (5 lệnh ghi) | Đã triển khai; 5/5 `Executed` live, đã đặt lại giá trị gốc | `plans/261106-2033-remote-config-system-adc/` |
 | Khởi động lại an toàn (`system.reboot`, class F, chỉ master-admin) | Đã triển khai (server, UI, simulator); kiểm trên simulator. **Gateway thật hoãn**: không có người ở lab, bàn thử đang chạy HIL; chạy khi có người ở lab, bàn thử rảnh và user nói "go". ACL broker bắt buộc trước production | `plans/261109-2250-safe-reboot/` |
 | Panel DO nói đúng kênh ghi được (`enabled`, `gpioOk`, `forced`, `owner`; spec `c80797d`) | Đã triển khai (server, UI, simulator, preflight); kiểm trên simulator bố cục giống gateway. Gateway thật: chưa biết firmware 1.0.108 có gửi `owner`; cần một lần đọc `control.get_status` khi bàn thử rảnh | `plans/261110-1335-do-channel-ownership/` |
-| Còn đóng | Modbus, tags, lệnh ghi mạng/Wi-Fi/MQTT, `system.factory_reset`, `ota.*`, `set_time`, `set_ntp_servers`; chờ team firmware | `docs/architecture-device-mqtt-api-catalog.md` |
+| Đồng bộ catalog spec `c80797d` (108 row, 13 namespace; `status.tags` cần `tag.view`; 4 mã high-risk mới; 14 row mới đóng) | Đã triển khai (server, test, không đổi UI); E2E tab cũ theo plan | `plans/261110-1747-mqtt-catalog-sync/` |
+| Còn đóng | Modbus, tags (`tags.list`/`tags.get`), SMS, force DO (`control.force_set`/`force_clear`), `control.get_config`/`set_config`, lệnh ghi mạng/Wi-Fi/MQTT, `system.factory_reset`, `ota.*`, `set_time`, `set_ntp_servers`; chờ team firmware | `docs/architecture-device-mqtt-api-catalog.md` |
 
-- Tổng 34 action đang mở trong catalog ghim: 26 đọc, 2 relay, 5 ghi cấu hình, 1 class F (`system.reboot`).
+- Tổng 34 action đang mở trong catalog ghim `c80797d` (108 row): 26 đọc, 2 relay, 5 ghi cấu hình, 1 class F (`system.reboot`).
 - Việc chờ: team firmware trả lời các spec gap của nhóm cấu hình, liệt kê trong `docs/architecture-mqtt-device-link.md`, mục "Cấu hình từ xa".

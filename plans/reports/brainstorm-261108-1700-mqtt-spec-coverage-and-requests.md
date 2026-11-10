@@ -79,12 +79,14 @@ Chưa mở theo namespace:
    - Câu đầu ghi "98 cặp, 12 namespace", và generator đọc câu này. Câu sau ghi "100 cặp, 13 namespace" (kiểm lại 22/10).
    - Bảng thực tế có 108 row, nên generator từ chối spec.
    - Cần một câu đếm duy nhất, đúng với bảng.
+   - Server ghim `c80797d` bằng `--accept-stated-count 98/12` (2026-11-10): cờ ghim đúng câu L1351. Khi câu đó đổi thì bỏ cờ.
 9. §11 thiếu row `system.get_logs_metadata`, dù addendum 2026-11-03 nói đã admit và `SLICE_PASS`. Cần thêm row (class, quyền, TTL).
 10. Bảng snapshot "verified 2026-10-28" đã cũ so với các addendum (`set_output`, `get_logs_metadata`, quyền `status.tags`). Cần một bảng trạng thái hiện hành.
 11. Map firmware version ↔ manifest:
     - Các row Modbus theo trang và phiên thử `set_config` ghi "working tree, chưa vào HEAD". Firmware 1.0.108 có những row nào?
     - `B/capabilities` có liệt kê đúng các row mà image đang chạy chấp nhận không?
 12. Field ngoài spec: `system.get_time` trả thêm `ntp_servers`, `ntp_mode`; `ota.get_status` lồng thêm một cấp.
+20. Chưa gửi. §11 L1359 ghi luật `sms.*`/`mqtt.set_config` là "(R14)"; luật SMS là R13 (L417), R14 là phiên thử `mqtt.set_config` (L418). Sửa nhãn.
 
 ### C. Bảo mật và hạ tầng
 
