@@ -332,7 +332,7 @@ public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommand
         {
             // A write waiting for its reply holds the lane however old it is: no reply does not
             // mean it did not run (spec R4). The sweep releases it at the server deadline.
-            if (_pending.Values.Any(x => x.Plan.Request.DeviceId == deviceId && CommandLanes.IsWrite(x.Plan.Definition.Class)))
+            if (_pending.Values.Any(x => x.Plan.Request.DeviceId == deviceId && CommandLanes.IsWrite(x.Plan.Definition)))
                 return DeviceLaneCodes.WriteBusy;
             if (_writeHolds.TryGetValue(deviceId, out var heldUntil) && heldUntil > now)
                 return DeviceLaneCodes.WriteBusy;
@@ -379,7 +379,7 @@ public sealed class InMemoryPendingDeviceCommandRegistry : IPendingDeviceCommand
                 expired.Add(removed);
                 // Unanswered by the deadline, a write may still leave the device queue until it
                 // expires there: keep the lane closed until then.
-                if (CommandLanes.IsWrite(removed.Plan.Definition.Class))
+                if (CommandLanes.IsWrite(removed.Plan.Definition))
                     Hold(removed.Plan.Request.DeviceId, removed.Plan.ExpiresAt + ReadSlotGrace);
             }
         }

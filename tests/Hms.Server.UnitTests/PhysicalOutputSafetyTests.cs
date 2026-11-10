@@ -20,10 +20,8 @@ namespace Hms.Server.UnitTests;
 /// duplicated output command is pinned here.</summary>
 public sealed class PhysicalOutputSafetyTests
 {
-    private static readonly CommandDefinition SetOutput = new(
-        "control", "set_output", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical);
-    private static readonly CommandDefinition Pulse = new(
-        "control", "pulse", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical);
+    private static readonly CommandDefinition SetOutput = new PinnedCommandCatalog().Find("control", "set_output")!;
+    private static readonly CommandDefinition Pulse = new PinnedCommandCatalog().Find("control", "pulse")!;
     private static readonly CommandDefinition SetAll = new(
         "control", "set_all", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical);
     private static readonly IReadOnlyList<int> OnlyDo1 = [1];

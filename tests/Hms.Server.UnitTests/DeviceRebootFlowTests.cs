@@ -28,8 +28,7 @@ public sealed class DeviceRebootFlowTests
         true, false, 60_000, CommandClass.Flash, ConfirmTemplate: "REBOOT-<DEVID>", DryRunSupported: true);
     private static readonly CommandDefinition SetHostname = new(
         "system", "set_hostname", "sys.hostname_edit", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Write);
-    private static readonly CommandDefinition SetOutput = new(
-        "control", "set_output", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical);
+    private static readonly CommandDefinition SetOutput = new PinnedCommandCatalog().Find("control", "set_output")!;
 
     private const string Executed = """{"success":true,"data":{"rebooting":true}}""";
 

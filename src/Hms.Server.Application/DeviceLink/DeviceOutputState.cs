@@ -125,7 +125,7 @@ public sealed class DeviceReplyProjection(
             return;
         }
 
-        if (plan.Definition.Class != CommandClass.Physical)
+        if (!plan.Definition.AffectsOutputs)
             return;
 
         // Executed: the outputs changed and have not been read back yet. Only a refusal before the

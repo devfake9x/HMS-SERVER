@@ -5,6 +5,7 @@ using Hms.Server.Domain.Authorization;
 using Hms.Server.Domain.Commands;
 using Hms.Server.Domain.Devices;
 using Hms.Server.Infrastructure;
+using Hms.Server.Infrastructure.Commands;
 using Hms.Server.Infrastructure.Mqtt;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -16,8 +17,7 @@ namespace Hms.Server.IntegrationTests;
 /// registration shows that none of them was left with its own tracker or none.</summary>
 public sealed class DeviceLinkWiringTests
 {
-    private static readonly CommandDefinition Reboot = new("system", "reboot", "sys.reboot", CommandAvailability.Enabled,
-        true, false, 60_000, CommandClass.Flash, ConfirmTemplate: "REBOOT-<DEVID>", DryRunSupported: true);
+    private static readonly CommandDefinition Reboot = new PinnedCommandCatalog().Find("system", "reboot")!;
 
     private static ServiceProvider Build(IMqttCommandPublisher? publisher = null)
     {

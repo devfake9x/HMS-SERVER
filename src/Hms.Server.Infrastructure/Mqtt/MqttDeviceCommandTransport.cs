@@ -78,7 +78,7 @@ public sealed class MqttDeviceCommandTransport(
                 return new(CommandExecutionStatus.ContractUnavailable, ReadBusy, correlationId,
                     "The device already has the maximum number of reads waiting for a reply; retry shortly.");
         }
-        else if (CommandLanes.IsWrite(plan.Definition.Class))
+        else if (CommandLanes.IsWrite(plan.Definition))
         {
             // One write at a time per device, never through Register (which skips the lane gate).
             // A reboot also passes the reboot gate, inside the same atomic step: it holds the device

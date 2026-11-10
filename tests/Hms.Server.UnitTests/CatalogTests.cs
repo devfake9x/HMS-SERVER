@@ -224,6 +224,109 @@ public sealed class CatalogTests
         Assert.Equal(4, rows.Count(x => x.Dangerous));
     }
 
+    // What the server does with a command is declared per action, not read off its class: class B
+    // holds relay outputs and sms.send alike. A new or newly opened B, D or F row fails here until
+    // its behaviour is written down.
+    [Fact]
+    public void Every_physical_destructive_and_flash_row_declares_its_behaviour()
+    {
+        var expected = new Dictionary<string, (bool KeepsAuditPayload, bool AffectsOutputs, bool UsesOutputLane)>
+        {
+            ["control.set_output"] = (true, true, true),
+            ["control.pulse"] = (true, true, true),
+            ["control.set_all"] = (false, true, false),
+            ["control.force_set"] = (false, true, false),
+            ["control.force_clear"] = (false, true, false),
+            ["control.set_config"] = (false, true, false),
+            ["sms.send"] = (false, false, false),
+            ["sms.delete"] = (false, false, false),
+            ["broker.delete_pipeline"] = (false, false, false),
+            ["broker.delete_signal"] = (false, false, false),
+            ["network.wifi_known_remove"] = (false, false, false),
+            ["system.reboot"] = (true, false, false),
+            ["system.factory_reset"] = (false, false, false),
+            ["ota.apply"] = (false, false, false),
+            ["ota.remote_start"] = (false, false, false)
+        };
+
+        var actual = new PinnedCommandCatalog().List()
+            .Where(x => x.Class is CommandClass.Physical or CommandClass.Destructive or CommandClass.Flash)
+            .ToDictionary(x => $"{x.Type}.{x.Action}", x => (x.KeepsAuditPayload, x.AffectsOutputs, x.UsesOutputLane));
+
+        Assert.Equal(expected.Keys.Order(StringComparer.Ordinal), actual.Keys.Order(StringComparer.Ordinal));
+        Assert.All(expected, x => Assert.True(x.Value == actual[x.Key], $"{x.Key}: expected {x.Value}, got {actual[x.Key]}"));
+    }
+
+    [Fact]
+    public void Opened_config_writes_keep_their_audit_payload_and_use_the_write_lane()
+    {
+        var catalog = new PinnedCommandCatalog();
+
+        Assert.All(PinnedCommandCatalog.ConfigWriteActions, x =>
+        {
+            var definition = catalog.Find(x.Type, x.Action)!;
+            Assert.True(definition.KeepsAuditPayload, $"{x.Type}.{x.Action}");
+            Assert.False(definition.AffectsOutputs, $"{x.Type}.{x.Action}");
+            Assert.False(definition.UsesOutputLane, $"{x.Type}.{x.Action}");
+        });
+    }
+
+    // Named one by one, not read from the open lists: opening a config write such as a Wi-Fi or
+    // broker setting would otherwise start storing its password in the audit table with every
+    // test still green. A new name here needs its payload checked for secrets first.
+    [Fact]
+    public void Only_actions_known_to_carry_no_secret_keep_their_audit_payload()
+    {
+        string[] expected =
+        [
+            "adc.set_channel", "adc.toggle_channel",
+            "control.pulse", "control.set_output",
+            "system.reboot", "system.set_hostname", "system.set_timezone", "system.sync_ntp"
+        ];
+
+        var actual = new PinnedCommandCatalog().List()
+            .Where(x => x.KeepsAuditPayload)
+            .Select(x => $"{x.Type}.{x.Action}")
+            .Order(StringComparer.Ordinal);
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void Reads_and_unopened_writes_declare_no_behaviour()
+    {
+        var rows = new PinnedCommandCatalog().List();
+        var plain = rows.Where(x =>
+            x.Class == CommandClass.Read ||
+            (x.Class is CommandClass.Write or CommandClass.Control &&
+             !PinnedCommandCatalog.ConfigWriteActions.Contains((x.Type, x.Action)))).ToArray();
+
+        Assert.Equal(58 + 18 + 17 - PinnedCommandCatalog.ConfigWriteActions.Count, plain.Length);
+        Assert.All(plain, x => Assert.False(
+            x.KeepsAuditPayload || x.AffectsOutputs || x.UsesOutputLane, $"{x.Type}.{x.Action}"));
+    }
+
+    [Fact]
+    public void Behaviour_flags_are_consistent_with_class_and_availability()
+    {
+        var rows = new PinnedCommandCatalog().List();
+
+        // The output lane is the relay panel's own serialization: nothing else may skip the write lane.
+        Assert.All(rows.Where(x => x.UsesOutputLane), x => Assert.True(
+            x.Class == CommandClass.Physical && x.AffectsOutputs, $"{x.Type}.{x.Action}"));
+        // A payload is stored only for an action someone reviewed and opened.
+        Assert.All(rows.Where(x => x.KeepsAuditPayload), x => Assert.True(
+            x.Availability == CommandAvailability.Enabled, $"{x.Type}.{x.Action}"));
+    }
+
+    // The list opens class B rows; relay behaviour is derived from the row being a control row.
+    // A non-relay row here would need its own payload, lane and stale rules first.
+    [Fact]
+    public void Opened_physical_actions_are_all_relay_outputs()
+    {
+        Assert.All(PinnedCommandCatalog.PhysicalOutputActions, x => Assert.Equal("control", x.Type));
+    }
+
     [Fact]
     public void Pinned_catalog_exposes_53_firmware_permissions_and_6_config_domains()
     {

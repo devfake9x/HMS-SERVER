@@ -2,6 +2,7 @@ using Hms.Server.Application.DeviceLink;
 using Hms.Server.Infrastructure.Persistence;
 using Hms.Server.Infrastructure.Persistence.Migrations;
 using Hms.Server.Infrastructure;
+using Hms.Server.Infrastructure.Commands;
 using Hms.Server.Application.Authorization;
 using Hms.Server.Application.Management;
 using Hms.Server.Application.Realtime;
@@ -250,8 +251,7 @@ public sealed class PersistenceModelTests
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(nameof(Ef_command_audit_fails_what_a_previous_run_left_unfinished_and_keeps_device_outcomes))
             .Options;
-        var definition = new CommandDefinition(
-            "control", "set_output", "gpio.do_write", CommandAvailability.Enabled, false, false, 10_000, CommandClass.Physical);
+        var definition = Catalog.Find("control", "set_output")!;
         CommandExecutionPlan Plan(string id) => new(
             new DeviceCommandRequest(DeviceId.New(), new UserId(Guid.NewGuid()), "control", "set_output",
                 new Dictionary<string, object?> { ["channel"] = 1, ["value"] = true }, id, DateTimeOffset.UtcNow),
@@ -281,9 +281,11 @@ public sealed class PersistenceModelTests
         }
     }
 
-    private static readonly CommandDefinition RebootDefinition = new(
-        "system", "reboot", "sys.reboot", CommandAvailability.Enabled, true, false, 60_000, CommandClass.Flash,
-        ConfirmTemplate: "REBOOT-<DEVID>", DryRunSupported: true);
+    // Audit behaviour is declared per action in the catalog, so audit tests use its definitions.
+    private static readonly PinnedCommandCatalog Catalog = new();
+    private static readonly CommandDefinition RebootDefinition = Catalog.Find("system", "reboot")!;
+    private static CommandDefinition Opened(string type, string action) =>
+        Catalog.Find(type, action)! with { Availability = CommandAvailability.Enabled };
 
     private static CommandExecutionPlan RebootPlan(string id, bool dryRun) => new(
         new DeviceCommandRequest(DeviceId.New(), new UserId(Guid.NewGuid()), "system", "reboot",
@@ -470,7 +472,7 @@ public sealed class PersistenceModelTests
             new Dictionary<string, object?> { ["channel"] = 1, ["duration_ms"] = 1000 }, "relay-pulse", DateTimeOffset.UtcNow);
         var plan = new CommandExecutionPlan(
             request,
-            new CommandDefinition("control", "pulse", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical),
+            Catalog.Find("control", "pulse")!,
             1, request.RequestedAt.AddSeconds(10));
         var audit = new EfCommandAuditStore(db);
 
@@ -498,9 +500,7 @@ public sealed class PersistenceModelTests
         async Task<CommandAuditRecord> WriteAsync(string type, string action, string id, Dictionary<string, object?> payload)
         {
             var request = new DeviceCommandRequest(device, new UserId(Guid.NewGuid()), type, action, payload, id, DateTimeOffset.UtcNow);
-            var plan = new CommandExecutionPlan(request,
-                new CommandDefinition(type, action, "x.edit", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Write),
-                1, request.RequestedAt.AddSeconds(10));
+            var plan = new CommandExecutionPlan(request, Opened(type, action), 1, request.RequestedAt.AddSeconds(10));
             await audit.ReserveAsync(plan, CommandRequestFingerprint.Compute(request));
             await audit.RecordAsync(plan, new CommandExecutionResult(CommandExecutionStatus.Executed, "DEVICE_EXECUTED", id));
             return await db.CommandAudits.AsNoTracking().SingleAsync(x => x.CorrelationId == id);
@@ -512,6 +512,29 @@ public sealed class PersistenceModelTests
 
         Assert.Contains("\"hostname\":\"gw-t\"", hostname.PayloadSummary);
         Assert.Null(other.PayloadSummary);
+    }
+
+    [Theory]
+    [InlineData("sms", "send")]
+    [InlineData("sms", "delete")]
+    [InlineData("control", "set_all")]
+    [InlineData("system", "factory_reset")]
+    public async Task Ef_command_audit_stores_no_payload_for_an_action_the_catalog_has_not_cleared(string type, string action)
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"{nameof(Ef_command_audit_stores_no_payload_for_an_action_the_catalog_has_not_cleared)}-{type}-{action}")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        var audit = new EfCommandAuditStore(db);
+        // A phone number and a message text are personal data: opening the action must not start storing them.
+        var request = new DeviceCommandRequest(new DeviceId(Guid.NewGuid()), new UserId(Guid.NewGuid()), type, action,
+            new Dictionary<string, object?> { ["phone"] = "+84900000000", ["message"] = "never-stored" }, "uncleared", DateTimeOffset.UtcNow);
+        var plan = new CommandExecutionPlan(request, Opened(type, action), 1, request.RequestedAt.AddSeconds(10));
+
+        await audit.ReserveAsync(plan, CommandRequestFingerprint.Compute(request));
+        await audit.RecordAsync(plan, new CommandExecutionResult(CommandExecutionStatus.Executed, "DEVICE_EXECUTED", "uncleared"));
+
+        Assert.Null((await db.CommandAudits.AsNoTracking().SingleAsync(x => x.CorrelationId == "uncleared")).PayloadSummary);
     }
 
     [Fact]

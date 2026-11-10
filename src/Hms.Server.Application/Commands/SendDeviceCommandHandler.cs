@@ -153,7 +153,7 @@ public sealed class SendDeviceCommandHandler(
         // A write is signed with server time. A client time up to 60 s ahead would keep it valid on
         // the device (spec §3) long after the write lane let the next one through and the operator
         // read the state back.
-        if (CommandLanes.IsWrite(definition.Class))
+        if (CommandLanes.IsWrite(definition))
             request = request with { RequestedAt = DateTimeOffset.UtcNow };
 
         if (request.RequestedAt > DateTimeOffset.UtcNow.AddSeconds(60))

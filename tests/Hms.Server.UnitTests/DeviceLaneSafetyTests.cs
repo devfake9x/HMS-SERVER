@@ -21,8 +21,11 @@ public sealed class DeviceLaneSafetyTests
 {
     private static readonly CommandDefinition GetInfo = new(
         "system", "get_info", "sys.info_view", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Read);
-    private static readonly CommandDefinition SetOutput = new(
-        "control", "set_output", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical);
+    // Catalog definitions carry the behaviour the server reads, so these come from the real catalog.
+    private static readonly PinnedCommandCatalog Catalog = new();
+    private static readonly CommandDefinition SetOutput = Catalog.Find("control", "set_output")!;
+    private static CommandDefinition Opened(string type, string action) =>
+        Catalog.Find(type, action)! with { Availability = CommandAvailability.Enabled };
     private static readonly CommandDefinition GetStatus = new(
         "control", "get_status", "gpio.do_view", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Read);
     private static readonly CommandDefinition SetHostname = new(
@@ -60,6 +63,42 @@ public sealed class DeviceLaneSafetyTests
         pending.Remove(deviceA, first.Request.CorrelationId);
         var next = Plan(deviceA, SyncNtp);
         Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(next, Prepared(next))).Status);
+    }
+
+    [Theory]
+    [InlineData("control", "set_output", false)]
+    [InlineData("control", "pulse", false)]
+    [InlineData("control", "get_status", false)]
+    [InlineData("system", "get_info", false)]
+    // Only the two relay actions skip the write lane; the rest of class B waits its turn.
+    [InlineData("sms", "send", true)]
+    [InlineData("sms", "delete", true)]
+    [InlineData("control", "set_all", true)]
+    [InlineData("control", "force_set", true)]
+    [InlineData("system", "reboot", true)]
+    [InlineData("adc", "set_channel", true)]
+    [InlineData("system", "set_hostname", true)]
+    public void Every_command_but_reads_and_relay_outputs_takes_the_write_lane(string type, string action, bool write) =>
+        Assert.Equal(write, CommandLanes.IsWrite(Catalog.Find(type, action)!));
+
+    [Fact]
+    public async Task A_second_sms_waits_for_the_first_like_any_other_write()
+    {
+        var pending = new InMemoryPendingDeviceCommandRegistry();
+        var publisher = new CountingPublisher();
+        var transport = new MqttDeviceCommandTransport(publisher, pending, Options(maxReads: 4), new InMemoryDeviceRebootTracker());
+        var device = DeviceId.New();
+        var first = Plan(device, Opened("sms", "send"));
+        Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(first, Prepared(first))).Status);
+
+        var second = Plan(device, Opened("sms", "send"));
+        var refused = await transport.SendAsync(second, Prepared(second));
+
+        Assert.Equal(MqttDeviceCommandTransport.WriteBusy, refused.Code);
+        Assert.Equal(1, publisher.Count);
+        // The relay panel is still free while the SMS waits.
+        var relay = Plan(device, SetOutput);
+        Assert.Equal(CommandExecutionStatus.Published, (await transport.SendAsync(relay, Prepared(relay))).Status);
     }
 
     [Fact]

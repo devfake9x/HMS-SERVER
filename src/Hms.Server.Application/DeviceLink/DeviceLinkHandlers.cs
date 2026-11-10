@@ -81,7 +81,7 @@ public sealed class DeviceCommandResponseCorrelator(
 
         // A write the device took as a still-running job keeps the lane closed for a while. Held
         // before the removal below, so no other write can slip in between.
-        if (result.Status == CommandExecutionStatus.Acknowledged && CommandLanes.IsWrite(plan.Definition.Class))
+        if (result.Status == CommandExecutionStatus.Acknowledged && CommandLanes.IsWrite(plan.Definition))
             pending.HoldWriteLane(deviceId, receivedAt + RunningJobWriteHold);
 
         if (!pending.Remove(deviceId, id))
@@ -136,7 +136,7 @@ public sealed class DeviceCommandResponseCorrelator(
             try
             {
                 // No reply does not mean the command did not run (spec R4).
-                if (projection is not null && command.Plan.Definition.Class == Domain.Commands.CommandClass.Physical)
+                if (projection is not null && command.Plan.Definition.AffectsOutputs)
                     await projection.MarkStaleAsync(command.Plan.Request.DeviceId, OutputStaleReasons.OutputCommandOutcomeUnknown, cancellationToken);
                 var result = new CommandExecutionResult(
                     CommandExecutionStatus.Failed,

@@ -21,8 +21,11 @@ public sealed class DeviceOutputStateTests
 {
     private static readonly CommandDefinition GetStatus = new(
         "control", "get_status", "gpio.do_view", CommandAvailability.Enabled, false, true, 120_000);
-    private static readonly CommandDefinition SetOutput = new(
-        "control", "set_output", "gpio.do_write", CommandAvailability.Enabled, false, true, 120_000, CommandClass.Physical);
+    // Catalog definitions carry the behaviour the server reads, so these come from the real catalog.
+    private static readonly PinnedCommandCatalog Catalog = new();
+    private static readonly CommandDefinition SetOutput = Catalog.Find("control", "set_output")!;
+    private static CommandDefinition Opened(string type, string action) =>
+        Catalog.Find(type, action)! with { Availability = CommandAvailability.Enabled };
 
     private const string SixChannels =
         """{"success":true,"data":{"channels":[{"channel":1,"state":true,"mode":"toggle","totalCommands":3,"pulseCount":0,"pulseActive":false},{"channel":2,"state":false,"mode":"toggle"},{"channel":3,"state":false,"mode":"toggle"},{"channel":4,"state":false,"mode":"toggle"},{"channel":5,"state":false,"mode":"toggle"},{"channel":6,"state":true,"mode":"pulse","pulseActive":true}]}}""";
@@ -205,6 +208,28 @@ public sealed class DeviceOutputStateTests
         Assert.True(state.IsStale);
         Assert.NotNull(state.StaleReason);
         Assert.Equal(6, state.Channels.Count);
+    }
+
+    [Theory]
+    [InlineData("control", "set_all", "reply", true)]
+    [InlineData("control", "force_set", "reply", true)]
+    [InlineData("control", "set_config", "timeout", true)]
+    // Class B is not only relays: an SMS changes no output.
+    [InlineData("sms", "send", "reply", false)]
+    [InlineData("sms", "send", "timeout", false)]
+    [InlineData("sms", "delete", "reply", false)]
+    public async Task Only_a_command_that_can_change_an_output_turns_the_state_stale(string type, string action, string trigger, bool stale)
+    {
+        var link = new Link();
+        await link.Correlator.HandleAsync(link.Device.Id, link.SignedReply(await link.PublishedAsync(GetStatus), SixChannels), DateTimeOffset.UtcNow);
+        var command = await link.PublishedAsync(Opened(type, action));
+
+        if (trigger == "reply")
+            await link.Correlator.HandleAsync(link.Device.Id, link.SignedReply(command, """{"success":true,"data":{}}"""), DateTimeOffset.UtcNow);
+        else
+            await link.Correlator.SweepExpiredAsync(DateTimeOffset.UtcNow.AddMinutes(5));
+
+        Assert.Equal(stale, link.Outputs.Get(link.Device.Id)!.IsStale);
     }
 
     [Fact]

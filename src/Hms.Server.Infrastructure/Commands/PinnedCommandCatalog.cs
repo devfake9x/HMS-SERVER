@@ -85,6 +85,9 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
     // firmware campaign by owner decision (2026-11-06): §6.4 defines its contract and every result
     // is confirmed by a control.get_status read-back. set_all stays closed: it is not atomic.
     // OutputCommandPolicy gates these before signing; it fails closed for any other class B row.
+    // This list opens class B rows. Relay behaviour (output lane, stored payload) applies only to
+    // the control rows in it, so every entry must be a control row: another class B action
+    // (sms.send) needs its own payload, lane and stale rules before it may open.
     public static readonly FrozenSet<(string Type, string Action)> PhysicalOutputActions =
         new HashSet<(string Type, string Action)>
         {
@@ -257,6 +260,12 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             _ => false
         };
         var availability = opened ? CommandAvailability.Enabled : CommandAvailability.DeniedUntilActionContract;
+        // Behaviour is stated per action. Relay behaviour needs the control type as well as the
+        // list: the list is also what opens a class B row, and the audit payload is written before
+        // OutputCommandPolicy refuses a row it does not know.
+        var key = (row.Type, row.Action);
+        var affectsOutputs = commandClass == CommandClass.Physical && row.Type == "control";
+        var isRelay = affectsOutputs && PhysicalOutputActions.Contains(key);
         return new CommandDefinition(
             row.Type,
             row.Action,
@@ -268,7 +277,10 @@ public sealed class PinnedCommandCatalog : ICommandCatalog, ICommandCatalogMetad
             Class: commandClass,
             PermissionByDomain: row.DomainPolicy ? permissionByDomain : null,
             ConfirmTemplate: row.ConfirmTemplate,
-            DryRunSupported: row.DryRun);
+            DryRunSupported: row.DryRun,
+            KeepsAuditPayload: isRelay || ConfigWriteActions.Contains(key) || FlashActions.Contains(key),
+            AffectsOutputs: affectsOutputs,
+            UsesOutputLane: isRelay);
     }
 
     // Spec §11 takes a permission from the config-domain table only for config.get and
