@@ -1,4 +1,5 @@
 - [Device contract via spec only](reference_firmware_c_oracle.md) — use mqtt-api.md, never firmware source; scratch-only probing; fixtures write by default; ValueEquals probe pitfall
-- [HMS review workflow](reference_hms_review_workflow.md) — git in worktrees, mtime otherwise; concurrent edits mid-review; scratch gates; tester mutate.js; EF DI probe; Mqtt__Enabled env in execSync
+- [HMS review workflow](reference_hms_review_workflow.md) — worktree git; concurrent edits; scratch gates; mutate.js; EF DI probe; shared scratchpad; catalog recount
 - [Device write review heuristics](reference_device_write_review_heuristics.md) — confirm bypasses gate; lane holds; sweep thread; SIM_SILENT; paired error maps; VTU disabled click; GetString surrogate
-- [Authz probe heuristics](reference_authz_probe_heuristics.md) — U+017F role bypass; store-hook TOCTOU; chain capture, depth cap, demoted link
+- [Authz probe heuristics](reference_authz_probe_heuristics.md) — U+017F role bypass; store-hook TOCTOU; chain capture, depth cap; high-risk is grant-time only
+- [Catalog re-pin review](reference_catalog_repin_review.md) — pin reachability; §6 drift of open rows; HighRisk shrink on rollback; in-memory replies wiped by restart
